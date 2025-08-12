@@ -1,45 +1,114 @@
-import React, { useState } from 'react';
-import { Alert } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { useAuth } from '../state/AuthProvider';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Keyboard, TouchableWithoutFeedback, Alert, Pressable } from 'react-native';
 import Screen from '../components/Screen';
 import { Card, Input, Button } from '../components/ui';
-import { colors, typography } from '../theme';
+import { supabase } from '../services/supabase';
+import { useHaptics } from '../hooks/useHaptics';
+import { useTheme } from '../state/ThemeProvider';
 
 export default function AuthScreen() {
-  const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<'login'|'register'>('login');
-  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [username, setUsername] = useState('');
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
+  const [busy, setBusy] = useState(false);
+  const h = useHaptics();
+  const { colors, spacing, typography } = useTheme();
 
-  async function handle() {
-    if (!email || !password || (mode === 'register' && !username)) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      return Alert.alert('Atenção', 'Preencha os campos obrigatórios.');
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        center: { flex: 1, justifyContent: 'center', gap: spacing.md },
+        switch: { color: colors.accent, fontWeight: '700', textAlign: 'center', marginTop: spacing.sm },
+        muted: { color: colors.muted, textAlign: 'center' },
+      }),
+    [colors, spacing]
+  );
+
+  function isValidEmail(v: string) {
+    return /\S+@\S+\.\S+/.test(v);
+  }
+
+  async function handleAuth() {
+    if (!email || !pass) {
+      h.warning();
+      return Alert.alert('Atenção', 'Preencha e-mail e senha.');
     }
+    if (!isValidEmail(email)) {
+      h.warning();
+      return Alert.alert('Atenção', 'E-mail inválido.');
+    }
+    if (pass.length < 6) {
+      h.warning();
+      return Alert.alert('Atenção', 'A senha deve ter ao menos 6 caracteres.');
+    }
+
+    setBusy(true);
     try {
-      if (mode === 'login') await signIn(email, password);
-      else await signUp(email, password, username);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e:any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', e.message);
+      if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        if (error) throw error;
+      } else {
+        // Assumindo que a verificação por e-mail está DESATIVADA nas policies do seu projeto
+        const { error } = await supabase.auth.signUp({ email, password: pass, options: { emailRedirectTo: undefined } });
+        if (error) throw error;
+      }
+      h.success();
+      // A navegação pós-login é cuidada pelo AuthProvider (onAuthStateChange)
+    } catch (e: any) {
+      h.error();
+      const msg: string = e?.message || 'Falha na autenticação';
+      const friendly =
+        /already|registered|exists/i.test(msg)
+          ? 'Este e-mail já está cadastrado.'
+          : /invalid login credentials/i.test(msg)
+          ? 'E-mail ou senha incorretos.'
+          : msg;
+      Alert.alert('Erro', friendly);
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
     <Screen>
-      <Card>
-        <Text style={typography.h1 as any}>{mode === 'login' ? 'Entrar' : 'Cadastrar'}</Text>
-        {mode === 'register' && <Input placeholder="Usuário" value={username} onChangeText={setUsername} />}
-        <Input placeholder="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        <Input placeholder="Senha" value={password} onChangeText={setPassword} secureTextEntry />
-        <Button title={mode === 'login' ? 'Entrar' : 'Cadastrar'} onPress={handle} />
-        <Text onPress={() => setMode(mode === 'login' ? 'register' : 'login')} style={{ color: colors.accent, fontWeight: '700', marginTop: 10, textAlign: 'center' }}>
-          {mode === 'login' ? 'Criar conta' : 'Já tenho conta'}
-        </Text>
-      </Card>
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <View style={styles.center}>
+          <Text style={typography.h1}>{mode === 'login' ? 'Entrar' : 'Criar conta'}</Text>
+
+          <Card style={{ gap: spacing.sm }}>
+            <Input
+              value={email}
+              onChangeText={setEmail}
+              placeholder="E-mail"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+            <Input
+              value={pass}
+              onChangeText={setPass}
+              placeholder="Senha"
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="password"
+            />
+
+            <Button title={mode === 'login' ? 'Entrar' : 'Cadastrar'} loading={busy} onPress={handleAuth} />
+
+            <Pressable onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+              <Text style={styles.switch}>
+                {mode === 'login' ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Entre'}
+              </Text>
+            </Pressable>
+
+            {mode === 'signup' && (
+              <Text style={styles.muted}>
+                Dica: se aparecer “e-mail já cadastrado”, use **Entrar**.
+              </Text>
+            )}
+          </Card>
+        </View>
+      </TouchableWithoutFeedback>
     </Screen>
   );
 }
-
-import { Text } from 'react-native';

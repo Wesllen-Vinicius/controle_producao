@@ -1,197 +1,210 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import Screen from '../components/Screen';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { Card, Chip, Input, Button, KPI, EmptyState } from '../components/ui';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../state/AuthProvider';
-import { colors, spacing, typography } from '../theme';
-import { Button, Card, Chip, EmptyState, Input, Skeleton } from '../components/ui';
 import { useToast } from '../state/ToastProvider';
-import { useNavigation } from '@react-navigation/native';
+import { useHaptics } from '../hooks/useHaptics';
+import SkeletonList from '../components/SkeletonList';
+import DateRangePicker from '../components/DateRangePicker';
+import { useTheme } from '../state/ThemeProvider';
 
-type Product = { id: string; name: string; unit: 'UN'|'KG' };
-type BalanceRow = { product_id: string; saldo: number; updated_at: string; products: Product };
-type Tx = { id: string; product_id: string; quantity: number; unit: string; tx_type: string; created_at: string; source_production_id: string|null };
-
-const toNum = (v: string) => { const n = parseFloat((v || '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
+type Product = { id: string; name: string; unit: 'UN' | 'KG' };
+type Balance = { product_id: string; saldo: number; updated_at: string; name?: string | null; unit?: string | null };
+type Tx = { id: string; product_id: string; quantity: number; unit: string; tx_type: string; created_at: string; source_production_id: string | null };
 
 export default function EstoqueScreen() {
   const { session } = useAuth();
-  const nav = useNavigation<any>();
   const { showToast } = useToast();
+  const h = useHaptics();
+  const { colors, spacing, typography } = useTheme();
 
   const [products, setProducts] = useState<Product[] | null>(null);
-  const [balances, setBalances] = useState<BalanceRow[] | null>(null);
+  const [balances, setBalances] = useState<Balance[] | null>(null);
   const [txs, setTxs] = useState<Tx[] | null>(null);
 
-  // filtros
-  const [filterProduct, setFilterProduct] = useState<string|undefined>();
-  const [filterType, setFilterType] = useState<'entrada'|'saida'|'ajuste'|'transferencia'|'venda'|undefined>();
+  const [selProd, setSelProd] = useState<string | null>(null);
+  const [selType, setSelType] = useState<'carregamento'|'saida'|'ajuste'|'transferencia'|'venda'>('saida');
+  const [qty, setQty] = useState<string>('');
   const [from, setFrom] = useState(''); const [to, setTo] = useState('');
+  const [filterType, setFilterType] = useState<'entrada'|'saida'|'ajuste'|'transferencia'|'venda'|undefined>();
 
-  // lançamento
-  const [selProduct, setSelProduct] = useState<string|undefined>();
-  const [kind, setKind] = useState<'entrada'|'saida'|'ajuste'|'transferencia'|'venda'>('saida');
-  const [qty, setQty] = useState('');
+  const styles = useMemo(() => StyleSheet.create({
+    rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    txTitle: { color: colors.text, fontWeight: '800' as const },
+    txSub: { color: colors.muted, marginTop: 4, fontSize: 12 },
+  }), [colors, spacing]);
 
   const loadProducts = useCallback(async () => {
-    const { data } = await supabase.from('products').select('id,name,unit').order('name');
+    const { data, error } = await supabase.from('products').select('id,name,unit').order('name');
+    if (error) { Alert.alert('Erro', error.message); return; }
     setProducts((data as Product[]) || []);
   }, []);
 
   const loadBalances = useCallback(async () => {
-    const { data, error } = await supabase.from('inventory_balances').select('product_id, saldo, updated_at, products ( id, name, unit )');
-    if (error) console.warn(error.message);
-    setBalances((data as any) || []);
-  }, []);
+    const { data, error } = await supabase.from('inventory_balances').select('product_id,saldo,updated_at');
+    if (error) { Alert.alert('Erro', error.message); return; }
+    const prods = (products || []) as Product[];
+    const byId = new Map(prods.map(p => [p.id, p]));
+    const enriched: Balance[] = ((data as any) || []).map((b: any) => ({
+      product_id: b.product_id,
+      saldo: b.saldo,
+      updated_at: b.updated_at,
+      name: byId.get(b.product_id)?.name ?? null,
+      unit: byId.get(b.product_id)?.unit ?? null,
+    }));
+    setBalances(enriched);
+  }, [products]);
 
   const loadTxs = useCallback(async () => {
     setTxs(null);
-    let q = supabase.from('inventory_transactions').select('*').order('created_at', { ascending: false }).limit(200);
-    if (filterProduct) q = q.eq('product_id', filterProduct);
-    if (filterType)   q = q.eq('tx_type', filterType);
-    if (from)         q = q.gte('created_at', from);
-    if (to)           q = q.lte('created_at', to);
+    let q = supabase.from('inventory_transactions').select('id,product_id,quantity,unit,tx_type,created_at,source_production_id')
+      .order('created_at', { ascending: false }).limit(120);
+    if (selProd) q = q.eq('product_id', selProd);
+    if (filterType) q = q.eq('tx_type', filterType);
+    if (from) q = q.gte('created_at', from);
+    if (to) q = q.lte('created_at', to);
     const { data, error } = await q;
-    if (error) console.warn(error.message);
+    if (error) { Alert.alert('Erro', error.message); return; }
     setTxs((data as Tx[]) || []);
-  }, [filterProduct, filterType, from, to]);
+  }, [selProd, filterType, from, to]);
 
-  useEffect(()=>{ loadProducts(); loadBalances(); }, [loadProducts, loadBalances]);
-  useEffect(()=>{ loadTxs(); }, [loadTxs]);
+  useEffect(() => { loadProducts(); }, [loadProducts]);
+  useEffect(() => { if (products) loadBalances(); }, [products, loadBalances]);
+  useEffect(() => { loadTxs(); }, [loadTxs]);
 
   async function addTx() {
-    if (!session) return;
-    const product_id = selProduct; let quantity = toNum(qty);
-    if (!product_id || !quantity) return;
+    if (!session) return Alert.alert('Login necessário');
+    if (!selProd) { h.warning(); return Alert.alert('Selecione um produto'); }
+    const q = parseFloat(qty || '0'); if (!q) { h.warning(); return; }
+    const unit = (products || []).find(p => p.id === selProd)?.unit || 'UN';
 
-    const unit = (products || []).find(p=>p.id===product_id)?.unit || 'UN';
-    if (unit === 'UN') quantity = Math.floor(Math.max(0, quantity));
-
-    // otimista
-    const optimistic: Tx = { id: 'tmp-'+Date.now(), product_id, quantity, unit, tx_type: kind, created_at: new Date().toISOString(), source_production_id: null };
+    // Otimista
+    const optimistic: Tx = {
+      id: 'tmp-' + Date.now(), product_id: selProd, quantity: q, unit,
+      tx_type: selType === 'carregamento' ? 'entrada' : selType, created_at: new Date().toISOString(), source_production_id: null
+    };
     setTxs(prev => [optimistic, ...(prev || [])]);
-    setQty(undefined as any); setQty('');
+    setQty('');
 
     try {
       const { data, error } = await supabase.from('inventory_transactions').insert({
-        product_id, quantity, unit, tx_type: kind, created_by: session.user.id, source_production_id: null
+        product_id: optimistic.product_id,
+        quantity: optimistic.quantity,
+        unit: optimistic.unit,
+        tx_type: optimistic.tx_type,
+        created_by: session.user.id,
+        source_production_id: null
       } as any).select().single();
-      if (error) throw new Error(error.message);
+      if (error) throw error;
 
-      // substitui otimista pelo real
-      setTxs(prev => (prev || []).map(t => t.id === optimistic.id ? data as any : t));
+      const real = data as Tx;
+      setTxs(prev => (prev || []).map(t => t.id === optimistic.id ? real : t));
+      h.success();
       showToast({
         type: 'success',
         message: 'Movimentação registrada.',
         actionLabel: 'Desfazer',
         onAction: async () => {
-          // apaga o registro real
-          await supabase.from('inventory_transactions').delete().eq('id', (data as any).id);
-          loadBalances(); loadTxs();
-        },
+          await supabase.from('inventory_transactions').delete().eq('id', real.id);
+          await loadBalances(); await loadTxs();
+        }
       });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      loadBalances();
-    } catch (e:any) {
-      // reverte otimista
+      await loadBalances();
+    } catch (e: any) {
+      h.error();
       setTxs(prev => (prev || []).filter(t => t.id !== optimistic.id));
-      showToast({ type: 'error', message: e.message || 'Erro ao registrar' });
+      Alert.alert('Erro', e.message ?? 'Falha ao registrar');
     }
   }
 
-  return (
-    <Screen>
-      <Text style={typography.h1 as any}>Estoque</Text>
+  function quickRange(k: '7d'|'30d'|'month') {
+    const now = new Date();
+    let f = new Date();
+    if (k === '7d') f.setDate(now.getDate() - 7);
+    if (k === '30d') f.setDate(now.getDate() - 30);
+    if (k === 'month') f = new Date(now.getFullYear(), now.getMonth(), 1);
+    setFrom(f.toISOString().slice(0, 10));
+    setTo(now.toISOString().slice(0, 10));
+  }
 
-      {/* DASHBOARD: saldos */}
+  const Header = (
+    <View style={{ gap: spacing.md }}>
+      <Text style={typography.h1}>Estoque</Text>
+
       {balances === null ? (
-        <View style={styles.cards}>
-          <Skeleton height={86} radius={12} style={{ width: '48%' }} />
-          <Skeleton height={86} radius={12} style={{ width: '48%' }} />
-        </View>
+        <SkeletonList rows={2} height={70} />
       ) : balances.length === 0 ? (
         <EmptyState title="Sem saldos ainda" />
       ) : (
-        <View style={styles.cards}>
-          {balances.map(b=>{
-            const p = b.products;
-            return (
-              <Card key={b.product_id} style={{ minWidth: '48%', flexGrow: 1 }}>
-                <Text style={{ color: colors.muted, fontWeight: '700' }}>{p.name}</Text>
-                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 20, marginTop: 4 }}>{b.saldo} {p.unit}</Text>
-                <Text style={{ color: '#74808A', marginTop: 4, fontSize: 12 }}>Atualizado: {new Date(b.updated_at).toLocaleDateString()}</Text>
-              </Card>
-            );
-          })}
-        </View>
-      )}
-
-      {/* MOVIMENTAÇÃO MANUAL */}
-      <Text style={[typography.h1 as any, { marginTop: spacing.md }]}>Movimentar</Text>
-      <Card>
-        <View style={{ flexDirection:'row', flexWrap:'wrap' }}>
-          {(products || []).map(p => <Chip key={p.id} label={p.name} active={selProduct === p.id} onPress={()=>setSelProduct(p.id)} />)}
-        </View>
-        <View style={{ flexDirection:'row', flexWrap:'wrap' }}>
-          {(['entrada','saida','ajuste','transferencia','venda'] as const).map(t => (
-            <Chip key={t} label={t === 'entrada' ? 'carregamento' : t} active={filterType===t && kind===t ? true : kind===t} onPress={()=>setKind(t)} />
+        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
+          {balances.map(b => (
+            <KPI key={b.product_id} label={`${b.name ?? 'Produto'}${b.unit ? ` (${b.unit})` : ''}`} value={b.saldo} />
           ))}
         </View>
-        <View style={{ flexDirection:'row', gap: 8 }}>
-          <Input value={qty} onChangeText={setQty} placeholder="Quantidade" keyboardType="numeric" style={{ flex: 1 }} />
-          <Button title="Registrar" small onPress={addTx} />
-        </View>
-      </Card>
-
-      {/* FILTROS HISTÓRICO */}
-      <Text style={[typography.h1 as any, { marginTop: spacing.md }]}>Histórico</Text>
-      <Card>
-        <View style={{ flexDirection:'row', flexWrap:'wrap' }}>
-          {(products || []).map(p => <Chip key={p.id} label={p.name} active={filterProduct === p.id} onPress={()=>setFilterProduct(filterProduct===p.id?undefined:p.id)} />)}
-        </View>
-        <View style={{ flexDirection:'row', flexWrap:'wrap' }}>
-          {(['entrada','saida','ajuste','transferencia','venda'] as const).map(t => <Chip key={t} label={t==='entrada'?'carregamento':t} active={filterType===t} onPress={()=>setFilterType(filterType===t?undefined:t)} />)}
-        </View>
-        <View style={{ flexDirection:'row', gap: 8 }}>
-          <Input value={from} onChangeText={setFrom} placeholder="De (YYYY-MM-DD)" style={{ flex: 1 }} />
-          <Input value={to}   onChangeText={setTo}   placeholder="Até (YYYY-MM-DD)" style={{ flex: 1 }} />
-          <Button title="Filtrar" small onPress={loadTxs} />
-        </View>
-      </Card>
-
-      {/* LISTA */}
-      {txs === null ? (
-        <>
-          <Skeleton height={80} radius={12} style={{ marginTop: 8 }} />
-          <Skeleton height={80} radius={12} style={{ marginTop: 8 }} />
-        </>
-      ) : txs.length === 0 ? (
-        <EmptyState title="Nenhuma movimentação" />
-      ) : (
-        <FlatList
-          data={txs}
-          keyExtractor={(i)=>i.id}
-          contentContainerStyle={{ paddingBottom: 28 }}
-          renderItem={({item})=>{
-            const p = (products || []).find(pp=>pp.id===item.product_id);
-            return (
-              <Card style={{ marginTop: 8 }}>
-                <Text style={{ color:'#fff', fontWeight:'700' }}>
-                  {(item.tx_type === 'entrada' ? 'CARREGAMENTO' : item.tx_type.toUpperCase())} • {p?.name} • {item.quantity}{p?.unit}
-                </Text>
-                <Text style={{ color: colors.muted, marginTop: 2, fontSize: 12 }}>{new Date(item.created_at).toLocaleString()}</Text>
-                {item.source_production_id ? <Text style={{ color: colors.muted, marginTop: 2, fontSize: 12 }}>Origem: Produção</Text> : null}
-                <Button title="Abrir modal" small onPress={()=>nav.navigate('TransactionDetails', { id: item.id })} />
-              </Card>
-            );
-          }}
-        />
       )}
+
+      <Text style={typography.h2}>Movimentar</Text>
+      <Card style={{ gap: spacing.sm }}>
+        <View style={styles.rowWrap}>
+          {(products || []).map(p => (
+            <Chip key={p.id} label={p.name} active={selProd === p.id} onPress={() => (setSelProd(p.id), h.tap())} />
+          ))}
+        </View>
+        <View style={styles.rowWrap}>
+          {(['carregamento','saida','ajuste','transferencia','venda'] as const).map(t => (
+            <Chip key={t} label={t} active={selType === t} onPress={() => (setSelType(t), h.tap())} />
+          ))}
+        </View>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Input value={qty} onChangeText={setQty} placeholder="Quantidade" keyboardType="numeric" />
+          </View>
+          <View style={{ width: 140 }}>
+            <Button title="Registrar" onPress={addTx} />
+          </View>
+        </View>
+      </Card>
+
+      <Text style={typography.h2}>Histórico</Text>
+      <Card style={{ gap: spacing.sm }}>
+        <View style={styles.rowWrap}>
+          <Chip label="Todos" active={!filterType} onPress={() => (setFilterType(undefined), h.tap())} />
+          {(['entrada','saida','ajuste','transferencia','venda'] as const).map(t => (
+            <Chip key={t} label={t} active={filterType === t} onPress={() => (setFilterType(t), h.tap())} />
+          ))}
+        </View>
+        <DateRangePicker from={from} to={to} onFrom={setFrom} onTo={setTo} onQuick={quickRange} />
+        <Button title="Filtrar" small onPress={loadTxs} />
+      </Card>
+
+      <Text style={typography.h2}>Movimentos</Text>
+    </View>
+  );
+
+  return (
+    <Screen padded>
+      <FlatList
+        data={txs || []}
+        keyExtractor={(i) => i.id}
+        ListHeaderComponent={Header}
+        ListEmptyComponent={txs === null ? <SkeletonList rows={3} /> : <EmptyState title="Nenhuma movimentação" />}
+        renderItem={({ item }) => {
+          const prod = (products || []).find(p => p.id === item.product_id);
+          return (
+            <Card>
+              <Text style={styles.txTitle}>
+                {(item.tx_type === 'entrada' ? 'CARREGAMENTO' : item.tx_type.toUpperCase())}
+                {' • '}{prod?.name ?? 'Produto'} • {item.quantity}{item.unit}
+              </Text>
+              <Text style={styles.txSub}>{new Date(item.created_at).toLocaleString()}</Text>
+              {item.source_production_id && <Text style={styles.txSub}>Origem: Produção</Text>}
+            </Card>
+          );
+        }}
+        contentContainerStyle={{ paddingBottom: spacing.xl, gap: spacing.sm }}
+      />
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  cards:{ flexDirection:'row', flexWrap:'wrap', gap: 8 },
-});

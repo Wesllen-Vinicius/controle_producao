@@ -1,6 +1,6 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme';
+import { useTheme } from '../state/ThemeProvider';
 
 type Toast = {
   id: string;
@@ -11,23 +11,22 @@ type Toast = {
   duration?: number; // ms
 };
 
-type ToastCtx = {
-  showToast: (t: Omit<Toast, 'id'>) => void;
-};
-
+type ToastCtx = { showToast: (t: Omit<Toast, 'id'>) => void };
 const Ctx = createContext<ToastCtx>({ showToast: () => {} });
 
 export const useToast = () => useContext(Ctx);
 
 export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+  const { colors } = useTheme();
   const [current, setCurrent] = useState<Toast | null>(null);
   const timer = useRef<NodeJS.Timeout | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
 
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
   const hide = useCallback(() => {
-    Animated.timing(anim, { toValue: 0, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => {
-      setCurrent(null);
-    });
+    Animated.timing(anim, { toValue: 0, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true })
+      .start(() => setCurrent(null));
   }, [anim]);
 
   const showToast = useCallback((t: Omit<Toast, 'id'>) => {
@@ -40,24 +39,38 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
 
   const value = useMemo(() => ({ showToast }), [showToast]);
 
-  const bg = current?.type === 'success' ? colors.success : current?.type === 'error' ? colors.error : colors.surface;
+  const bg =
+    current?.type === 'success' ? colors.success :
+    current?.type === 'error'   ? colors.danger  :
+    colors.surface;
+
+  const textColor = current?.type ? '#fff' : colors.text;
+  const actionBg  = current?.type ? '#ffffff26' : colors.primaryDim;
+  const actionFg  = current?.type ? '#fff' : colors.text;
 
   return (
     <Ctx.Provider value={value}>
       {children}
+
       {current ? (
         <Animated.View
           pointerEvents="box-none"
           style={[
             styles.wrap,
-            { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }] },
+            {
+              opacity: anim,
+              transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
+            },
           ]}
         >
           <View style={[styles.toast, { backgroundColor: bg, borderColor: colors.line }]}>
-            <Text style={styles.txt}>{current.message}</Text>
+            <Text style={[styles.txt, { color: textColor }]}>{current.message}</Text>
             {current.actionLabel ? (
-              <Pressable onPress={() => { hide(); current.onAction?.(); }} style={styles.action}>
-                <Text style={styles.actionTxt}>{current.actionLabel}</Text>
+              <Pressable
+                onPress={() => { hide(); current.onAction?.(); }}
+                style={[styles.action, { backgroundColor: actionBg }]}
+              >
+                <Text style={[styles.actionTxt, { color: actionFg }]}>{current.actionLabel}</Text>
               </Pressable>
             ) : null}
           </View>
@@ -70,7 +83,7 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 16, right: 16, bottom: 24 },
   toast: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  txt: { color: '#fff', flex: 1, fontWeight: '700' },
-  action: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#ffffff26' },
-  actionTxt: { color: '#fff', fontWeight: '800' },
+  txt: { flex: 1, fontWeight: '700' },
+  action: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  actionTxt: { fontWeight: '800' },
 });

@@ -1,34 +1,27 @@
 import React from 'react';
-import { SafeAreaView, ScrollView, View, StyleSheet, StatusBar, useWindowDimensions, Platform } from 'react-native';
-import { colors, spacing } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, View, StyleSheet, useWindowDimensions } from 'react-native';
+import { useTheme } from '../state/ThemeProvider';
 
-type Props = { children: React.ReactNode; scroll?: boolean };
-export default function Screen({ children, scroll = true }: Props) {
+type Props = { children: React.ReactNode; padded?: boolean };
+
+export default function Screen({ children, padded = true }: Props) {
+  const { colors, spacing } = useTheme();
   const { width } = useWindowDimensions();
   const maxWidth = Math.min(width, 760);
   const horizontal = width >= 480 ? spacing.lg : spacing.md;
-  const topPad = Platform.OS === 'android' ? spacing.md : 0;
-
-  const Container: any = scroll ? ScrollView : View;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      <View style={[styles.center, { paddingHorizontal: horizontal, paddingTop: topPad }]}>
-        <Container
-          style={[styles.container, { width: maxWidth }]}
-          contentContainerStyle={scroll ? { paddingBottom: spacing.xl, gap: spacing.md } : undefined}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </Container>
-      </View>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <View style={[styles.center, { paddingHorizontal: horizontal }]}>
+          <View style={[styles.body, { width: maxWidth, paddingTop: spacing.lg, paddingBottom: padded ? spacing.xl : 0 }]}>
+            {children}
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center' },
-  container: { flexGrow: 1, backgroundColor: colors.background },
-});
+const styles = StyleSheet.create({ flex: { flex: 1 }, safe: { flex: 1 }, center: { flex: 1, alignItems: 'center' }, body: { flex: 1 } });

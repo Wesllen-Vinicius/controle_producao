@@ -1,28 +1,23 @@
 {
   "expo": {
     "name": "Producao & Estoque",
-    "slug": "producao-estoque-app",
-    "scheme": "prodest",
+    "slug": "producao_estoque",
+    "scheme": "producaoestoque",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0b1020"
-    },
-    "ios": {
-      "supportsTablet": true
+      "backgroundColor": "#0B1113"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0b1020"
+        "backgroundColor": "#0B1113"
       }
     },
-    "web": {
-      "bundler": "metro"
-    }
+    "ios": { "supportsTablet": false },
+    "web": { "favicon": "./assets/icon.png" }
   }
 }

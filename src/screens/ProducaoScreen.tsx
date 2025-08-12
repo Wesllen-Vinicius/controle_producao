@@ -1,207 +1,199 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import Screen from '../components/Screen';
+import { Card, Input, Button, KPI, EmptyState } from '../components/ui';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../state/AuthProvider';
-import { colors, spacing, typography } from '../theme';
-import { Button, Card, Chip, EmptyState, Input, KPI, Skeleton } from '../components/ui';
 import { useToast } from '../state/ToastProvider';
-import { useNavigation } from '@react-navigation/native';
+import { useHaptics } from '../hooks/useHaptics';
+import ExpandableCard from '../components/ExpandableCard';
+import SkeletonList from '../components/SkeletonList';
+import DateRangePicker from '../components/DateRangePicker';
+import { useTheme } from '../state/ThemeProvider';
 
-type Product = { id: string; name: string; unit: 'UN'|'KG'; meta_por_animal: number };
-type Production = { id: string; prod_date: string; abate: number; author_id: string };
-type ProductionItem = { id: string; production_id: string; product_id: string; produced: number; meta: number; diff: number; avg: number };
-
-const toNum = (v: string) => {
-  const n = parseFloat((v || '').replace(',', '.')); return Number.isFinite(n) ? n : 0;
-};
+type Product = { id: string; name: string; unit: 'UN' | 'KG'; meta_por_animal: number };
+type Production = { id: string; prod_date: string; abate: number };
+type ProductionItem = { id: string; product_id: string; produced: number; meta: number; diff: number; avg: number };
 
 export default function ProducaoScreen() {
   const { session } = useAuth();
-  const nav = useNavigation<any>();
   const { showToast } = useToast();
+  const h = useHaptics();
+  const { colors, spacing, typography } = useTheme();
 
-  // form
   const [prodDate, setProdDate] = useState('');
-  const [abate, setAbate] = useState('');
+  const [abateStr, setAbateStr] = useState('');
   const [products, setProducts] = useState<Product[] | null>(null);
-  const [produced, setProduced] = useState<Record<string,string>>({});
+  const [produced, setProduced] = useState<Record<string, string>>({});
+  const abate = useMemo(() => parseInt(abateStr || '0', 10) || 0, [abateStr]);
 
-  // histórico + filtros
   const [from, setFrom] = useState(''); const [to, setTo] = useState('');
-  const [rows, setRows] = useState<(Production & { production_items: ProductionItem[] })[] | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [history, setHistory] = useState<Production[] | null>(null);
+  const [itemsCache, setItemsCache] = useState<Record<string, ProductionItem[]>>({});
+  const [saving, setSaving] = useState(false);
 
-  const loadProducts = useCallback(async () => {
-    const { data, error } = await supabase.from('products').select('*').order('name');
-    if (error) Alert.alert('Erro', error.message);
-    else setProducts((data as Product[]) || []);
+  const styles = useMemo(() => StyleSheet.create({
+    prodTitle: { color: colors.text, fontWeight: '800' },
+    unit: { color: colors.muted, fontWeight: '700' },
+    row: { flexDirection: 'row', gap: spacing.sm },
+    detail: { color: colors.text, fontSize: 13 },
+  }), [colors, spacing]);
+
+  const meta = (p: Product) => abate * (p.meta_por_animal || 0);
+  const prodNum = (p: Product) => parseFloat(produced[p.id] || '0') || 0;
+  const diff = (p: Product) => meta(p) - prodNum(p);
+  const media = (p: Product) => (abate > 0 ? prodNum(p) / abate : 0);
+
+  const fetchProducts = useCallback(async () => {
+    const { data, error } = await supabase.from('products').select('id,name,unit,meta_por_animal').order('name');
+    if (error) { Alert.alert('Erro', error.message); return; }
+    setProducts((data as Product[]) || []);
   }, []);
 
-  const metaByProduct = useMemo(()=>{
-    const a = toNum(abate); const map: Record<string, number> = {};
-    (products || []).forEach(p => { map[p.id] = a * p.meta_por_animal; });
-    return map;
-  }, [abate, products]);
-
-  const loadRows = useCallback(async () => {
-    setRows(null);
-    let q = supabase.from('productions')
-      .select('id, prod_date, abate, author_id, production_items(*)')
-      .order('prod_date', { ascending: false }).limit(100);
+  const fetchHistory = useCallback(async () => {
+    setHistory(null);
+    let q = supabase.from('productions').select('id,prod_date,abate').order('prod_date', { ascending: false }).limit(60);
     if (from) q = q.gte('prod_date', from);
-    if (to)   q = q.lte('prod_date', to);
+    if (to) q = q.lte('prod_date', to);
     const { data, error } = await q;
-    if (error) Alert.alert('Erro', error.message);
-    else setRows((data as any) || []);
+    if (error) { Alert.alert('Erro', error.message); return; }
+    setHistory((data as Production[]) || []);
   }, [from, to]);
 
-  useEffect(() => { loadProducts(); loadRows(); }, [loadProducts, loadRows]);
+  useEffect(() => { fetchProducts(); fetchHistory(); }, [fetchProducts, fetchHistory]);
 
-  const save = async () => {
+  async function save() {
     if (!session) return Alert.alert('Login necessário');
-    if (!prodDate || !abate) return Alert.alert('Informe data e abate');
-    const a = Math.max(0, Math.floor(toNum(abate)));
+    if (!prodDate || !abate) { h.warning(); return Alert.alert('Informe data e abate'); }
+    setSaving(true);
+    try {
+      const { data: prod, error } = await supabase.from('productions')
+        .insert({ author_id: session.user.id, prod_date: prodDate, abate })
+        .select('id').single();
+      if (error) throw error;
+      const production_id = (prod as any).id as string;
 
-    const { data: prod, error } = await supabase.from('productions')
-      .insert({ prod_date: prodDate, abate: a, author_id: session.user.id } as any)
-      .select().single();
-    if (error || !prod) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); return Alert.alert('Erro', error?.message || 'Falha ao salvar'); }
+      const items = (products || []).map((p) => ({
+        production_id, product_id: p.id,
+        produced: prodNum(p),
+        meta: meta(p),
+        diff: diff(p),
+        avg: media(p),
+      }));
+      if (items.length) {
+        const { error: e2 } = await supabase.from('production_items').insert(items);
+        if (e2) throw e2;
+      }
+      const txs = (products || []).map((p) => ({
+        product_id: p.id, quantity: prodNum(p), unit: p.unit,
+        tx_type: 'entrada', created_by: session.user.id, source_production_id: production_id,
+      }));
+      if (txs.length) {
+        const { error: e3 } = await supabase.from('inventory_transactions').insert(txs);
+        if (e3) throw e3;
+      }
 
-    const items = (products || []).map(p => {
-      let q = toNum(produced[p.id]); if (p.unit === 'UN') q = Math.floor(Math.max(0, q));
-      const meta = metaByProduct[p.id] || 0;
-      const diff = meta - q;
-      const avg = a ? q / a : 0;
-      return { production_id: prod.id, product_id: p.id, produced: q, meta, diff, avg } as Omit<ProductionItem,'id'>;
-    });
+      setProdDate(''); setAbateStr(''); setProduced({});
+      await fetchHistory();
+      h.success();
+      showToast({
+        type: 'success',
+        message: 'Produção registrada.',
+        actionLabel: 'Ver',
+        onAction: () => {/* navegação para detalhes se quiser */},
+      });
+    } catch (e: any) {
+      h.error();
+      Alert.alert('Erro', e.message ?? 'Falha ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  }
 
-    if (items.length) await supabase.from('production_items').insert(items as any);
+  async function loadItems(prodId: string) {
+    if (itemsCache[prodId]) return;
+    const { data, error } = await supabase.from('production_items').select('*').eq('production_id', prodId);
+    if (!error) setItemsCache((s) => ({ ...s, [prodId]: (data as ProductionItem[]) || [] }));
+  }
 
-    // entrada automática no estoque
-    const entradas = items.filter(i => i.produced > 0).map(i => ({
-      product_id: i.product_id,
-      quantity: i.produced,
-      unit: (products || []).find(p => p.id === i.product_id)?.unit || 'UN',
-      tx_type: 'entrada',
-      created_by: session.user.id,
-      source_production_id: prod.id,
-    }));
-    if (entradas.length) await supabase.from('inventory_transactions').insert(entradas as any);
+  function quickRange(k: '7d' | '30d' | 'month') {
+    const now = new Date();
+    let f = new Date();
+    if (k === '7d') f.setDate(now.getDate() - 7);
+    if (k === '30d') f.setDate(now.getDate() - 30);
+    if (k === 'month') f = new Date(now.getFullYear(), now.getMonth(), 1);
+    setFrom(f.toISOString().slice(0, 10));
+    setTo(now.toISOString().slice(0, 10));
+  }
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setProdDate(''); setAbate(''); setProduced({});
-    showToast({
-      type: 'success',
-      message: 'Produção registrada.',
-      actionLabel: 'Ver detalhes',
-      onAction: () => nav.navigate('ProductionDetails', { id: prod.id }),
-    });
-    loadRows();
-  };
+  const Header = (
+    <View style={{ gap: spacing.md }}>
+      <Text style={typography.h1}>Produção</Text>
+      <Card style={{ gap: spacing.sm }}>
+        <Input value={prodDate} onChangeText={setProdDate} placeholder="Data (YYYY-MM-DD)" />
+        <Input value={abateStr} onChangeText={setAbateStr} placeholder="Abate (animais)" keyboardType="numeric" />
+      </Card>
+
+      {products === null ? (
+        <SkeletonList rows={3} height={120} />
+      ) : (products || []).map((p) => (
+        <Card key={p.id} style={{ gap: spacing.sm }}>
+          <Text style={styles.prodTitle}>{p.name} <Text style={styles.unit}>({p.unit})</Text></Text>
+          <Input
+            value={produced[p.id] ?? ''}
+            onChangeText={(t) => setProduced((s) => ({ ...s, [p.id]: t }))}
+            placeholder="Produção do dia"
+            keyboardType="numeric"
+          />
+          <View style={styles.row}>
+            <KPI label="Meta" value={meta(p)} />
+            <KPI label="Dif." value={diff(p)} />
+            <KPI label="Média" value={media(p).toFixed(2)} />
+          </View>
+        </Card>
+      ))}
+
+      <Button title="Salvar" loading={saving} onPress={save} />
+
+      <Text style={typography.h2}>Histórico</Text>
+      <Card>
+        <DateRangePicker from={from} to={to} onFrom={setFrom} onTo={setTo} onQuick={quickRange} />
+        <View style={{ marginTop: spacing.sm }}>
+          <Button title="Filtrar" small onPress={fetchHistory} />
+        </View>
+      </Card>
+    </View>
+  );
 
   return (
-    <Screen>
-      <Text style={typography.h1 as any}>Produção</Text>
-
-      {/* FORM */}
-      <Card>
-        <Input value={prodDate} onChangeText={setProdDate} placeholder="Data (YYYY-MM-DD)" />
-        <Input value={abate} onChangeText={setAbate} placeholder="Abate (animais)" keyboardType="numeric" />
-
-        {products === null && (
-          <>
-            <Skeleton height={44} />
-            <Skeleton height={44} />
-            <Skeleton height={44} />
-          </>
-        )}
-
-        {products?.map(p => {
-          const meta = metaByProduct[p.id] || 0;
-          const q    = toNum(produced[p.id]);
-          const dif  = meta - q;
-          const avg  = toNum(abate) ? q / toNum(abate) : 0;
-
-          return (
-            <View key={p.id} style={styles.prodBox}>
-              <Text style={styles.prodTitle}>{p.name} <Text style={{ color: colors.muted, fontWeight: '700' }}>({p.unit})</Text></Text>
-              <Input
-                value={produced[p.id] || ''}
-                onChangeText={(v)=>setProduced(prev=>({ ...prev, [p.id]: v }))}
-                placeholder="Produção do dia"
-                keyboardType="numeric"
-              />
-              <View style={{ flexDirection: 'row' }}>
-                <KPI label="Meta"  value={meta}/>
-                <KPI label="Dif."  value={dif}/>
-                <KPI label="Média" value={Number.isFinite(avg)? Number(avg.toFixed(2)) : 0}/>
-              </View>
+    <Screen padded>
+      <FlatList
+        data={history || []}
+        keyExtractor={(i) => i.id}
+        ListHeaderComponent={Header}
+        ListEmptyComponent={history === null ? <SkeletonList rows={3} /> : <EmptyState title="Sem lançamentos" />}
+        renderItem={({ item }) => (
+          <ExpandableCard
+            title={`${item.prod_date}`}
+            subtitle={`Abate: ${item.abate}`}
+            defaultOpen={false}
+            style={{ marginTop: spacing.sm }}
+          >
+            <View style={{ gap: 6 }}>
+              {itemsCache[item.id] ? (
+                itemsCache[item.id].map((pi) => (
+                  <Text key={pi.id} style={styles.detail}>
+                    • {pi.product_id}: {pi.produced} — Meta {pi.meta} — Dif {pi.diff} — Média {pi.avg.toFixed(2)}
+                  </Text>
+                ))
+              ) : (
+                <Button title="Carregar detalhes" small onPress={() => loadItems(item.id)} />
+              )}
             </View>
-          );
-        })}
-
-        <Button title="Salvar" onPress={save} />
-      </Card>
-
-      {/* FILTROS */}
-      <Text style={[typography.h1 as any, { marginTop: spacing.md }]}>Histórico</Text>
-      <Card>
-        <Input value={from} onChangeText={setFrom} placeholder="De (YYYY-MM-DD)" />
-        <Input value={to} onChangeText={setTo} placeholder="Até (YYYY-MM-DD)" />
-        <Button title="Filtrar" small onPress={loadRows} />
-      </Card>
-
-      {/* LISTA */}
-      {rows === null ? (
-        <>
-          <Skeleton height={80} radius={12} style={{ marginTop: 8 }} />
-          <Skeleton height={80} radius={12} style={{ marginTop: 8 }} />
-        </>
-      ) : rows.length === 0 ? (
-        <EmptyState title="Sem produções no período" />
-      ) : (
-        <FlatList
-          data={rows}
-          keyExtractor={(i)=>i.id}
-          contentContainerStyle={{ paddingBottom: 24 }}
-          renderItem={({item})=>{
-            const open = !!expanded[item.id];
-            return (
-              <Pressable style={styles.rowCard} onPress={()=>{
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setExpanded(prev=>({ ...prev, [item.id]: !open }));
-              }}>
-                <Text style={styles.rowTitle}>{item.prod_date} • Abate: {item.abate}</Text>
-                {!open && <Text style={styles.rowHint}>Toque para ver detalhes</Text>}
-                {open && (
-                  <View style={{ marginTop: 8, gap: 6 }}>
-                    {item.production_items?.map(pi=>{
-                      const p = products?.find(x=>x.id===pi.product_id);
-                      return (
-                        <Text key={pi.id} style={styles.rowLine}>
-                          {p?.name}: {pi.produced} {p?.unit} • Meta {pi.meta} • Dif {pi.diff} • Média {pi.avg.toFixed(2)}
-                        </Text>
-                      );
-                    })}
-                    <Button title="Abrir modal" small onPress={()=>nav.navigate('ProductionDetails', { id: item.id })} />
-                  </View>
-                )}
-              </Pressable>
-            );
-          }}
-        />
-      )}
+          </ExpandableCard>
+        )}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
+      />
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  prodBox:{ backgroundColor: colors.surface, borderRadius:10, borderColor: colors.line, borderWidth:1, padding: 10, marginTop: 8 },
-  prodTitle:{ color: '#fff', fontWeight: '700', marginBottom: 6 },
-  rowCard:{ backgroundColor: colors.surface, borderRadius:12, borderColor: colors.line, borderWidth:1, padding: 12, marginTop: 8 },
-  rowTitle:{ color:'#fff', fontWeight:'700' },
-  rowHint:{ color: colors.accent, marginTop: 6, fontSize: 12 },
-  rowLine:{ color:'#E6E8EA', fontSize: 13 },
-});

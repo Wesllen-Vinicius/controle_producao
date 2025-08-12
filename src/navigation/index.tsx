@@ -6,11 +6,12 @@ import ProducaoScreen from '../screens/ProducaoScreen';
 import EstoqueScreen from '../screens/EstoqueScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import ProductsAdminScreen from '../screens/ProductsAdminScreen';
+import AdminProductionsReportScreen from '../screens/AdminProductionsReportScreen';
 import ProductionDetailsScreen from '../screens/ProductionDetailsScreen';
 import TransactionDetailsScreen from '../screens/TransactionDetailsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import { useAuth } from '../state/AuthProvider';
-import { colors } from '../theme';
+import { useTheme } from '../state/ThemeProvider';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const Tab = createBottomTabNavigator();
@@ -18,19 +19,22 @@ const Stack = createStackNavigator();
 
 function AppTabs() {
   const { profile } = useAuth();
+  const { colors } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line, height: 58, paddingBottom: 6 },
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line, height: 60, paddingBottom: 6 },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         tabBarIcon: ({ color, size }) => {
           const name =
-            route.name === 'Produção' ? 'cow' :
-            route.name === 'Estoque' ? 'warehouse' :
-            route.name === 'Perfil'   ? 'account-circle' :
-            'cog';
+            route.name === 'Produção'  ? 'cow' :
+            route.name === 'Estoque'   ? 'warehouse' :
+            route.name === 'Perfil'    ? 'account-circle' :
+            route.name === 'Admin'     ? 'cog' :
+            route.name === 'Relatórios'? 'chart-box' : 'dots-horizontal';
           return <MaterialCommunityIcons name={name as any} color={color} size={size} />;
         },
       })}
@@ -38,29 +42,32 @@ function AppTabs() {
       <Tab.Screen name="Produção" component={ProducaoScreen} />
       <Tab.Screen name="Estoque" component={EstoqueScreen} />
       <Tab.Screen name="Perfil" component={PerfilScreen} />
-      {profile?.role === 'admin' && <Tab.Screen name="Admin" component={ProductsAdminScreen} />}
+      {profile?.role === 'admin' && (
+        <>
+          <Tab.Screen name="Admin" component={ProductsAdminScreen} />
+          <Tab.Screen name="Relatórios" component={AdminProductionsReportScreen} />
+        </>
+      )}
     </Tab.Navigator>
   );
 }
 
 export default function Navigator() {
-  const { session, loading } = useAuth();
-  if (loading) return null;
+  const { session } = useAuth();
+  const { colors } = useTheme();
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
-          headerTitleStyle: { color: colors.text },
-        }}
-      >
+      <Stack.Navigator screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+        headerTitleStyle: { color: colors.text },
+      }}>
         {session ? (
           <>
             <Stack.Screen name="App" component={AppTabs} options={{ headerShown: false }} />
             <Stack.Screen name="ProductionDetails" component={ProductionDetailsScreen} options={{ title: 'Detalhes da Produção' }} />
-            <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} options={{ title: 'Detalhe do Movimento' }} />
+            <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} options={{ title: 'Movimentação' }} />
           </>
         ) : (
           <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />

@@ -1,64 +1,98 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Text, View } from 'react-native';
 import Screen from '../components/Screen';
-import { colors, spacing, typography } from '../theme';
 import { supabase } from '../services/supabase';
+import { Card, Skeleton, EmptyState } from '../components/ui';
+import { useRoute } from '@react-navigation/native';
+import { useTheme } from '../state/ThemeProvider';
 
-type Item = { id: string; product_id: string; produced: number; meta: number; diff: number; avg: number };
 type Product = { id: string; name: string; unit: 'UN'|'KG' };
+type Header = { prod_date: string; abate: number };
+type Item = { id: string; product_id: string; produced: number; meta: number; diff: number; avg: number };
 
 export default function ProductionDetailsScreen() {
   const route = useRoute<any>();
-  const [header, setHeader] = useState<{ prod_date: string; abate: number } | null>(null);
-  const [items, setItems] = useState<Item[]>([]);
+  const id = route.params?.id as string | undefined;
+
+  const [header, setHeader] = useState<Header | null>(null);
+  const [items, setItems] = useState<Item[] | null>(null);
   const [productsById, setProductsById] = useState<Record<string, Product>>({});
+  const { colors, spacing, typography } = useTheme();
 
   useEffect(() => {
     (async () => {
-      const id = route.params?.id as string | undefined;
       if (!id) return;
-      const { data: prod } = await supabase.from('productions').select('prod_date, abate').eq('id', id).single();
-      setHeader(prod as any);
-      const { data: its } = await supabase.from('production_items').select('*').eq('production_id', id);
+      setItems(null);
+      const [{ data: prod }, { data: its }, { data: prods }] = await Promise.all([
+        supabase.from('productions').select('prod_date, abate').eq('id', id).single(),
+        supabase.from('production_items').select('*').eq('production_id', id),
+        supabase.from('products').select('id,name,unit'),
+      ]);
+      setHeader((prod as any) || null);
       setItems((its as any) || []);
-      const { data: prods } = await supabase.from('products').select('id,name,unit');
       const map: Record<string, Product> = {};
-      (prods as Product[]).forEach(p => (map[p.id] = p));
+      (prods as Product[] || []).forEach(p => (map[p.id] = p));
       setProductsById(map);
     })();
-  }, [route.params?.id]);
+  }, [id]);
+
+  const total = (field: keyof Item) => (items || []).reduce((acc, it) => acc + (it[field] as number), 0);
 
   return (
-    <Screen>
-      <Text style={typography.h1}>Produção {header?.prod_date}</Text>
-      <View style={styles.header}>
-        <Text style={styles.hint}>Abate</Text>
-        <Text style={styles.value}>{header?.abate ?? '-'}</Text>
-      </View>
+    <Screen padded>
+      <Text style={typography.h1}>Detalhes da Produção</Text>
 
-      {items.map(it => {
-        const p = productsById[it.product_id];
-        return (
-          <View key={it.id} style={styles.card}>
-            <Text style={styles.title}>
-              {p?.name} <Text style={styles.hint}>({p?.unit})</Text>
-            </Text>
-            <Text style={styles.line}>Produção: {it.produced} {p?.unit}</Text>
-            <Text style={styles.line}>Meta: {it.meta} • Dif: {it.diff}</Text>
-            <Text style={styles.line}>Média: {it.avg.toFixed(2)}</Text>
-          </View>
-        );
-      })}
+      <Card style={{ gap: spacing.sm }}>
+        {header ? (
+          <>
+            <Row label="Data" value={header.prod_date} />
+            <Row label="Abate" value={header.abate} />
+          </>
+        ) : (
+          <>
+            <Skeleton height={18} />
+            <Skeleton height={18} />
+          </>
+        )}
+      </Card>
+
+      <Text style={typography.h2}>Itens</Text>
+      {!items ? (
+        <Card><Skeleton height={90} /></Card>
+      ) : items.length === 0 ? (
+        <EmptyState title="Sem itens nesta produção" />
+      ) : (
+        <View style={{ gap: spacing.sm }}>
+          {items.map(it => {
+            const p = productsById[it.product_id];
+            return (
+              <Card key={it.id} style={{ gap: 6 }}>
+                <Text style={{ color: colors.text, fontWeight: '800' }}>
+                  {p?.name ?? it.product_id} <Text style={{ color: colors.muted }}>({p?.unit})</Text>
+                </Text>
+                <Text style={{ color: colors.text }}>Produção: {it.produced} {p?.unit}</Text>
+                <Text style={{ color: colors.text }}>Meta: {it.meta} • Dif: {it.diff}</Text>
+                <Text style={{ color: colors.text }}>Média: {it.avg.toFixed(2)}</Text>
+              </Card>
+            );
+          })}
+
+          <Card style={{ gap: 6 }}>
+            <Text style={{ color: colors.text, fontWeight: '900', fontSize: 16 }}>Totais</Text>
+            <Text style={{ color: colors.text }}>Produção total: {total('produced')}</Text>
+            <Text style={{ color: colors.text }}>Meta total: {total('meta')} • Perdas (dif): {total('diff')}</Text>
+          </Card>
+        </View>
+      )}
     </Screen>
   );
-}
 
-const styles = StyleSheet.create({
-  header:{ backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: 12, padding: spacing.md, marginBottom: spacing.sm, flexDirection:'row', justifyContent:'space-between' },
-  hint:{ color: colors.muted, fontWeight: '600' },
-  value:{ color: colors.text, fontWeight: '800' },
-  card:{ backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: 12, padding: spacing.md, marginBottom: spacing.sm },
-  title:{ color: colors.text, fontWeight: '700', marginBottom: 6 },
-  line:{ color: colors.text, fontSize: 13 },
-});
+  function Row({ label, value }: { label: string; value: any }) {
+    return (
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={{ color: colors.muted, fontWeight: '700' }}>{label}</Text>
+        <Text style={{ color: colors.text, fontWeight: '800' }}>{String(value)}</Text>
+      </View>
+    );
+  }
+}

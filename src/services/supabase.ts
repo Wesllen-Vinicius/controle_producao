@@ -1,28 +1,21 @@
-import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Polyfills necessários para RN/Expo
 import 'react-native-url-polyfill/auto';
+import 'react-native-get-random-values';
 
-// Expo expõe variáveis somente com prefixo EXPO_PUBLIC_
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+import { createClient } from '@supabase/supabase-js';
 
-// Validação clara pra evitar "Invalid URL"
-if (!SUPABASE_URL || !/^https?:\/\//.test(SUPABASE_URL)) {
-  throw new Error(
-    'SUPABASE_URL inválida. Defina EXPO_PUBLIC_SUPABASE_URL no .env (ex: https://xxxx.supabase.co)'
-  );
-}
-if (!SUPABASE_ANON_KEY) {
-  throw new Error(
-    'SUPABASE_ANON_KEY ausente. Defina EXPO_PUBLIC_SUPABASE_ANON_KEY no .env'
+const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error(
+    '[supabase] Faltando EXPO_PUBLIC_SUPABASE_URL/ANON_KEY no .env. ' +
+      'Defina e reinicie com "npx expo start -c".'
   );
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: AsyncStorage as any,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
+  auth: { persistSession: true, autoRefreshToken: true },
 });

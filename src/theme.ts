@@ -1,28 +1,74 @@
 import { TextStyle } from 'react-native';
 
-export const colors = {
-  background: '#0B1113',
-  surface:    '#12191F',
-  surfaceAlt: '#18222B',
-  line:       '#26333D',
-
-  primary:    '#da7b59ff',
-  primaryAlt: '#FF6A33',
-  accent:     '#00A7FF',
-
-  text:       '#E9EEF1',
-  muted:      '#9AAABD',
-
-  success:    '#22C55E',
-  error:      '#EF4444',
-  warning:    '#F59E0B',
+export type Scheme = 'dark' | 'light';
+export type ThemeColors = {
+  background: string;
+  surface: string;
+  surfaceAlt: string;
+  line: string;
+  text: string;
+  muted: string;
+  primary: string;
+  primaryDim: string;
+  accent: string;
+  danger: string;
+  success: string;
 };
 
-export const spacing = { xs: 4, sm: 8, md: 12, lg: 18, xl: 26 };
-
-export const typography: Record<string, TextStyle> = {
-  h1:   { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: 0.2 },
-  h2:   { fontSize: 18, fontWeight: '700', color: colors.text },
-  body: { fontSize: 16, fontWeight: '400', color: colors.text },
-  label:{ fontSize: 13, fontWeight: '600', color: colors.muted },
+export const spacing = {
+  xs: 6,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 26,
+  xxl: 34,
 };
+
+export const radius = {
+  sm: 10,
+  md: 14,
+  lg: 18,
+};
+
+export function makeColors(mode: Scheme): ThemeColors {
+  if (mode === 'light') {
+    return {
+      background: '#F6F8FB',
+      surface:    '#FFFFFF',
+      surfaceAlt: '#F0F4F8',
+      line:       '#E2E8F0',
+      text:       '#0B1220',
+      muted:      '#64748B',
+      primary:    '#EA6A44',
+      primaryDim: '#EA6A4433',
+      accent:     '#F47C57',
+      danger:     '#DC2626',
+      success:    '#16A34A',
+    };
+  }
+  // dark
+  return {
+    background: '#0D1115',
+    surface:    '#121821',
+    surfaceAlt: '#151E27',
+    line:       '#1F2A35',
+    text:       '#E7EEF6',
+    muted:      '#99A6B3',
+    primary:    '#EA6A44',
+    primaryDim: '#EA6A4433',
+    accent:     '#F47C57',
+    danger:     '#FF4D4F',
+    success:    '#22C55E',
+  };
+}
+
+const fw = (w: TextStyle['fontWeight']) => w;
+
+export function makeTypography(colors: ThemeColors) {
+  return {
+    h1:   { fontSize: 22, fontWeight: fw('800'), color: colors.text } as TextStyle,
+    h2:   { fontSize: 18, fontWeight: fw('800'), color: colors.text } as TextStyle,
+    body: { fontSize: 16, fontWeight: fw('400'), color: colors.text } as TextStyle,
+    label:{ fontSize: 12, fontWeight: fw('700'), color: colors.muted } as TextStyle,
+  };
+}
