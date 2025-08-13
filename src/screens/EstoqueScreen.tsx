@@ -1,3 +1,4 @@
+// screens/EstoqueScreen.tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Screen from '../components/Screen';
@@ -200,13 +201,13 @@ export default function EstoqueScreen() {
   useEffect(() => { if (products) loadBalances(); }, [products, loadBalances]);
   useEffect(() => { loadTxs(); }, [loadTxs]);
 
-  function openMoveSheet() {
+  const openMoveSheet = useCallback(() => {
     setMvProd(selProd ?? (products && products[0]?.id) ?? null);
     setMvType('saida');
     setMvQty('');
     setSheetOpen(true);
-  }
-  function closeMoveSheet() { setSheetOpen(false); }
+  }, [products, selProd]);
+  const closeMoveSheet = useCallback(() => setSheetOpen(false), []);
 
   async function addTx() {
     if (!session) return Alert.alert('Login necessário');
@@ -214,8 +215,7 @@ export default function EstoqueScreen() {
     const q = parseFloat(mvQty || '0'); if (!q) { h.warning(); return Alert.alert('Informe a quantidade'); }
 
     const unit = prodsById.get(mvProd)?.unit || 'UN';
-
-    // >>>>>>> CORREÇÃO: mapear 'venda' → 'saida' (para afetar o saldo na VIEW)
+    // mapeia 'venda' → 'saida', para refletir corretamente no saldo
     const txTypeToPersist: Tx['tx_type'] = mvType === 'venda' ? 'saida' : mvType;
 
     setSaving(true);
@@ -277,6 +277,7 @@ export default function EstoqueScreen() {
     setTo(toISODate(now));
   }
 
+  // ======= Header (fora de ScrollView; vai dentro do ListHeaderComponent) =======
   const Header = (
     <View style={{ gap: spacing.md }}>
       <Text style={typography.h1}>Estoque</Text>
@@ -300,23 +301,23 @@ export default function EstoqueScreen() {
         </View>
       )}
 
-      {/* CTA acima dos filtros (não quebra layout) */}
+      {/* CTA acima dos filtros */}
       <View style={{ alignSelf: 'stretch' }}>
         <Button title="Movimentar" onPress={openMoveSheet} />
       </View>
 
       {/* Filtros */}
-      <Card padding="md" variant="tonal" elevationLevel={0}>
+      <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: spacing.sm }}>
         <Text style={typography.h2}>Filtros</Text>
 
-        <View style={[styles.rowWrap, { marginTop: spacing.sm }]}>
+        <View style={styles.rowWrap}>
           <Chip label="Todos" active={!selProd} onPress={() => (setSelProd(null), h.tap())} />
           {(products || []).map(p => (
             <Chip key={p.id} label={p.name} active={selProd === p.id} onPress={() => (setSelProd(p.id), h.tap())} />
           ))}
         </View>
 
-        <View style={[styles.rowWrap, { marginTop: spacing.sm }]}>
+        <View style={styles.rowWrap}>
           <Chip label="Todos" active={!filterType} onPress={() => (setFilterType(undefined), h.tap())} />
           {(['entrada','saida','ajuste','transferencia','venda'] as const).map(t => (
             <Chip key={t} label={t} active={filterType === t} onPress={() => (setFilterType(t), h.tap())} />
@@ -324,7 +325,7 @@ export default function EstoqueScreen() {
         </View>
 
         {/* De/Até com calendário */}
-        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <View style={{ flex: 1 }}>
             <DateField label="De" value={from} onChange={setFrom} />
           </View>
@@ -333,48 +334,60 @@ export default function EstoqueScreen() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm, alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center' }}>
           <Text style={[typography.label, { color: colors.muted }]}>Rápido:</Text>
           <Chip label="7 dias" onPress={() => quickRange('7d')} />
           <Chip label="30 dias" onPress={() => quickRange('30d')} />
           <Chip label="Este mês" onPress={() => quickRange('month')} />
         </View>
 
-        <View style={{ marginTop: spacing.sm }}>
-          <Button title="Aplicar" small onPress={loadTxs} />
-        </View>
+        <Button title="Aplicar" small onPress={loadTxs} />
       </Card>
 
       <Text style={typography.h2}>Movimentos</Text>
     </View>
   );
 
+  // ======= item memo para reduzir re-render =======
+  const TxItem = useCallback(({ item }: { item: Tx }) => {
+    const prod = (products || []).find(p => p.id === item.product_id);
+    const title = (item.tx_type === 'entrada' ? 'CARREGAMENTO' : item.tx_type.toUpperCase());
+    const when = new Date(item.created_at);
+    const timeStr = `${when.toLocaleDateString()} ${when.toLocaleTimeString()}`;
+    return (
+      <Card>
+        <Text style={styles.txTitle}>
+          {title}{' • '}{prod?.name ?? 'Produto'} • {item.quantity}{item.unit}
+        </Text>
+        <Text style={styles.txSub}>{timeStr}</Text>
+        {item.source_production_id && <Text style={styles.txSub}>Origem: Produção</Text>}
+      </Card>
+    );
+  }, [products, styles.txSub, styles.txTitle]);
+
   return (
-    <Screen padded>
+    // IMPORTANTE: scroll={false} evita ScrollView dentro do Screen.
+    <Screen padded scroll={false}>
       <FlatList
         data={txs || []}
         keyExtractor={(i) => i.id}
         ListHeaderComponent={Header}
         ListEmptyComponent={txs === null ? <SkeletonList rows={3} /> : <EmptyState title="Nenhuma movimentação" />}
-        renderItem={({ item }) => {
-          const prod = (products || []).find(p => p.id === item.product_id);
-          const title = (item.tx_type === 'entrada' ? 'CARREGAMENTO' : item.tx_type.toUpperCase());
-          return (
-            <Card>
-              <Text style={styles.txTitle}>
-                {title}{' • '}{prod?.name ?? 'Produto'} • {item.quantity}{item.unit}
-              </Text>
-              <Text style={styles.txSub}>{new Date(item.created_at).toLocaleString()}</Text>
-              {item.source_production_id && <Text style={styles.txSub}>Origem: Produção</Text>}
-            </Card>
-          );
-        }}
-        // Se o seu Screen já dá padding lateral, REMOVA a linha abaixo
+        renderItem={TxItem}
+        // Respira lateral pela própria FlatList (se o seu Screen já aplica, remova a linha abaixo):
         contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm }}
-        nestedScrollEnabled
+        // ====== Otimizações ======
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
+        updateCellsBatchingPeriod={50}
+        // evita medir cabeçalhos enormes em cada frame
+        ListHeaderComponentStyle={{ marginBottom: spacing.sm }}
+        showsVerticalScrollIndicator={false}
       />
 
-      {/* BottomSheet de movimentação */}
+      {/* BottomSheet de movimentação (overlay, não interfere no FlatList) */}
       <BottomSheet
         open={sheetOpen}
         onClose={closeMoveSheet}
