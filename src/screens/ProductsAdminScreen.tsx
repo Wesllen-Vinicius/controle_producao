@@ -1,13 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, Text, View, StyleSheet } from 'react-native';
 import Screen from '../components/Screen';
-import { Alert, FlatList, Text, View } from 'react-native';
+
+// UI kit premium — imports diretos
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Chip from '../components/ui/Chip';
+import EmptyState from '../components/ui/EmptyState';
+
 import { supabase } from '../services/supabase';
 import { useAuth } from '../state/AuthProvider';
-import { Button, Card, Chip, Input } from '../components/ui';
 import { useTheme } from '../state/ThemeProvider';
 import SkeletonList from '../components/SkeletonList';
 
-type Product = { id: string; name: string; unit: 'UN' | 'KG'; meta_por_animal: number };
+type Unit = 'UN' | 'KG' | string;
+type Product = { id: string; name: string; unit: Unit; meta_por_animal: number };
+
+const SUGGESTED_UNITS: Unit[] = ['UN', 'KG', 'L', 'CX', 'PC'];
 
 export default function ProductsAdminScreen() {
   const { profile } = useAuth();
@@ -17,9 +27,28 @@ export default function ProductsAdminScreen() {
   const [editing, setEditing] = useState<Product | null>(null);
 
   const [name, setName] = useState('');
-  const [unit, setUnit] = useState<'UN' | 'KG'>('UN');
-  const [meta, setMeta] = useState('');
+  const [unit, setUnit] = useState<Unit>('UN');
+  const [meta, setMeta] = useState(''); // aceita "1,7" ou "1.7"
   const [busy, setBusy] = useState(false);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        unitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+        actionsRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+        pill: {
+          backgroundColor: colors.surfaceAlt,
+          borderColor: colors.line,
+          borderWidth: 1,
+          paddingHorizontal: spacing.md,
+          paddingVertical: 6,
+          borderRadius: 999,
+          alignSelf: 'flex-start',
+        },
+        pillText: { color: colors.muted, fontWeight: '700' },
+      }),
+    [colors, spacing]
+  );
 
   async function load() {
     const { data, error } = await supabase.from('products').select('*').order('name');
@@ -38,18 +67,32 @@ export default function ProductsAdminScreen() {
     setMeta('');
   }
 
+  // saneamento que aceita dígitos, vírgula e ponto
+  function onChangeMeta(text: string) {
+    const cleaned = text.replace(/[^0-9,.\s]/g, '').replace(/\s+/g, '');
+    setMeta(cleaned);
+  }
+
   async function saveOrUpdate() {
     if (!name.trim() || !meta.trim()) {
       return Alert.alert('Atenção', 'Preencha nome e meta por animal.');
     }
+    // converte vírgula -> ponto para salvar
     const m = parseFloat(meta.replace(',', '.'));
     if (Number.isNaN(m) || m < 0) {
       return Alert.alert('Atenção', 'Meta inválida.');
     }
+    const unitNorm = (unit || '').toString().trim().toUpperCase() as Unit;
+    if (!unitNorm) {
+      return Alert.alert('Atenção', 'Informe a unidade.');
+    }
 
-    // evita duplicados básicos (mesmo nome + unidade)
+    // evita duplicados (mesmo nome + unidade)
     const already = (list || []).some(
-      (p) => p.name.trim().toLowerCase() === name.trim().toLowerCase() && p.unit === unit && (!editing || p.id !== editing.id)
+      (p) =>
+        p.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+        String(p.unit).toUpperCase() === unitNorm &&
+        (!editing || p.id !== editing.id)
     );
     if (already) {
       return Alert.alert('Atenção', 'Já existe um produto com este nome e unidade.');
@@ -60,19 +103,19 @@ export default function ProductsAdminScreen() {
       if (editing) {
         const { error } = await supabase
           .from('products')
-          .update({ name: name.trim(), unit, meta_por_animal: m } as any)
+          .update({ name: name.trim(), unit: unitNorm, meta_por_animal: m } as any)
           .eq('id', editing.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('products')
-          .insert({ name: name.trim(), unit, meta_por_animal: m } as any);
+          .insert({ name: name.trim(), unit: unitNorm, meta_por_animal: m } as any);
         if (error) throw error;
       }
       await load();
       resetForm();
     } catch (e: any) {
-      Alert.alert('Erro', e.message);
+      Alert.alert('Erro', e.message ?? 'Falha ao salvar');
     } finally {
       setBusy(false);
     }
@@ -81,69 +124,119 @@ export default function ProductsAdminScreen() {
   if (profile?.role !== 'admin') {
     return (
       <Screen padded>
-        <Text style={typography.body}>Acesso restrito.</Text>
+        <Text style={{ color: colors.text }}>Acesso restrito.</Text>
       </Screen>
     );
   }
 
-  return (
-    <Screen padded>
+  const Header = (
+    <View style={{ gap: spacing.md }}>
       <Text style={typography.h1}>Produtos (Admin)</Text>
 
-      <Card style={{ gap: spacing.sm }}>
-        <Input value={name} onChangeText={setName} placeholder="Nome" />
-
-        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
-          <Chip label="UN" active={unit === 'UN'} onPress={() => setUnit('UN')} />
-          <Chip label="KG" active={unit === 'KG'} onPress={() => setUnit('KG')} />
-        </View>
-
+      <Card padding="md" variant="filled" elevationLevel={1} style={{ gap: spacing.sm }}>
         <Input
-          value={meta}
-          onChangeText={setMeta}
-          placeholder="Meta por animal"
-          keyboardType="numeric"
+          label="Nome"
+          value={name}
+          onChangeText={setName}
+          placeholder="Ex.: Mocotó"
         />
 
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        {/* Unidade dinâmica: input livre + sugestões */}
+        <Input
+          label="Unidade de medida"
+          value={unit}
+          onChangeText={(t) => setUnit(String(t).toUpperCase())}
+          placeholder="UN, KG, L, CX, ..."
+          autoCapitalize="characters"
+        />
+        <View style={styles.unitRow}>
+          {SUGGESTED_UNITS.map((u) => (
+            <Chip key={u} label={u} active={String(unit).toUpperCase() === u} onPress={() => setUnit(u)} />
+          ))}
+        </View>
+
+        {/* Meta por animal com decimal permitindo vírgula */}
+        <Input
+          label="Meta por animal"
+          value={meta}
+          onChangeText={onChangeMeta}
+          placeholder="Ex.: 1,7 (KG) ou 4 (UN)"
+          keyboardType="decimal-pad"
+          autoCapitalize="none"
+        />
+
+        <View style={styles.actionsRow}>
           <View style={{ flex: 1 }}>
-            <Button title={editing ? 'Salvar alterações' : 'Adicionar'} loading={busy} onPress={saveOrUpdate} />
+            <Button
+              title={editing ? 'Salvar alterações' : 'Adicionar'}
+              loading={busy}
+              onPress={saveOrUpdate}
+              full
+            />
           </View>
           {editing && (
-            <View style={{ width: 130 }}>
-              <Button title="Cancelar" onPress={resetForm} />
+            <View style={{ width: 140 }}>
+              <Button title="Cancelar" variant="text" onPress={resetForm} />
             </View>
           )}
         </View>
-      </Card>
 
+        <Text style={{ color: colors.muted, marginTop: spacing.sm, fontSize: 12 }}>
+          Observação: exclusão de produtos está desabilitada para manter o histórico. Edite o produto caso precise alterar.
+        </Text>
+      </Card>
+    </View>
+  );
+
+  return (
+    <Screen padded>
       {list === null ? (
-        <SkeletonList rows={3} />
+        <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+          {Header}
+          <SkeletonList rows={3} />
+        </View>
+      ) : list.length === 0 ? (
+        <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+          {Header}
+          <EmptyState title="Nenhum produto cadastrado" />
+        </View>
       ) : (
         <FlatList
           data={list}
           keyExtractor={(i) => i.id}
-          contentContainerStyle={{ paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.sm }}
+          ListHeaderComponent={Header}
           renderItem={({ item }) => (
-            <Card style={{ gap: 6 }}>
+            <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: 6 }}>
               <Text style={{ color: colors.text, fontWeight: '800' }}>
-                {item.name} <Text style={{ color: colors.muted }}>({item.unit})</Text>
+                {item.name}{' '}
+                <Text style={{ color: colors.muted }}>({String(item.unit).toUpperCase()})</Text>
               </Text>
-              <Text style={{ color: colors.muted }}>Meta: {item.meta_por_animal} por animal</Text>
-              <View style={{ marginTop: spacing.sm, flexDirection: 'row' }}>
+
+              <View style={styles.pill}>
+                <Text style={styles.pillText}>Meta: {item.meta_por_animal} por animal</Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                 <Button
                   title="Editar"
                   small
                   onPress={() => {
                     setEditing(item);
                     setName(item.name);
-                    setUnit(item.unit);
-                    setMeta(String(item.meta_por_animal));
+                    setUnit(String(item.unit).toUpperCase());
+                    setMeta(String(item.meta_por_animal).replace('.', ',')); // mostra com vírgula
                   }}
                 />
               </View>
             </Card>
           )}
+          ListEmptyComponent={<EmptyState title="Nenhum produto cadastrado" />}
+          contentContainerStyle={{
+            paddingHorizontal: spacing.md, // espaçamento lateral
+            paddingTop: spacing.sm,
+            paddingBottom: spacing.xl,
+            gap: spacing.sm,
+          }}
         />
       )}
     </Screen>

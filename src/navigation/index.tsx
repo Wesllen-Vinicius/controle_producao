@@ -6,7 +6,7 @@ import ProducaoScreen from '../screens/ProducaoScreen';
 import EstoqueScreen from '../screens/EstoqueScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import ProductsAdminScreen from '../screens/ProductsAdminScreen';
-import AdminProductionsReportScreen from '../screens/AdminProductionsReportScreen';
+import AdminProductionsReportScreen from '../screens/Relatorio';
 import ProductionDetailsScreen from '../screens/ProductionDetailsScreen';
 import TransactionDetailsScreen from '../screens/TransactionDetailsScreen';
 import AuthScreen from '../screens/AuthScreen';

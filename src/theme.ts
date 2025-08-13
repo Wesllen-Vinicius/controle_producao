@@ -13,6 +13,8 @@ export type ThemeColors = {
   accent: string;
   danger: string;
   success: string;
+  /** Cor usada nas sombras/elevation. Mantida opcional para compatibilidade. */
+  shadow?: string;
 };
 
 export const spacing = {
@@ -30,6 +32,10 @@ export const radius = {
   lg: 18,
 };
 
+// ⬇️ Exporte os tipos dos tokens para manter a tipagem coerente no app
+export type ThemeSpacing = typeof spacing;
+export type ThemeRadius  = typeof radius;
+
 export function makeColors(mode: Scheme): ThemeColors {
   if (mode === 'light') {
     return {
@@ -44,6 +50,7 @@ export function makeColors(mode: Scheme): ThemeColors {
       accent:     '#F47C57',
       danger:     '#DC2626',
       success:    '#16A34A',
+      shadow:     '#000000',
     };
   }
   // dark
@@ -59,6 +66,7 @@ export function makeColors(mode: Scheme): ThemeColors {
     accent:     '#F47C57',
     danger:     '#FF4D4F',
     success:    '#22C55E',
+    shadow:     '#000000',
   };
 }
 

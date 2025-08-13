@@ -1,13 +1,17 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Chip, Input } from './ui';
 import { useTheme } from '../state/ThemeProvider';
 
 type Props = {
-  from: string; to: string;
-  onFrom: (v: string) => void; onTo: (v: string) => void;
-  onQuick?: (k: '7d'|'30d'|'month') => void;
+  from: string;
+  to: string;
+  onFrom: (v: string) => void;
+  onTo: (v: string) => void;
+  onQuick?: (k: '7d' | '30d' | 'month') => void;
 };
+
+const isISODate = (v: string) => /^(\d{4})-(\d{2})-(\d{2})$/.test(v);
 
 export default function DateRangePicker({ from, to, onFrom, onTo, onQuick }: Props) {
   const { colors, spacing, typography } = useTheme();
@@ -21,14 +25,40 @@ export default function DateRangePicker({ from, to, onFrom, onTo, onQuick }: Pro
     [colors.muted, spacing.sm]
   );
 
+  const fromInvalid = !!from && !isISODate(from);
+  const toInvalid = !!to && !isISODate(to);
+
+  // iOS oferece teclado com hífen; no Android ficamos no default para facilitar digitação
+  const dateKeyboard = Platform.select<"default" | "numbers-and-punctuation">({
+    ios: 'numbers-and-punctuation',
+    android: 'default',
+    default: 'default',
+  });
+
   return (
     <View style={{ gap: spacing.sm }}>
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
-          <Input value={from} onChangeText={onFrom} placeholder="De (YYYY-MM-DD)" />
+          <Input
+            label="De"
+            value={from}
+            onChangeText={onFrom}
+            placeholder="YYYY-MM-DD"
+            keyboardType={dateKeyboard}
+            autoCapitalize="none"
+            style={fromInvalid ? { borderColor: colors.danger } : undefined}
+          />
         </View>
         <View style={{ flex: 1 }}>
-          <Input value={to} onChangeText={onTo} placeholder="Até (YYYY-MM-DD)" />
+          <Input
+            label="Até"
+            value={to}
+            onChangeText={onTo}
+            placeholder="YYYY-MM-DD"
+            keyboardType={dateKeyboard}
+            autoCapitalize="none"
+            style={toInvalid ? { borderColor: colors.danger } : undefined}
+          />
         </View>
       </View>
 

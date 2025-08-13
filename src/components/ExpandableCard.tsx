@@ -1,9 +1,19 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View, ViewStyle, StyleProp, Platform } from 'react-native';
-import { Card } from './ui';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  LayoutChangeEvent,
+  Platform,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
+} from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useHaptics } from '../hooks/useHaptics';
 import { useTheme } from '../state/ThemeProvider';
+import { Card } from './ui';
 
 type Props = {
   title: string;
@@ -11,25 +21,57 @@ type Props = {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   defaultOpen?: boolean;
+  /** Ajustes visuais do card */
+  variant?: 'filled' | 'tonal' | 'outlined' | 'plain';
+  elevationLevel?: 0 | 1 | 2 | 3 | 4;
 };
 
-export default function ExpandableCard({ title, subtitle, children, style, defaultOpen }: Props) {
-  const [open, setOpen] = useState(!!defaultOpen);
+export default function ExpandableCard({
+  title,
+  subtitle,
+  children,
+  style,
+  defaultOpen,
+  variant = 'filled',
+  elevationLevel = 1,
+}: Props) {
+  const startOpen = !!defaultOpen;
+  const [open, setOpen] = useState(startOpen);
+  const [measuredH, setMeasuredH] = useState(0);
+
   const { colors, spacing, typography } = useTheme();
   const h = useHaptics();
 
-  // Chevron animation
-  const rot = useRef(new Animated.Value(open ? 1 : 0)).current;
-  const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
+  // progress: 0 (fechado) .. 1 (aberto)
+  const progress = useRef(new Animated.Value(startOpen ? 1 : 0)).current;
+  const rot = useRef(new Animated.Value(startOpen ? 1 : 0)).current;
 
-  function toggle() {
+  useEffect(() => {
+    Animated.timing(rot, { toValue: open ? 1 : 0, duration: 180, useNativeDriver: true }).start();
+    Animated.timing(progress, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: false }).start();
+  }, [open, progress, rot]);
+
+  // Se o conteúdo for medido depois de montado e já estiver aberto, garante estado visual correto
+  useEffect(() => {
+    if (measuredH > 0 && open) {
+      progress.setValue(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measuredH]);
+
+  const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
+  const height = progress.interpolate({ inputRange: [0, 1], outputRange: [0, measuredH] });
+  const opacity = progress;
+
+  const onToggle = () => {
     h.light();
-    setOpen(v => {
-      const next = !v;
-      Animated.timing(rot, { toValue: next ? 1 : 0, duration: 180, useNativeDriver: true }).start();
-      return next;
-    });
-  }
+    setOpen((v) => !v);
+  };
+
+  const onContentLayout = (e: LayoutChangeEvent) => {
+    const h = Math.ceil(e.nativeEvent.layout.height);
+    if (h !== measuredH) setMeasuredH(h);
+  };
 
   const styles = useMemo(
     () =>
@@ -43,18 +85,21 @@ export default function ExpandableCard({ title, subtitle, children, style, defau
         },
         title: { ...(typography.h2 as any), fontSize: 16 },
         subtitle: { color: colors.muted, marginTop: 2, fontSize: 12, fontWeight: '600' as const },
-        content: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
+        contentWrap: { overflow: 'hidden' },
+        contentInner: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
         chevronWrap: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
       }),
     [colors.muted, spacing, typography.h2]
   );
 
   return (
-    <Card style={[{ padding: 0 }, style]}>
+    <Card padding="none" variant={variant} elevationLevel={elevationLevel} style={style}>
       <Pressable
-        onPress={toggle}
-        style={styles.header}
+        onPress={onToggle}
         android_ripple={Platform.OS === 'android' ? { color: '#ffffff22' } : undefined}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={styles.header}
       >
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{title}</Text>
@@ -65,7 +110,13 @@ export default function ExpandableCard({ title, subtitle, children, style, defau
         </Animated.View>
       </Pressable>
 
-      {open && <View style={styles.content}>{children}</View>}
+      {/* Contêiner animado */}
+      <Animated.View style={[styles.contentWrap, { height, opacity }]}>
+        {/* Medimos o conteúdo real aqui */}
+        <View onLayout={onContentLayout} style={styles.contentInner}>
+          {children}
+        </View>
+      </Animated.View>
     </Card>
   );
 }

@@ -1,53 +1,92 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import Screen from '../components/Screen';
-import { Text, View, StyleSheet } from 'react-native';
+
+// UI kit premium — imports diretos
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+
 import { useTheme } from '../state/ThemeProvider';
-import { Card, Button } from '../components/ui';
 import { useAuth } from '../state/AuthProvider';
 import ThemeToggle from '../components/ThemeToggle';
 
 export default function PerfilScreen() {
   const { session, profile, signOut } = useAuth();
   const { colors, spacing, radius, typography } = useTheme();
+
   const name = profile?.username || session?.user?.email?.split('@')[0] || 'Usuário';
   const email = session?.user?.email || '';
   const initial = (name?.[0] || 'U').toUpperCase();
 
-  if (!session) return <Screen><Text style={{ color: colors.text }}>Faça login para ver seu perfil.</Text></Screen>;
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        wrapper: {
+          gap: spacing.md,
+          paddingHorizontal: spacing.md, // ← espaçamento lateral
+          paddingTop: spacing.sm,
+          paddingBottom: spacing.xl,     // ← respiro no fim da tela
+        },
+        row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+        avatar: {
+          width: 56, height: 56, borderRadius: 56,
+          alignItems: 'center', justifyContent: 'center',
+          borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surfaceAlt,
+        },
+        avatarT: { fontWeight: '900', fontSize: 18, color: colors.text },
+        name: { fontWeight: '800', fontSize: 18, color: colors.text },
+        email: { color: colors.muted, marginTop: 2 },
+        rolePill: {
+          backgroundColor: colors.surfaceAlt,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.xs,
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          borderColor: colors.line,
+        },
+        pillText: { color: colors.text, fontWeight: '800' },
+        sectionTitle: { ...typography.h2, marginBottom: spacing.sm },
+      }),
+    [colors, spacing, radius, typography]
+  );
+
+  if (!session) {
+    return (
+      <Screen padded>
+        <Text style={{ color: colors.text }}>Faça login para ver seu perfil.</Text>
+      </Screen>
+    );
+  }
 
   return (
-    <Screen>
-      <Text style={typography.h1}>Seu perfil</Text>
+    <Screen padded>
+      <View style={styles.wrapper}>
+        <Text style={typography.h1}>Seu perfil</Text>
 
-      <Card style={{ gap: spacing.md }}>
-        <View style={[styles.row, { gap: spacing.md }]}>
-          <View style={[styles.avatar, { backgroundColor: colors.surfaceAlt, borderColor: colors.line }]}>
-            <Text style={[styles.avatarT, { color: colors.text }]}>{initial}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.name, { color: colors.text }]}>{name}</Text>
-            <Text style={{ color: colors.muted, marginTop: 2 }}>{email}</Text>
-          </View>
-          {!!profile?.role && (
-            <View style={{ backgroundColor: colors.surfaceAlt, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line }}>
-              <Text style={{ color: colors.text, fontWeight: '800' }}>{profile.role}</Text>
+        <Card padding="md" variant="filled" elevationLevel={2} style={{ gap: spacing.md }}>
+          <View style={styles.row}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarT}>{initial}</Text>
             </View>
-          )}
-        </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{name}</Text>
+              <Text style={styles.email}>{email}</Text>
+            </View>
+            {!!profile?.role && (
+              <View style={styles.rolePill}>
+                <Text style={styles.pillText}>{profile.role}</Text>
+              </View>
+            )}
+          </View>
 
-        <View style={{ alignItems: 'flex-start' }}>
-          <ThemeToggle />
-        </View>
+          <View>
+            <Text style={styles.sectionTitle}>Aparência</Text>
+            <ThemeToggle />
+          </View>
 
-        <Button title="Sair" onPress={signOut} />
-      </Card>
+          <Button title="Sair" onPress={signOut} intent="danger" full />
+        </Card>
+      </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 54, height: 54, borderRadius: 54, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  avatarT: { fontWeight: '900', fontSize: 18 },
-  name: { fontWeight: '800', fontSize: 18 },
-});

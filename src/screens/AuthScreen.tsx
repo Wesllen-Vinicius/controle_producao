@@ -1,7 +1,21 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Keyboard, TouchableWithoutFeedback, Alert, Pressable } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Alert,
+  Pressable,
+  TextInput,
+} from 'react-native';
 import Screen from '../components/Screen';
-import { Card, Input, Button } from '../components/ui';
+
+// Imports DIRETOS do UI kit premium
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+
 import { supabase } from '../services/supabase';
 import { useHaptics } from '../hooks/useHaptics';
 import { useTheme } from '../state/ThemeProvider';
@@ -10,16 +24,22 @@ export default function AuthScreen() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const emailRef = useRef<TextInput>(null);
+  const passRef = useRef<TextInput>(null);
+
   const h = useHaptics();
   const { colors, spacing, typography } = useTheme();
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        center: { flex: 1, justifyContent: 'center', gap: spacing.md },
+        wrapper: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.md },
         switch: { color: colors.accent, fontWeight: '700', textAlign: 'center', marginTop: spacing.sm },
         muted: { color: colors.muted, textAlign: 'center' },
+        brand: { color: colors.muted, fontWeight: '700', marginBottom: 4 },
       }),
     [colors, spacing]
   );
@@ -48,12 +68,11 @@ export default function AuthScreen() {
         const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
         if (error) throw error;
       } else {
-        // Assumindo que a verificação por e-mail está DESATIVADA nas policies do seu projeto
         const { error } = await supabase.auth.signUp({ email, password: pass, options: { emailRedirectTo: undefined } });
         if (error) throw error;
       }
       h.success();
-      // A navegação pós-login é cuidada pelo AuthProvider (onAuthStateChange)
+      // Navegação pós-login é feita pelo AuthProvider (onAuthStateChange)
     } catch (e: any) {
       h.error();
       const msg: string = e?.message || 'Falha na autenticação';
@@ -69,33 +88,72 @@ export default function AuthScreen() {
     }
   }
 
+  async function handleReset() {
+    if (!email || !isValidEmail(email)) {
+      h.warning();
+      return Alert.alert('Recuperar senha', 'Informe um e-mail válido no campo acima.');
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      Alert.alert('Recuperar senha', 'Se o e-mail existir, enviamos instruções para redefinição.');
+    } catch (e: any) {
+      Alert.alert('Recuperar senha', e?.message || 'Não foi possível enviar o e-mail agora.');
+    }
+  }
+
   return (
-    <Screen>
+    <Screen padded>
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-        <View style={styles.center}>
+        <View style={styles.wrapper}>
+          <Text style={styles.brand}>Bem-vindo</Text>
           <Text style={typography.h1}>{mode === 'login' ? 'Entrar' : 'Criar conta'}</Text>
 
-          <Card style={{ gap: spacing.sm }}>
+          <Card padding="md" variant="filled" elevationLevel={2} style={{ gap: spacing.sm }}>
             <Input
+              ref={emailRef}
+              label="E-mail"
               value={email}
               onChangeText={setEmail}
-              placeholder="E-mail"
+              placeholder="voce@exemplo.com"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              returnKeyType="next"
+              onSubmitEditing={() => passRef.current?.focus()}
+              editable={!busy}
             />
+
             <Input
+              ref={passRef}
+              label="Senha"
               value={pass}
               onChangeText={setPass}
-              placeholder="Senha"
-              secureTextEntry
+              placeholder="Sua senha"
+              secureTextEntry={!showPass}
               autoCapitalize="none"
               autoComplete="password"
+              rightIcon={<Text style={{ color: colors.muted, fontWeight: '800' }}>{showPass ? '🙈' : '👁️'}</Text>}
+              onPressRightIcon={() => setShowPass(s => !s)}
+              returnKeyType="go"
+              onSubmitEditing={handleAuth}
+              editable={!busy}
             />
 
-            <Button title={mode === 'login' ? 'Entrar' : 'Cadastrar'} loading={busy} onPress={handleAuth} />
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <Button
+                title={mode === 'login' ? 'Entrar' : 'Cadastrar'}
+                onPress={handleAuth}
+                loading={busy}
+                full
+              />
+            </View>
 
-            <Pressable onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+            <Pressable disabled={busy} onPress={handleReset}>
+              <Text style={styles.switch}>Esqueci a senha</Text>
+            </Pressable>
+
+            <Pressable disabled={busy} onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
               <Text style={styles.switch}>
                 {mode === 'login' ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Entre'}
               </Text>
@@ -103,7 +161,7 @@ export default function AuthScreen() {
 
             {mode === 'signup' && (
               <Text style={styles.muted}>
-                Dica: se aparecer “e-mail já cadastrado”, use **Entrar**.
+                Dica: se aparecer “e-mail já cadastrado”, toque em **Entrar**.
               </Text>
             )}
           </Card>
