@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Producao & Estoque",
+    "name": "NF Produção",
     "slug": "producao_estoque",
     "scheme": "producaoestoque",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/rosa-dos-ventos.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -13,11 +13,22 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/rosa-dos-ventos.png",
         "backgroundColor": "#0B1113"
-      }
+      },
+      "package": "com.wes.nfproducao"
     },
-    "ios": { "supportsTablet": false },
-    "web": { "favicon": "./assets/icon.png" }
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.wes.nfproducao"
+    },
+    "web": {
+      "favicon": "./assets/rosa-dos-ventos.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "00a73194-081c-441b-aabb-e77c9b60e5b1"
+      }
+    }
   }
 }
