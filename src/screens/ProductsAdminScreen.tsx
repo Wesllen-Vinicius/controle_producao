@@ -1,5 +1,6 @@
+// screens/ProductsAdminScreen.tsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Text, View, StyleSheet } from 'react-native';
+import { Alert, ScrollView, Text, View, StyleSheet } from 'react-native';
 import Screen from '../components/Screen';
 
 // UI kit premium — imports diretos
@@ -46,6 +47,8 @@ export default function ProductsAdminScreen() {
           alignSelf: 'flex-start',
         },
         pillText: { color: colors.muted, fontWeight: '700' },
+        headerWrap: { gap: spacing.md },
+        listWrap: { gap: spacing.sm, paddingTop: spacing.sm },
       }),
     [colors, spacing]
   );
@@ -67,7 +70,7 @@ export default function ProductsAdminScreen() {
     setMeta('');
   }
 
-  // saneamento que aceita dígitos, vírgula e ponto
+  // aceita dígitos, vírgula e ponto
   function onChangeMeta(text: string) {
     const cleaned = text.replace(/[^0-9,.\s]/g, '').replace(/\s+/g, '');
     setMeta(cleaned);
@@ -77,7 +80,7 @@ export default function ProductsAdminScreen() {
     if (!name.trim() || !meta.trim()) {
       return Alert.alert('Atenção', 'Preencha nome e meta por animal.');
     }
-    // converte vírgula -> ponto para salvar
+    // vírgula -> ponto para persistir
     const m = parseFloat(meta.replace(',', '.'));
     if (Number.isNaN(m) || m < 0) {
       return Alert.alert('Atenção', 'Meta inválida.');
@@ -124,16 +127,17 @@ export default function ProductsAdminScreen() {
   if (profile?.role !== 'admin') {
     return (
       <Screen padded>
-        <Text style={{ color: colors.text }}>Acesso restrito.</Text>
+        <Text style={typography.body}>Acesso restrito.</Text>
       </Screen>
     );
   }
 
   const Header = (
-    <View style={{ gap: spacing.md }}>
+    <View style={styles.headerWrap}>
       <Text style={typography.h1}>Produtos (Admin)</Text>
 
-      <Card padding="md" variant="filled" elevationLevel={1} style={{ gap: spacing.sm }}>
+      {/* Formulário */}
+      <Card padding="md" variant="filled" elevationLevel={2} style={{ gap: spacing.sm }}>
         <Input
           label="Nome"
           value={name}
@@ -182,7 +186,7 @@ export default function ProductsAdminScreen() {
         </View>
 
         <Text style={{ color: colors.muted, marginTop: spacing.sm, fontSize: 12 }}>
-          Observação: exclusão de produtos está desabilitada para manter o histórico. Edite o produto caso precise alterar.
+          Exclusão de produtos está desabilitada para preservar o histórico. Edite o produto caso precise alterar.
         </Text>
       </Card>
     </View>
@@ -190,55 +194,53 @@ export default function ProductsAdminScreen() {
 
   return (
     <Screen padded>
-      {list === null ? (
-        <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          {Header}
-          <SkeletonList rows={3} />
-        </View>
-      ) : list.length === 0 ? (
-        <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          {Header}
-          <EmptyState title="Nenhum produto cadastrado" />
-        </View>
-      ) : (
-        <FlatList
-          data={list}
-          keyExtractor={(i) => i.id}
-          ListHeaderComponent={Header}
-          renderItem={({ item }) => (
-            <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: 6 }}>
-              <Text style={{ color: colors.text, fontWeight: '800' }}>
-                {item.name}{' '}
-                <Text style={{ color: colors.muted }}>({String(item.unit).toUpperCase()})</Text>
-              </Text>
+      <ScrollView
+        // único container rolável (nada de VirtualizedList aqui)
+        contentContainerStyle={{
+          paddingHorizontal: spacing.md,  // <-- espaçamento lateral de volta
+          paddingBottom: spacing.xl,
+        }}
+      >
+        {Header}
 
-              <View style={styles.pill}>
-                <Text style={styles.pillText}>Meta: {item.meta_por_animal} por animal</Text>
-              </View>
+        {list === null ? (
+          <View style={{ marginTop: spacing.md }}>
+            <SkeletonList rows={3} />
+          </View>
+        ) : list.length === 0 ? (
+          <View style={{ marginTop: spacing.md }}>
+            <EmptyState title="Nenhum produto cadastrado" />
+          </View>
+        ) : (
+          <View style={styles.listWrap}>
+            {list.map((item) => (
+              <Card key={item.id} padding="md" variant="tonal" elevationLevel={0} style={{ gap: 6 }}>
+                <Text style={{ color: colors.text, fontWeight: '800' }}>
+                  {item.name}{' '}
+                  <Text style={{ color: colors.muted }}>({String(item.unit).toUpperCase()})</Text>
+                </Text>
 
-              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                <Button
-                  title="Editar"
-                  small
-                  onPress={() => {
-                    setEditing(item);
-                    setName(item.name);
-                    setUnit(String(item.unit).toUpperCase());
-                    setMeta(String(item.meta_por_animal).replace('.', ',')); // mostra com vírgula
-                  }}
-                />
-              </View>
-            </Card>
-          )}
-          ListEmptyComponent={<EmptyState title="Nenhum produto cadastrado" />}
-          contentContainerStyle={{
-            paddingHorizontal: spacing.md, // espaçamento lateral
-            paddingTop: spacing.sm,
-            paddingBottom: spacing.xl,
-            gap: spacing.sm,
-          }}
-        />
-      )}
+                <View style={styles.pill}>
+                  <Text style={styles.pillText}>Meta: {item.meta_por_animal} por animal</Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                  <Button
+                    title="Editar"
+                    small
+                    onPress={() => {
+                      setEditing(item);
+                      setName(item.name);
+                      setUnit(String(item.unit).toUpperCase());
+                      setMeta(String(item.meta_por_animal).replace('.', ',')); // mostra com vírgula
+                    }}
+                  />
+                </View>
+              </Card>
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </Screen>
   );
 }
