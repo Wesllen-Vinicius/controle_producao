@@ -37,11 +37,14 @@ export default function ExpandableCard({
 }: Props) {
   const startOpen = !!defaultOpen;
   const [open, setOpen] = useState(startOpen);
+
+  // altura medida do conteúdo
   const [measuredH, setMeasuredH] = useState(0);
 
   const { colors, spacing, typography } = useTheme();
   const h = useHaptics();
 
+  // 0 (fechado) .. 1 (aberto)
   const progress = useRef(new Animated.Value(startOpen ? 1 : 0)).current;
   const rot = useRef(new Animated.Value(startOpen ? 1 : 0)).current;
 
@@ -50,11 +53,7 @@ export default function ExpandableCard({
     Animated.timing(progress, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: false }).start();
   }, [open, progress, rot]);
 
-  useEffect(() => {
-    if (measuredH > 0 && open) progress.setValue(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [measuredH]);
-
+  // âncoras para animação
   const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const height = progress.interpolate({ inputRange: [0, 1], outputRange: [0, measuredH] });
   const opacity = progress;
@@ -64,7 +63,8 @@ export default function ExpandableCard({
     setOpen((v) => !v);
   };
 
-  const onContentLayout = (e: LayoutChangeEvent) => {
+  // mede o conteúdo REAL em um espelho invisível
+  const onMeasureLayout = (e: LayoutChangeEvent) => {
     const h = Math.ceil(e.nativeEvent.layout.height);
     if (h !== measuredH) setMeasuredH(h);
   };
@@ -84,9 +84,21 @@ export default function ExpandableCard({
         contentWrap: { overflow: 'hidden' },
         contentInner: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
         chevronWrap: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+        // espelho invisível para medir conteúdo
+        measurer: { position: 'absolute', opacity: 0, pointerEvents: 'none', left: 0, right: 0 },
       }),
     [colors.muted, spacing, typography.h2]
   );
+
+  // quando ainda não temos measuredH:
+  // - mostramos o "measurer" sempre
+  // - ao abrir antes da medida, mostramos o conteúdo sem animar
+  const visibleContainerStyle =
+    measuredH > 0
+      ? { height }
+      : open
+      ? {} // abre sem animar até ter a medida
+      : { height: 0 };
 
   return (
     <Card padding="none" variant={variant} elevationLevel={elevationLevel} style={style}>
@@ -106,13 +118,17 @@ export default function ExpandableCard({
         </Animated.View>
       </Pressable>
 
+      {/* Measurer invisível (sempre renderiza) */}
+      <View style={styles.measurer} onLayout={onMeasureLayout}>
+        <View style={styles.contentInner}>{children}</View>
+      </View>
+
+      {/* Contêiner animado/visível */}
       <Animated.View
-        style={[styles.contentWrap, { height, opacity }]}
+        style={[styles.contentWrap, visibleContainerStyle, measuredH > 0 && { opacity }]}
         pointerEvents={open ? 'auto' : 'none'}
       >
-        <View onLayout={onContentLayout} style={styles.contentInner}>
-          {children}
-        </View>
+        <View style={styles.contentInner}>{children}</View>
       </Animated.View>
     </Card>
   );

@@ -566,34 +566,33 @@ export default function EstoqueScreen() {
           </View>
         )}
 
-        {/* Painel inline de movimentação */}
         <ExpandableCard
-          title="Registrar movimentação"
-          subtitle="Informe os dados abaixo"
-          defaultOpen={false}
-          variant="filled"
-          elevationLevel={0}
-        >
-          <MovePanel
-            products={products}
-            mvProd={mvProd}
-            setMvProd={(id) => setMvProd(id)}
-            mvType={mvType}
-            setMvType={setMvType}
-            mvCustomer={mvCustomer}
-            setMvCustomer={setMvCustomer}
-            mvQty={mvQty}
-            setMvQty={setMvQty}
-            mvProdUnit={mvProdUnit}
-            mvIsInteger={mvIsInteger}
-            balances={balances}
-            colors={colors}
-            spacing={spacing}
-            typography={typography}
-            addTx={addTx}
-            saving={saving}
-          />
-        </ExpandableCard>
+  title="Registrar movimentação"
+  subtitle="Informe os dados abaixo"
+  defaultOpen={false}        // coloque true se quiser abrir já expandido para testar
+  variant="filled"
+  elevationLevel={0}
+>
+  <MovePanel
+    products={products}
+    mvProd={mvProd}
+    setMvProd={(id) => setMvProd(id)}
+    mvType={mvType}
+    setMvType={setMvType}
+    mvCustomer={mvCustomer}
+    setMvCustomer={setMvCustomer}
+    mvQty={mvQty}
+    setMvQty={setMvQty}
+    mvProdUnit={mvProdUnit}
+    mvIsInteger={mvIsInteger}
+    balances={balances}
+    colors={colors}
+    spacing={spacing}
+    typography={typography}
+    addTx={addTx}
+    saving={saving}
+  />
+</ExpandableCard>
 
         {/* Filtros */}
         <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: spacing.md }}>
