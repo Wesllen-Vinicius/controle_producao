@@ -92,7 +92,6 @@ function useStyles() {
         timeline: { borderLeftWidth: 2, borderLeftColor: colors.line, paddingLeft: spacing.md },
         bullet: { position: 'absolute', left: -6, top: 14, width: 10, height: 10, borderRadius: 10 },
         divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line, opacity: 0.8 },
-        // destaque do bloco de Abate
         accentBox: {
           borderWidth: 2,
           borderRadius: 14,
@@ -179,7 +178,7 @@ const Stat = memo(function Stat({
   );
 });
 
-/* ===== DateField cross-platform ===== */
+/* ===== DateField ===== */
 const DateField = memo(function DateField({
   label,
   value,
@@ -245,7 +244,7 @@ const DateField = memo(function DateField({
 });
 
 /* =============================================================================
-   HEADER (vai no ListHeaderComponent para a tela rolar inteira)
+   HEADER
 ============================================================================= */
 type UIHeaderProps = {
   prodDate: string;
@@ -291,7 +290,6 @@ const UIHeader = memo(function UIHeader({
 
   return (
     <View style={{ gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.md }}>
-      {/* Cadastro (paddings corrigidos) */}
       <Card padding="md" variant="filled" elevationLevel={0} style={{ gap: spacing.md }}>
         <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'flex-end' }}>
           <View style={{ flex: 1 }}>
@@ -300,7 +298,6 @@ const UIHeader = memo(function UIHeader({
           <Button title="Hoje" variant="tonal" onPress={() => setProdDate(todayStr())} />
         </View>
 
-        {/* Bloco destacado para Abate (input chave) */}
         <View style={[styles.accentBox, { borderColor: colors.primary, backgroundColor: colors.surfaceAlt, gap: 8 }]}>
           <Text style={[typography.label, { color: colors.muted }]}>Abate (animais)</Text>
           <InputNumber
@@ -311,7 +308,7 @@ const UIHeader = memo(function UIHeader({
             placeholder="Ex.: 25"
             selectTextOnFocus
             returnKeyType="done"
-            // @ts-ignore (caso seu InputNumber encaminhe):
+            // @ts-ignore
             keyboardType="number-pad"
           />
           <Text style={{ color: colors.muted }}>
@@ -320,7 +317,6 @@ const UIHeader = memo(function UIHeader({
         </View>
       </Card>
 
-      {/* Produtos (chips) */}
       <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: spacing.sm }}>
         <Text style={typography.h2}>Produtos</Text>
         <Text style={styles.hint}>Toque nas opções para selecionar/deselecionar</Text>
@@ -346,7 +342,6 @@ const UIHeader = memo(function UIHeader({
         )}
       </Card>
 
-      {/* Filtros do histórico */}
       <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: spacing.sm }}>
         <Text style={typography.h2}>Histórico</Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -383,8 +378,6 @@ const UIHeader = memo(function UIHeader({
 });
 
 /* ===== componente principal ===== */
-
-// itens virtualizados (produtos/cta/histórico)
 type Renderable =
   | { type: 'product'; id: string; product: Product }
   | { type: 'cta'; id: 'cta' }
@@ -412,7 +405,7 @@ export default function ProducaoScreen() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [history, setHistory] = useState<Production[] | null>(null);
-  const [itemsCache, setItemsCache] = useState<Record<string, SummaryItem[]>>({});
+  const [itemsCache, setItemsCache] = useState<Record<string, SummaryItem[] | undefined>>({});
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filtersDirty, setFiltersDirty] = useState(false);
@@ -559,14 +552,23 @@ export default function ProducaoScreen() {
     }
   }, [abate, clearSelection, fetchHistory, prodDate, prodNum, products, selected, session, showToast, h]);
 
+  // >>> Carregamento lazy dos itens do dia (fix re-render com FlashList.extraData)
   const loadItems = useCallback(async (prodId: string) => {
-    if (itemsCache[prodId]) return;
+    setItemsCache((prev) => {
+      if (prev[prodId] === undefined) {
+        // marca como "pendente" sem criar array (permite mostrar Skeleton)
+        return { ...prev, [prodId]: prev[prodId] };
+      }
+      return prev;
+    });
     const { data, error } = await supabase
       .from('v_production_item_summary')
       .select('production_id,product_id,product_name,unit,produced,meta,diff,media')
       .eq('production_id', prodId);
-    if (!error) setItemsCache((s) => ({ ...s, [prodId]: (data as SummaryItem[]) || [] }));
-  }, [itemsCache]);
+    if (!error) {
+      setItemsCache((s) => ({ ...s, [prodId]: (data as SummaryItem[]) || [] }));
+    }
+  }, []);
 
   /* === quick ranges === */
   const quickRange = useCallback((k: '7d' | '30d' | 'month') => {
@@ -659,7 +661,7 @@ export default function ProducaoScreen() {
     ],
   );
 
-  const perfProps: any = { estimatedItemSize: 160 };
+  const perfProps: any = { estimatedItemSize: 200 };
 
   /* ===== Renderers ===== */
   const renderItem: ListRenderItem<Renderable> = useCallback(
@@ -750,8 +752,8 @@ export default function ProducaoScreen() {
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         getItemType={getItemType}
-        ListHeaderComponent={headerEl}         // ← header dentro da lista: rola junto e mantém foco
-        keyboardShouldPersistTaps="always"     // ← teclado não fecha ao tocar
+        ListHeaderComponent={headerEl}
+        keyboardShouldPersistTaps="always"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -766,7 +768,10 @@ export default function ProducaoScreen() {
         decelerationRate="fast"
         removeClippedSubviews={Platform.OS === 'android'}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing.lg, gap: spacing.sm }}
+        // >>> FlashList aceita apenas padding e backgroundColor aqui (sem "gap")
+        contentContainerStyle={{ paddingBottom: spacing.lg, backgroundColor: 'transparent' }}
+        // >>> Força re-render quando cache/multiplos estados externos mudam (FIX PRINCIPAL)
+        extraData={{ cache: itemsCache, produced, selected, saving, filtersDirty }}
         ListEmptyComponent={
           history === null ? (
             <View style={{ paddingHorizontal: spacing.md }}>
@@ -781,7 +786,7 @@ export default function ProducaoScreen() {
   );
 }
 
-/* ===== ProductCard com paddings e separadores ===== */
+/* ===== ProductCard ===== */
 const ProductCard = memo(function ProductCard({
   product: p,
   selected,
@@ -821,7 +826,6 @@ const ProductCard = memo(function ProductCard({
   const progress = m > 0 ? Math.max(0, Math.min(1, prod / m)) : 0;
   const fmt = (n: number) => (isUN ? Math.round(n).toString() : n.toFixed(dec));
 
-  // bouncy no card
   const scale = useRef(new Animated.Value(1)).current;
   const onPressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, stiffness: 220, damping: 16, mass: 0.8 }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, stiffness: 220, damping: 16, mass: 0.8 }).start();
@@ -829,7 +833,6 @@ const ProductCard = memo(function ProductCard({
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Card padding="md" variant="filled" elevationLevel={0} style={{ gap: spacing.md }}>
-        {/* Título + toggle */}
         <Pressable onPress={() => toggleProduct(p.id)} onPressIn={onPressIn} onPressOut={onPressOut} hitSlop={8} android_ripple={{ color: colors.line }} style={{ paddingVertical: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontWeight: '900', fontSize: 16, color: colors.text }}>
@@ -845,7 +848,6 @@ const ProductCard = memo(function ProductCard({
 
         <View style={styles.divider} />
 
-        {/* Input */}
         <View style={{ gap: 8 }}>
           <Text style={{ color: colors.muted, fontWeight: '700' }}>Produção do dia</Text>
           <InputNumber
@@ -861,13 +863,11 @@ const ProductCard = memo(function ProductCard({
 
         <View style={styles.divider} />
 
-        {/* Progresso */}
         <View style={{ gap: 8 }}>
           <Text style={{ color: colors.muted, fontWeight: '700' }}>Progresso</Text>
           <ProgressBar progress={progress} />
         </View>
 
-        {/* Grid 2×2 */}
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <Stat label="Meta" value={fmt(m)} hint={`Por animal: ${p.meta_por_animal}`} />
           <Stat label="Dif." value={fmt(d)} status={d > 0 ? 'danger' : 'success'} />
@@ -881,7 +881,7 @@ const ProductCard = memo(function ProductCard({
   );
 });
 
-/* ===== Row do Histórico (timeline) ===== */
+/* ===== Row do Histórico ===== */
 const HistoryRow = memo(function HistoryRow({
   item,
   colors,
@@ -895,7 +895,7 @@ const HistoryRow = memo(function HistoryRow({
   spacing: any;
   typography: any;
   loadItems: (id: string) => Promise<void>;
-  cache: Record<string, SummaryItem[]>;
+  cache: Record<string, SummaryItem[] | undefined>;
 }) {
   const { colors: themeColors } = useTheme();
   const styles = useStyles();
@@ -907,8 +907,11 @@ const HistoryRow = memo(function HistoryRow({
     Animated.spring(rot, { toValue: open ? 1 : 0, useNativeDriver: true, stiffness: 240, damping: 18, mass: 0.9 }).start();
   }, [open, rot]);
 
+  // carrega apenas ao abrir e quando cache ainda não tem dados
   useEffect(() => {
-    if (open && !cache[item.id]) loadItems(item.id);
+    if (open && cache[item.id] === undefined) {
+      loadItems(item.id);
+    }
   }, [open, cache, item.id, loadItems]);
 
   const onToggle = useCallback(() => {
@@ -955,7 +958,7 @@ const HistoryRow = memo(function HistoryRow({
 
         {open && (
           <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm }}>
-            {!list ? (
+            {list === undefined ? (
               <SkeletonList rows={1} height={40} />
             ) : list.length === 0 ? (
               <Text style={{ color: colors.muted }}>Sem itens para esta data.</Text>

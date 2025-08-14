@@ -53,7 +53,12 @@ export default function ExpandableCard({
     Animated.timing(progress, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: false }).start();
   }, [open, progress, rot]);
 
-  // âncoras para animação
+  // recalcula altura quando os filhos mudam (mesmo fechado)
+  useEffect(() => {
+    // força re-medida assíncrona
+    requestAnimationFrame(() => setMeasuredH((h) => h)); // no-op que dispara onLayout do measurer
+  }, [children]);
+
   const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const height = progress.interpolate({ inputRange: [0, 1], outputRange: [0, measuredH] });
   const opacity = progress;
@@ -63,7 +68,6 @@ export default function ExpandableCard({
     setOpen((v) => !v);
   };
 
-  // mede o conteúdo REAL em um espelho invisível
   const onMeasureLayout = (e: LayoutChangeEvent) => {
     const h = Math.ceil(e.nativeEvent.layout.height);
     if (h !== measuredH) setMeasuredH(h);
@@ -84,20 +88,16 @@ export default function ExpandableCard({
         contentWrap: { overflow: 'hidden' },
         contentInner: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
         chevronWrap: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-        // espelho invisível para medir conteúdo
         measurer: { position: 'absolute', opacity: 0, pointerEvents: 'none', left: 0, right: 0 },
       }),
     [colors.muted, spacing, typography.h2]
   );
 
-  // quando ainda não temos measuredH:
-  // - mostramos o "measurer" sempre
-  // - ao abrir antes da medida, mostramos o conteúdo sem animar
   const visibleContainerStyle =
     measuredH > 0
       ? { height }
       : open
-      ? {} // abre sem animar até ter a medida
+      ? {}
       : { height: 0 };
 
   return (
@@ -118,12 +118,12 @@ export default function ExpandableCard({
         </Animated.View>
       </Pressable>
 
-      {/* Measurer invisível (sempre renderiza) */}
+      {/* Measurer invisível (sempre presente) */}
       <View style={styles.measurer} onLayout={onMeasureLayout}>
         <View style={styles.contentInner}>{children}</View>
       </View>
 
-      {/* Contêiner animado/visível */}
+      {/* Contêiner animado */}
       <Animated.View
         style={[styles.contentWrap, visibleContainerStyle, measuredH > 0 && { opacity }]}
         pointerEvents={open ? 'auto' : 'none'}
