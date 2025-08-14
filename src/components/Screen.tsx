@@ -1,3 +1,4 @@
+// components/Screen.tsx
 import React from 'react';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import {
@@ -38,37 +39,52 @@ export default function Screen({
   const { colors, spacing } = useTheme();
   const { width } = useWindowDimensions();
 
+  // paddings responsivos (mantém padrão lateral do app)
   const horizontal = width >= 480 ? spacing.lg : spacing.md;
   const padH = padded ? horizontal : 0;
   const padTop = padded ? spacing.lg : 0;
   const padBottom = padded ? spacing.xl : 0;
   const contentWidth = Math.min(width, maxContentWidth);
 
+  // IMPORTANTE:
+  // - Quando scroll={false} usamos View puro para não aninhar VirtualizedList.
   const Container = scroll ? ScrollView : View;
-  const containerProps = scroll
+
+  // props específicos quando há ScrollView
+  const scrollProps = scroll
     ? {
         keyboardShouldPersistTaps: 'handled' as const,
+        contentInsetAdjustmentBehavior: 'automatic' as const, // iOS
+        showsVerticalScrollIndicator: false,
+        overScrollMode: 'never' as const, // Android: sem glow/overscroll
+        // centraliza o "miolo" e aplica padding lateral
         contentContainerStyle: [
           styles.scrollContent,
           { alignItems: 'center', paddingHorizontal: padH },
         ],
       }
     : {
+        // View "seca", flex:1 — NÃO usa ScrollView (evita nested lists)
         style: [styles.viewContent, { alignItems: 'center', paddingHorizontal: padH }],
       };
 
   return (
     <SafeAreaView edges={edges} style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // iOS: padding; Android: height (pan/resize é configurável no app.json)
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={keyboardVerticalOffset}
         style={styles.flex}
       >
-        <Container {...(containerProps as any)}>
+        <Container {...(scrollProps as any)}>
           <View
             style={[
               styles.body,
-              { width: contentWidth, paddingTop: padTop, paddingBottom: padBottom },
+              {
+                width: contentWidth,
+                paddingTop: padTop,
+                paddingBottom: padBottom,
+              },
             ]}
           >
             {children}

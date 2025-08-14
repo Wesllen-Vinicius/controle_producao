@@ -6,28 +6,24 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/rosa-dos-ventos.png",
+    "android": {
+      "icon": "./assets/rosa-dos-ventos.png",
+      "package": "com.wes.producao_estoque"
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#0B1113"
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/rosa-dos-ventos.png",
-        "backgroundColor": "#0B1113"
-      },
-      "package": "com.wes.nfproducao"
-    },
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.wes.nfproducao"
+      "supportsTablet": false
     },
     "web": {
       "favicon": "./assets/rosa-dos-ventos.png"
     },
     "extra": {
       "eas": {
-        "projectId": "00a73194-081c-441b-aabb-e77c9b60e5b1"
+        "projectId": "feff1883-7930-4dcf-ab43-b599bc9e5bab"
       }
     }
   }

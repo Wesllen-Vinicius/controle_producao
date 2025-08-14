@@ -1,5 +1,7 @@
 // App.tsx
 import 'react-native-gesture-handler';
+import 'react-native-reanimated';
+
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,7 +12,6 @@ import { ThemeProvider, useTheme } from './src/state/ThemeProvider';
 import { AuthProvider } from './src/state/AuthProvider';
 import { ToastProvider } from './src/state/ToastProvider';
 
-// Pequeno wrapper para ler o tema e definir a StatusBar
 function AppBody() {
   const { scheme } = useTheme();
   return (

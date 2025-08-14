@@ -18,20 +18,15 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 
-  /** Visual style do card */
   variant?: Variant;
-  /** Nível de elevação (0–4) */
   elevationLevel?: 0 | 1 | 2 | 3 | 4;
-  /** Espaçamento interno */
   padding?: Padding;
 
-  /** Interação */
   onPress?: () => void;
   disabled?: boolean;
   selected?: boolean;
   testID?: string;
 
-  /** Header / Footer */
   title?: string;
   subtitle?: string;
   leading?: ReactNode;
@@ -75,17 +70,20 @@ export default function Card({
       variant === 'tonal'  ? colors.surfaceAlt :
       variant === 'plain'  ? 'transparent' : colors.surface;
 
-    const border: ViewStyle =
-      variant === 'outlined'
-        ? { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line }
-        : {};
-
+    // Em Android, elevation + border gera artefatos. Se outlined, removemos elevação.
+    const useElevation = variant !== 'outlined';
     const elev =
+      !useElevation ? elevation.e0 :
       elevationLevel === 0 ? elevation.e0
       : elevationLevel === 1 ? elevation.e1
       : elevationLevel === 2 ? elevation.e2
       : elevationLevel === 3 ? elevation.e3
       : elevation.e4;
+
+    const border: ViewStyle =
+      variant === 'outlined'
+        ? { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line }
+        : {};
 
     return {
       backgroundColor: bg,
@@ -97,12 +95,11 @@ export default function Card({
 
   const pressedIn = () => {
     Animated.timing(scale, {
-      toValue: onPress ? 0.99 : 1,
+      toValue: onPress ? 0.98 : 1,
       duration: 90,
       useNativeDriver: true,
     }).start();
   };
-
   const pressedOut = () => {
     Animated.timing(scale, {
       toValue: 1,
@@ -115,8 +112,8 @@ export default function Card({
     <>
       {(title || subtitle || leading || trailing) && (
         <View style={[styles.header, { padding: pad, paddingBottom: children ? spacing.sm : pad }]}>
-          <View style={[styles.headerLeft]}>
-            {leading ? <View style={[styles.leading]}>{leading}</View> : null}
+          <View style={styles.headerLeft}>
+            {leading ? <View style={styles.leading}>{leading}</View> : null}
             <View style={{ flex: 1 }}>
               {title ? <Text style={typography.h2} numberOfLines={1}>{title}</Text> : null}
               {subtitle ? (
@@ -153,7 +150,6 @@ export default function Card({
     <Animated.View
       style={[
         containerBase,
-        // borda de seleção sutil
         selected && { borderWidth: 2, borderColor: colors.primary },
         { transform: [{ scale }], opacity: disabled ? opacity.disabled : 1 },
         style,
@@ -164,7 +160,8 @@ export default function Card({
   );
 
   if (!onPress) {
-    return <View testID={testID} accessible style={style}>{body}</View>;
+    // Evita <View> extra para não “duplicar” estilos/bordas
+    return body;
   }
 
   return (
@@ -174,12 +171,10 @@ export default function Card({
       onPress={disabled ? undefined : onPress}
       onPressIn={pressedIn}
       onPressOut={pressedOut}
-      android_ripple={{ color: `${colors.text}14` }}
-      style={({ pressed }) => [
-        { opacity: pressed ? 1 : 1 }, // opacidade controlada pela escala
-      ]}
+      android_ripple={{ color: `${colors.primaryDim}` }}
       hitSlop={8}
       testID={testID}
+      style={({ pressed }) => [{ opacity: pressed ? 1 : 1 }]}
     >
       {body}
     </Pressable>

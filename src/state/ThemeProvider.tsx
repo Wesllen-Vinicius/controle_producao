@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Appearance } from 'react-native';
+import { Appearance, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   makeColors,
@@ -99,10 +99,10 @@ export const ThemeProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const elevation: Elevation = useMemo(
     () => ({
       e0: { shadowColor: colors.shadow ?? '#000', shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
-      e1: { shadowColor: colors.shadow ?? '#000', shadowOpacity: 0.08, shadowRadius: 6, elevation: 1 },
-      e2: { shadowColor: colors.shadow ?? '#000', shadowOpacity: 0.10, shadowRadius: 10, elevation: 2 },
-      e3: { shadowColor: colors.shadow ?? '#000', shadowOpacity: 0.14, shadowRadius: 14, elevation: 3 },
-      e4: { shadowColor: colors.shadow ?? '#000', shadowOpacity: 0.20, shadowRadius: 20, elevation: 4 },
+      e1: { shadowColor: colors.shadow ?? '#000', shadowOpacity: Platform.OS==='ios'?0.06:0, shadowRadius: 4,  elevation: 1 },
+      e2: { shadowColor: colors.shadow ?? '#000', shadowOpacity: Platform.OS==='ios'?0.08:0, shadowRadius: 8,  elevation: 2 },
+      e3: { shadowColor: colors.shadow ?? '#000', shadowOpacity: Platform.OS==='ios'?0.10:0, shadowRadius: 12, elevation: 3 },
+      e4: { shadowColor: colors.shadow ?? '#000', shadowOpacity: Platform.OS==='ios'?0.12:0, shadowRadius: 16, elevation: 4 },
     }),
     [colors.shadow]
   );

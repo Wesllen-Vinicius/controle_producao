@@ -1,3 +1,4 @@
+// components/ExpandableCard.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -13,7 +14,7 @@ import {
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useHaptics } from '../hooks/useHaptics';
 import { useTheme } from '../state/ThemeProvider';
-import { Card } from './ui';
+import Card from './ui/Card';
 
 type Props = {
   title: string;
@@ -21,7 +22,6 @@ type Props = {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   defaultOpen?: boolean;
-  /** Ajustes visuais do card */
   variant?: 'filled' | 'tonal' | 'outlined' | 'plain';
   elevationLevel?: 0 | 1 | 2 | 3 | 4;
 };
@@ -42,7 +42,6 @@ export default function ExpandableCard({
   const { colors, spacing, typography } = useTheme();
   const h = useHaptics();
 
-  // progress: 0 (fechado) .. 1 (aberto)
   const progress = useRef(new Animated.Value(startOpen ? 1 : 0)).current;
   const rot = useRef(new Animated.Value(startOpen ? 1 : 0)).current;
 
@@ -51,11 +50,8 @@ export default function ExpandableCard({
     Animated.timing(progress, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: false }).start();
   }, [open, progress, rot]);
 
-  // Se o conteúdo for medido depois de montado e já estiver aberto, garante estado visual correto
   useEffect(() => {
-    if (measuredH > 0 && open) {
-      progress.setValue(1);
-    }
+    if (measuredH > 0 && open) progress.setValue(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [measuredH]);
 
@@ -110,9 +106,10 @@ export default function ExpandableCard({
         </Animated.View>
       </Pressable>
 
-      {/* Contêiner animado */}
-      <Animated.View style={[styles.contentWrap, { height, opacity }]}>
-        {/* Medimos o conteúdo real aqui */}
+      <Animated.View
+        style={[styles.contentWrap, { height, opacity }]}
+        pointerEvents={open ? 'auto' : 'none'}
+      >
         <View onLayout={onContentLayout} style={styles.contentInner}>
           {children}
         </View>
