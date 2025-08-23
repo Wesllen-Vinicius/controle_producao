@@ -138,12 +138,7 @@ const Stat = memo(function Stat({ label, value, status, hint, icon }: any) {
 });
 
 const ProductionForm = memo(({ prodDate, setProdDate, abateStr, setAbateStr, products, selected, toggleProduct, selectAll, clearSelection }: any) => {
-  const { colors, spacing, typography, radius } = useTheme();
-
-  const isValidAbate = useMemo(() => {
-    const num = parseInt(abateStr || '0', 10);
-    return num > 0 && num <= 10000;
-  }, [abateStr]);
+  const { colors, spacing, typography } = useTheme();
 
   const handleDateToday = useCallback(() => {
     setProdDate(todayStr());
@@ -152,7 +147,7 @@ const ProductionForm = memo(({ prodDate, setProdDate, abateStr, setAbateStr, pro
   const renderProductChip = useCallback((p: Product) => (
     <Chip
       key={p.id}
-      label={`${p.name} (${p.unit})`}
+      label={p.name}
       active={selected.includes(p.id)}
       onPress={() => toggleProduct(p.id)}
     />
@@ -160,177 +155,69 @@ const ProductionForm = memo(({ prodDate, setProdDate, abateStr, setAbateStr, pro
 
   return (
     <View style={{ gap: spacing.lg }}>
-      {/* Header */}
-      <View style={{ gap: spacing.sm }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <MaterialCommunityIcons name="calendar-plus" size={24} color={colors.primary} />
-          <Text style={[typography.h2, { fontSize: 20 }]}>Nova Produção</Text>
-        </View>
-        <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '500' }}>
-          Registre os dados de produção do dia
-        </Text>
-      </View>
-
-      {/* Date Selection */}
-      <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: spacing.sm }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <MaterialCommunityIcons name="calendar" size={18} color={colors.text} />
-          <Text style={[typography.label, { color: colors.text, fontSize: 13 }]}>Data de Produção</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'flex-end' }}>
+      {/* Date Input */}
+      <View>
+        <Text style={[typography.label, { marginBottom: spacing.sm, color: colors.text, fontWeight: '600' }]}>Data da Produção</Text>
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <View style={{ flex: 1 }}>
-            <DateField label="" value={prodDate} onChange={setProdDate} maximumDate={tomorrow()} />
+            <DateField
+              label=""
+              value={prodDate}
+              onChange={setProdDate}
+              maximumDate={tomorrow()}
+            />
           </View>
           <Button
             title="Hoje"
             variant="tonal"
             onPress={handleDateToday}
-            leftIcon={<MaterialCommunityIcons name="calendar-today" size={16} color={colors.primary} />}
           />
         </View>
-      </Card>
+      </View>
 
-      {/* Animal Count */}
-      <Card
-        padding="md"
-        variant="filled"
-        elevationLevel={0}
-        style={{
-          borderWidth: 2,
-          borderColor: isValidAbate ? colors.success + '40' : colors.danger + '40',
-          backgroundColor: isValidAbate ? colors.success + '10' : colors.danger + '10',
-          gap: spacing.sm
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <View style={{
-            width: 40,
-            height: 40,
-            borderRadius: radius.sm,
-            backgroundColor: isValidAbate ? colors.success + '20' : colors.danger + '20',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <MaterialCommunityIcons
-              name="cow"
-              size={20}
-              color={isValidAbate ? colors.success : colors.danger}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.label, { color: colors.text, fontSize: 13, fontWeight: '600' }]}>
-              Quantidade de Animais Abatidos
-            </Text>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
-              Número total de animais processados no dia
-            </Text>
-          </View>
-        </View>
-
+      {/* Animals Input */}
+      <View>
+        <Text style={[typography.label, { marginBottom: spacing.sm, color: colors.text, fontWeight: '600' }]}>Animais Abatidos</Text>
         <InputNumber
           label=""
           mode="integer"
           value={abateStr}
           onChangeText={setAbateStr}
-          placeholder="Ex.: 25"
-          selectTextOnFocus
-          returnKeyType="done"
+          placeholder="0"
           keyboardType="number-pad"
           maxLength={5}
-          suffix="animais"
         />
-
-        {!isValidAbate && abateStr && (
-          <View style={{
-            backgroundColor: colors.danger + '20',
-            padding: spacing.sm,
-            borderRadius: radius.sm,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            <MaterialCommunityIcons name="alert" size={16} color={colors.danger} />
-            <Text style={{ color: colors.danger, fontSize: 12, fontWeight: '600' }}>
-              Informe um número válido entre 1 e 10.000
-            </Text>
-          </View>
-        )}
-
-        {isValidAbate && abateStr && (
-          <View style={{
-            backgroundColor: colors.success + '20',
-            padding: spacing.sm,
-            borderRadius: radius.sm,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            <MaterialCommunityIcons name="check" size={16} color={colors.success} />
-            <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
-              Quantidade válida para processamento
-            </Text>
-          </View>
-        )}
-      </Card>
+      </View>
 
       {/* Product Selection */}
-      <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: spacing.md }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <MaterialCommunityIcons name="package-variant-closed" size={18} color={colors.text} />
-            <Text style={[typography.h2, { fontSize: 16 }]}>Produtos a Registrar</Text>
-          </View>
-          {selected.length > 0 && (
-            <View style={{
-              backgroundColor: colors.primary + '20',
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 4,
-              borderRadius: radius.sm
-            }}>
-              <Text style={{
-                color: colors.primary,
-                fontSize: 11,
-                fontWeight: '700'
-              }}>
-                {selected.length} SELECIONADOS
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '500' }}>
-          Selecione os produtos que foram produzidos na data escolhida
-        </Text>
-
-        <View style={{ gap: spacing.sm }}>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Button
-              title="Selecionar Todos"
-              variant="tonal"
-              small
-              onPress={selectAll}
-              leftIcon={<MaterialCommunityIcons name="select-all" size={16} color={colors.primary} />}
-            />
-            <Button
-              title="Limpar Seleção"
-              variant="text"
-              small
-              onPress={clearSelection}
-              leftIcon={<MaterialCommunityIcons name="close" size={16} color={colors.muted} />}
-            />
-          </View>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {(products || []).map(renderProductChip)}
+      <View>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: spacing.sm
+        }}>
+          <Text style={[typography.label, { color: colors.text, fontWeight: '600' }]}>Produtos ({selected.length})</Text>
+          <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+            <Button title="Todos" variant="text" small onPress={selectAll} />
+            <Button title="Limpar" variant="text" small onPress={clearSelection} />
           </View>
         </View>
-      </Card>
+
+        <View style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: spacing.sm
+        }}>
+          {(products || []).map(renderProductChip)}
+        </View>
+      </View>
     </View>
   );
 });
 
 const ProductInputCard = memo(({ product, value, onChangeText, meta, abate }: any) => {
-    const { colors, spacing, radius, typography } = useTheme();
+    const { colors, spacing, elevation } = useTheme();
     const [localValue, setLocalValue] = useState(value);
     const debouncedChange = useDebouncedCallback(onChangeText, 250);
 
@@ -342,186 +229,119 @@ const ProductInputCard = memo(({ product, value, onChangeText, meta, abate }: an
     };
 
     const isUN = String(product.unit).toUpperCase() === 'UN';
-    const dec = isUN ? 0 : 3;
     const prod = parseFloat(localValue || '0') || 0;
     const m = meta(product);
-    const d = m - prod;
-    const med = abate > 0 ? prod / abate : 0;
     const progress = m > 0 ? Math.max(0, Math.min(1, prod / m)) : 0;
-    const fmt = (n: number) => (isUN ? Math.round(n).toString() : n.toFixed(dec));
-
-    const performanceStatus = progress >= 1 ? 'success' : progress >= 0.8 ? 'warning' : progress >= 0.5 ? 'neutral' : 'danger';
-    const performanceColor = performanceStatus === 'success' ? colors.success :
-                           performanceStatus === 'warning' ? '#FF8C00' :
-                           performanceStatus === 'danger' ? colors.danger : colors.text;
+    const mediaAnimal = abate > 0 ? prod / abate : 0;
+    const diferenca = prod - m;
+    const fmt = (n: number) => (isUN ? Math.round(n).toString() : n.toFixed(1));
 
     return (
-        <Card
-            padding="lg"
-            variant="filled"
-            elevationLevel={1}
-            style={{
-                gap: spacing.md,
-                borderLeftWidth: 4,
-                borderLeftColor: performanceColor,
-                backgroundColor: colors.surface
-            }}
-        >
-            {/* Product Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <View style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: radius.sm,
-                    backgroundColor: performanceColor + '20',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+        <View style={{
+            backgroundColor: colors.surface,
+            padding: spacing.md,
+            borderRadius: 12,
+            borderLeftWidth: 4,
+            borderLeftColor: progress >= 0.8 ? colors.success : progress >= 0.5 ? '#FF8C00' : colors.danger,
+            ...elevation.e2,
+            marginHorizontal: 2,
+        }}>
+            <View style={{ marginBottom: spacing.md }}>
+                <Text style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: colors.text,
+                    marginBottom: 4
                 }}>
-                    <MaterialCommunityIcons
-                        name="package-variant"
-                        size={22}
-                        color={performanceColor}
-                    />
-                </View>
-                <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '800', fontSize: 16, color: colors.text }}>
-                        {product.name}
-                    </Text>
-                    <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>
-                        Unidade: {product.unit} • Meta/Animal: {product.meta_por_animal}
-                    </Text>
-                </View>
-                <View style={{
-                    backgroundColor: performanceColor + '20',
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 4,
-                    borderRadius: radius.sm
-                }}>
-                    <Text style={{
-                        color: performanceColor,
-                        fontSize: 11,
-                        fontWeight: '700'
-                    }}>
-                        {Math.round(progress * 100)}%
-                    </Text>
-                </View>
-            </View>
-
-            {/* Input Section */}
-            <View style={{ gap: spacing.sm }}>
-                <Text style={[typography.label, { color: colors.text, fontSize: 13 }]}>
-                    Quantidade Produzida
+                    {product.name}
                 </Text>
-                <InputNumber
-                    label=""
-                    mode={isUN ? 'integer' : 'decimal'}
-                    decimals={3}
-                    suffix={String(product.unit).toUpperCase()}
-                    value={localValue}
-                    onChangeText={handleChange}
-                    placeholder={isUN ? 'Ex.: 12' : 'Ex.: 34.500'}
-                    leftIcon={
-                        <MaterialCommunityIcons
-                            name="scale"
-                            size={18}
-                            color={colors.muted}
-                        />
-                    }
-                />
-            </View>
-
-            {/* Progress Bar */}
-            <View style={{ gap: spacing.xs }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>
-                        Progresso da Meta
-                    </Text>
-                    <Text style={{ color: performanceColor, fontSize: 12, fontWeight: '700' }}>
-                        {fmt(prod)} / {fmt(m)}
-                    </Text>
-                </View>
-                <ProgressBar progress={progress} />
-            </View>
-
-            {/* Stats Grid */}
-            <View style={{ gap: spacing.sm }}>
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                    <Stat
-                        label="Meta Total"
-                        value={fmt(m)}
-                        icon="target"
-                        hint={`${abate} × ${product.meta_por_animal}`}
-                    />
-                    <Stat
-                        label="Diferença"
-                        value={fmt(Math.abs(d))}
-                        status={d < 0 ? 'danger' : d > 0 ? 'success' : 'neutral'}
-                        icon={d < 0 ? 'arrow-down' : d > 0 ? 'arrow-up' : 'equal'}
-                    />
-                </View>
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                    <Stat
-                        label="Média/Animal"
-                        value={med.toFixed(2)}
-                        icon="calculator"
-                        hint={`${fmt(prod)} ÷ ${abate}`}
-                    />
-                    <Stat
-                        label="Eficiência"
-                        value={`${Math.round(progress * 100)}%`}
-                        status={performanceStatus}
-                        icon="chart-line"
-                    />
-                </View>
-            </View>
-
-            {/* Performance Indicator */}
-            {progress > 0 && (
-                <View style={{
-                    backgroundColor: performanceColor + '15',
-                    borderColor: performanceColor + '30',
-                    borderWidth: 1,
-                    borderRadius: radius.sm,
-                    padding: spacing.sm,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.sm
+                <Text style={{
+                    fontSize: 12,
+                    color: colors.muted,
+                    lineHeight: 16
                 }}>
-                    <MaterialCommunityIcons
-                        name={
-                            performanceStatus === 'success' ? 'check-circle' :
-                            performanceStatus === 'warning' ? 'alert-circle' :
-                            performanceStatus === 'danger' ? 'close-circle' : 'information'
-                        }
-                        size={16}
-                        color={performanceColor}
-                    />
-                    <Text style={{
-                        color: performanceColor,
-                        fontSize: 12,
-                        fontWeight: '600',
-                        flex: 1
-                    }}>
-                        {performanceStatus === 'success' ? 'Meta atingida com sucesso!' :
-                         performanceStatus === 'warning' ? 'Próximo da meta, bom trabalho!' :
-                         performanceStatus === 'danger' ? 'Abaixo da meta, atenção necessária' :
-                         'Em andamento...'}
-                    </Text>
+                    Meta Total: {fmt(m)} {product.unit} ({product.meta_por_animal} {product.unit} por animal)
+                </Text>
+            </View>
+
+            <InputNumber
+                label=""
+                mode={isUN ? 'integer' : 'decimal'}
+                decimals={isUN ? 0 : 2}
+                value={localValue}
+                onChangeText={handleChange}
+                placeholder="0"
+                keyboardType="numeric"
+            />
+
+            <View style={{ marginTop: spacing.md }}>
+                <View style={{
+                    backgroundColor: colors.surfaceAlt,
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    height: 6,
+                    marginBottom: spacing.sm
+                }}>
+                    <View style={{
+                        height: '100%',
+                        width: `${Math.min(100, progress * 100)}%`,
+                        backgroundColor: progress >= 0.8 ? colors.success : progress >= 0.5 ? '#FF8C00' : colors.danger,
+                    }} />
                 </View>
-            )}
-        </Card>
+
+                <View style={{ gap: spacing.xs }}>
+                    <View style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <Text style={{
+                            fontSize: 11,
+                            color: colors.muted
+                        }}>
+                            Produzido: {fmt(prod)} / {fmt(m)} {product.unit}
+                        </Text>
+                        <Text style={{
+                            fontSize: 11,
+                            fontWeight: '600',
+                            color: progress >= 0.8 ? colors.success : progress >= 0.5 ? '#FF8C00' : colors.danger
+                        }}>
+                            {Math.round(progress * 100)}% da meta
+                        </Text>
+                    </View>
+
+                    <View style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <Text style={{
+                            fontSize: 11,
+                            color: colors.muted
+                        }}>
+                            Média por animal: {fmt(mediaAnimal)} {product.unit}
+                        </Text>
+                        <Text style={{
+                            fontSize: 11,
+                            color: diferenca >= 0 ? colors.success : colors.danger,
+                            fontWeight: '500'
+                        }}>
+                            {diferenca >= 0 ? 'Acima' : 'Abaixo'}: {Math.abs(diferenca)} {product.unit}
+                        </Text>
+                    </View>
+                </View>
+            </View>
+        </View>
     );
 });
 
 const HistoryRow = memo(function HistoryRow({ item, colors, spacing, typography, loadItems, cache }: any) {
-    const { colors: themeColors } = useTheme();
-    const styles = useStyles();
     const [open, setOpen] = useState(false);
     const rot = useRef(new Animated.Value(0)).current;
     const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
 
     useEffect(() => {
-        Animated.spring(rot, { toValue: open ? 1 : 0, useNativeDriver: true, stiffness: 240, damping: 18, mass: 0.9 }).start();
+        Animated.spring(rot, { toValue: open ? 1 : 0, useNativeDriver: true, tension: 150, friction: 8 }).start();
     }, [open, rot]);
 
     useEffect(() => {
@@ -536,50 +356,121 @@ const HistoryRow = memo(function HistoryRow({ item, colors, spacing, typography,
     }, []);
 
     const list = cache[item.id];
-    const scale = useRef(new Animated.Value(1)).current;
-    const onPressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, stiffness: 220, damping: 16, mass: 0.8 }).start();
-    const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, stiffness: 220, damping: 16, mass: 0.8 }).start();
 
     return (
-        <View style={[styles.timeline, { paddingRight: spacing.md }]}>
-            <View style={[styles.bullet, { backgroundColor: themeColors.primary }]} />
-            <Card variant="filled" elevationLevel={0} style={{ padding: 0 }}>
-                <Animated.View style={{ transform: [{ scale }] }}>
-                    <Pressable onPress={onToggle} onPressIn={onPressIn} onPressOut={onPressOut} hitSlop={8} android_ripple={{ color: colors.line }} style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[typography.h2, { fontSize: 16 }]}>{item.prod_date}</Text>
-                            <Text style={{ color: colors.muted, marginTop: 2, fontSize: 12, fontWeight: '600' }}>Abate: {item.abate}</Text>
-                        </View>
-                        <Animated.View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center', transform: [{ rotate }] }}>
-                            <MaterialCommunityIcons name="chevron-down" size={22} color={colors.text} />
-                        </Animated.View>
-                    </Pressable>
+        <View style={{
+            backgroundColor: colors.surface,
+            borderRadius: 16,
+            shadowColor: colors.shadow || '#000',
+            shadowOpacity: 0.08,
+            shadowRadius: 2,
+            shadowOffset: { width: 0, height: 1 },
+            elevation: 1,
+            overflow: 'hidden'
+        }}>
+            <Pressable
+                onPress={onToggle}
+                style={{
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.md,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}
+                android_ripple={{ color: colors.line }}
+            >
+                <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 2 }}>
+                        {labelForYMD(item.prod_date)}
+                    </Text>
+                    <Text style={{ color: colors.muted, fontSize: 13 }}>
+                        {item.abate} animais
+                    </Text>
+                </View>
+                <Animated.View style={{ transform: [{ rotate }] }}>
+                    <MaterialCommunityIcons name="chevron-down" size={20} color={colors.muted} />
                 </Animated.View>
-                {open && (
-                    <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm }}>
-                        {list === undefined ? <SkeletonList rows={1} height={40} /> : list.length === 0 ? <Text style={{ color: colors.muted }}>Sem itens para esta data.</Text> : (
-                            list.map((pi: SummaryItem) => {
+            </Pressable>
+
+            {open && (
+                <View style={{
+                    paddingHorizontal: spacing.lg,
+                    paddingBottom: spacing.lg,
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: colors.line,
+                    backgroundColor: colors.background
+                }}>
+                    {list === undefined ? (
+                        <SkeletonList rows={2} height={30} />
+                    ) : list.length === 0 ? (
+                        <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: spacing.lg }}>
+                            Sem produtos registrados
+                        </Text>
+                    ) : (
+                        <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+                            {list.map((pi: SummaryItem) => {
                                 const progress = pi.meta > 0 ? Math.max(0, Math.min(1, pi.produced / pi.meta)) : 0;
                                 const isUN = String(pi.unit).toUpperCase() === 'UN';
+                                const fmt = (n: number) => isUN ? Math.round(n).toString() : n.toFixed(1);
+
+                                const progressColor = progress >= 0.8 ? colors.success : progress >= 0.5 ? '#FF8C00' : colors.danger;
+
                                 return (
-                                    <View key={`${item.id}-${pi.product_id}`} style={{ padding: spacing.sm, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, backgroundColor: colors.surfaceAlt, gap: 8 }}>
-                                        <Text style={{ fontWeight: '800', color: colors.text }}>{pi.product_name} <Text style={{ color: colors.muted }}>({pi.unit})</Text></Text>
-                                        <ProgressBar progress={progress} />
-                                        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                                            <Stat label="Prod." value={isUN ? pi.produced : pi.produced.toFixed(3)} />
-                                            <Stat label="Meta" value={isUN ? pi.meta : pi.meta.toFixed(3)} />
+                                    <View
+                                        key={`${item.id}-${pi.product_id}`}
+                                        style={{
+                                            backgroundColor: colors.surface,
+                                            padding: spacing.md,
+                                            borderRadius: 12,
+                                            borderLeftWidth: 4,
+                                            borderLeftColor: progressColor
+                                        }}
+                                    >
+                                        <View style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            marginBottom: spacing.sm
+                                        }}>
+                                            <Text style={{ fontWeight: '600', color: colors.text, fontSize: 15 }}>
+                                                {pi.product_name}
+                                            </Text>
+                                            <Text style={{
+                                                fontSize: 14,
+                                                fontWeight: '700',
+                                                color: progressColor
+                                            }}>
+                                                {Math.round(progress * 100)}%
+                                            </Text>
                                         </View>
-                                        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                                            <Stat label="Dif." value={isUN ? pi.diff : pi.diff.toFixed(3)} status={pi.diff < 0 ? 'danger' : 'success'} />
-                                            <Stat label="Média" value={Number(pi.media).toFixed(2)} />
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                            <View>
+                                                <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>PRODUZIDO</Text>
+                                                <Text style={{ color: colors.success, fontSize: 14, fontWeight: '700' }}>
+                                                    {fmt(pi.produced)} {pi.unit}
+                                                </Text>
+                                            </View>
+                                            <View style={{ alignItems: 'center' }}>
+                                                <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>META</Text>
+                                                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>
+                                                    {fmt(pi.meta)} {pi.unit}
+                                                </Text>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>MÉDIA/ANIMAL</Text>
+                                                <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '700' }}>
+                                                    {fmt(pi.media)} {pi.unit}
+                                                </Text>
+                                            </View>
                                         </View>
                                     </View>
                                 );
-                            })
-                        )}
-                    </View>
-                )}
-            </Card>
+                            })}
+                        </View>
+                    )}
+                </View>
+            )}
         </View>
     );
 });
@@ -607,6 +498,12 @@ export default function ProducaoScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>(todayStr());
+  const [productFilters, setProductFilters] = useState<string[]>([]);
+
   const abate = useMemo(() => parseInt(abateStr || '0', 10) || 0, [abateStr]);
 
   const fetchProducts = useCallback(async () => {
@@ -614,18 +511,47 @@ export default function ProducaoScreen() {
     setProducts((data as Product[]) || []);
   }, []);
 
-  const fetchHistory = useCallback(async () => {
-    const { data } = await supabase.from('productions').select('id,prod_date,abate').order('prod_date', { ascending: false }).limit(180);
+  const fetchHistory = useCallback(async (startDate?: string, endDate?: string) => {
+    let query = supabase.from('productions').select('id,prod_date,abate').order('prod_date', { ascending: false });
+
+    if (startDate && endDate) {
+      query = query.gte('prod_date', startDate).lte('prod_date', endDate);
+    } else {
+      query = query.limit(180);
+    }
+
+    const { data } = await query;
     setHistory((data as Production[]) || []);
   }, []);
 
-  useEffect(() => { fetchProducts(); fetchHistory(); }, [fetchProducts, fetchHistory]);
+  useEffect(() => {
+    fetchProducts();
+    fetchHistory();
+  }, [fetchProducts, fetchHistory]);
+
+  // Load items for current month productions to show stats
+  useEffect(() => {
+    if (!history) return;
+
+    const now = new Date();
+    const thisMonth = history.filter(p => {
+      const prodDate = new Date(p.prod_date);
+      return prodDate.getMonth() === now.getMonth() && prodDate.getFullYear() === now.getFullYear();
+    });
+
+    // Load items for each production of this month
+    thisMonth.forEach(prod => {
+      if (!itemsCache[prod.id]) {
+        loadItems(prod.id);
+      }
+    });
+  }, [history, itemsCache, loadItems]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchProducts(), fetchHistory()]);
+    await Promise.all([fetchProducts(), fetchHistory(fromDate, toDate)]);
     setRefreshing(false);
-  }, [fetchProducts, fetchHistory]);
+  }, [fetchProducts, fetchHistory, fromDate, toDate]);
 
   const meta = useCallback((p: Product) => abate * (p.meta_por_animal || 0), [abate]);
   const prodNum = useCallback((id: string) => parseFloat(produced[id] || '0') || 0, [produced]);
@@ -717,8 +643,19 @@ export default function ProducaoScreen() {
 
   const historyItems: Renderable[] = useMemo(() => {
     if (!history) return [];
+
+    // Filter by products if filters are active
+    let filteredHistory = history;
+    if (productFilters.length > 0) {
+      filteredHistory = history.filter(production => {
+        const items = itemsCache[production.id];
+        if (!items) return true; // Include if not loaded yet
+        return items.some(item => productFilters.includes(item.product_id));
+      });
+    }
+
     const byDay = new Map<string, Production[]>();
-    history.forEach(p => {
+    filteredHistory.forEach(p => {
         const ymd = p.prod_date.slice(0, 10);
         if (!byDay.has(ymd)) byDay.set(ymd, []);
         byDay.get(ymd)!.push(p);
@@ -729,247 +666,398 @@ export default function ProducaoScreen() {
         list.forEach(row => out.push({ type: 'h-row', id: row.id, item: row }));
     });
     return out;
-  }, [history]);
+  }, [history, productFilters, itemsCache]);
 
-  // Production stats for header
+  // Production stats for header - optimized
   const productionStats = useMemo(() => {
-    if (!history) return { total: 0, thisMonth: 0, avgAnimals: 0 };
+    if (!history) return {
+      total: 0,
+      thisMonth: 0,
+      avgAnimals: 0,
+      byUnit: {}
+    };
 
     const now = new Date();
-    const thisMonth = history.filter(p => {
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let thisMonthCount = 0;
+    let totalAnimals = 0;
+    const thisMonthProds: Production[] = [];
+
+    // Single loop through history for better performance
+    history.forEach(p => {
+      totalAnimals += p.abate;
       const prodDate = new Date(p.prod_date);
-      return prodDate.getMonth() === now.getMonth() && prodDate.getFullYear() === now.getFullYear();
+      if (prodDate.getMonth() === currentMonth && prodDate.getFullYear() === currentYear) {
+        thisMonthCount++;
+        thisMonthProds.push(p);
+      }
     });
 
-    const totalAnimals = history.reduce((sum, p) => sum + p.abate, 0);
     const avgAnimals = history.length > 0 ? Math.round(totalAnimals / history.length) : 0;
+
+    // Calcular estatísticas por unidade apenas se temos dados do cache
+    const byUnit: Record<string, { produced: number; meta: number; loss: number; efficiency: number }> = {};
+
+    thisMonthProds.forEach(prod => {
+      const items = itemsCache[prod.id];
+      if (items && items.length > 0) {
+        items.forEach(item => {
+          const unit = String(item.unit || 'UN').toUpperCase();
+          if (!byUnit[unit]) {
+            byUnit[unit] = { produced: 0, meta: 0, loss: 0, efficiency: 0 };
+          }
+          byUnit[unit].produced += item.produced;
+          byUnit[unit].meta += item.meta;
+        });
+      }
+    });
+
+    // Calcular métricas finais
+    Object.keys(byUnit).forEach(unit => {
+      const stats = byUnit[unit];
+      stats.loss = Math.max(0, stats.meta - stats.produced);
+      stats.efficiency = stats.meta > 0 ? Math.round((stats.produced / stats.meta) * 100) : 0;
+      stats.produced = Math.round(stats.produced);
+      stats.meta = Math.round(stats.meta);
+      stats.loss = Math.round(stats.loss);
+    });
 
     return {
       total: history.length,
-      thisMonth: thisMonth.length,
-      avgAnimals
+      thisMonth: thisMonthCount,
+      avgAnimals,
+      byUnit
     };
-  }, [history]);
+  }, [history, itemsCache]);
 
-  const ListHeader = useMemo(() => (
-    <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
-      {/* Header */}
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: spacing.lg
-      }}>
-        <View>
-          <Text style={[typography.h1, { fontSize: 24 }]}>Produção</Text>
-          <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '600' }}>
-            Controle de Processos
-          </Text>
-        </View>
-        <View style={{
-          backgroundColor: colors.primary + '20',
-          paddingHorizontal: spacing.sm,
-          paddingVertical: 4,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: colors.primary + '30'
-        }}>
-          <Text style={{
-            color: colors.primary,
-            fontSize: 11,
-            fontWeight: '700'
-          }}>
-            ATIVO
-          </Text>
-        </View>
+  const ListHeader = useCallback(() => (
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md }}>
+      {/* Clean Header */}
+      <View style={{ marginBottom: spacing.xl }}>
+        <Text style={[typography.h1, { fontSize: 28, marginBottom: spacing.xs }]}>Produção</Text>
+        <Text style={{ color: colors.muted, fontSize: 15, fontWeight: '500' }}>
+          {productionStats.thisMonth} registros este mês
+        </Text>
       </View>
 
-      {/* Stats Dashboard */}
+      {/* Quick Stats - Simplified */}
       <View style={{
         flexDirection: 'row',
-        gap: spacing.sm,
-        marginBottom: spacing.lg
+        gap: spacing.md,
+        marginBottom: spacing.xl
       }}>
-        <Card
-          variant="tonal"
-          elevationLevel={0}
-          padding="md"
-          style={{
-            flex: 1,
-            borderLeftWidth: 3,
-            borderLeftColor: colors.primary,
-            gap: spacing.xs
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{
-              fontSize: 11,
-              fontWeight: '600',
-              color: colors.muted
-            }}>
-              TOTAL
-            </Text>
-            <MaterialCommunityIcons name="factory" size={14} color={colors.muted} />
-          </View>
+        <View style={{
+          flex: 1,
+          backgroundColor: colors.surfaceAlt,
+          padding: spacing.md,
+          borderRadius: 16,
+          alignItems: 'center'
+        }}>
           <Text style={{
-            fontSize: 22,
-            fontWeight: '900',
+            fontSize: 24,
+            fontWeight: '800',
             color: colors.text,
-            letterSpacing: -0.5
+            marginBottom: 2
           }}>
             {productionStats.total}
           </Text>
           <Text style={{
-            fontSize: 10,
-            fontWeight: '500',
+            fontSize: 12,
+            fontWeight: '600',
             color: colors.muted
           }}>
-            PRODUÇÕES
+            Total
           </Text>
-        </Card>
+        </View>
 
-        <Card
-          variant="tonal"
-          elevationLevel={0}
-          padding="md"
-          style={{
-            flex: 1,
-            borderLeftWidth: 3,
-            borderLeftColor: colors.success,
-            gap: spacing.xs
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{
-              fontSize: 11,
-              fontWeight: '600',
-              color: colors.muted
-            }}>
-              ESTE MÊS
-            </Text>
-            <MaterialCommunityIcons name="calendar-month" size={14} color={colors.muted} />
-          </View>
+        <View style={{
+          flex: 1,
+          backgroundColor: colors.success + '15',
+          padding: spacing.md,
+          borderRadius: 16,
+          alignItems: 'center'
+        }}>
           <Text style={{
-            fontSize: 22,
-            fontWeight: '900',
+            fontSize: 24,
+            fontWeight: '800',
             color: colors.success,
-            letterSpacing: -0.5
+            marginBottom: 2
           }}>
             {productionStats.thisMonth}
           </Text>
           <Text style={{
-            fontSize: 10,
-            fontWeight: '500',
+            fontSize: 12,
+            fontWeight: '600',
             color: colors.muted
           }}>
-            REGISTROS
+            Este mês
           </Text>
-        </Card>
+        </View>
 
-        <Card
-          variant="tonal"
-          elevationLevel={0}
-          padding="md"
-          style={{
-            flex: 1,
-            borderLeftWidth: 3,
-            borderLeftColor: '#FF8C00',
-            gap: spacing.xs
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{
-              fontSize: 11,
-              fontWeight: '600',
-              color: colors.muted
-            }}>
-              MÉDIA
-            </Text>
-            <MaterialCommunityIcons name="cow" size={14} color={colors.muted} />
-          </View>
+        <View style={{
+          flex: 1,
+          backgroundColor: colors.primary + '15',
+          padding: spacing.md,
+          borderRadius: 16,
+          alignItems: 'center'
+        }}>
           <Text style={{
-            fontSize: 22,
-            fontWeight: '900',
-            color: '#FF8C00',
-            letterSpacing: -0.5
+            fontSize: 24,
+            fontWeight: '800',
+            color: colors.primary,
+            marginBottom: 2
           }}>
             {productionStats.avgAnimals}
           </Text>
           <Text style={{
-            fontSize: 10,
-            fontWeight: '500',
+            fontSize: 12,
+            fontWeight: '600',
             color: colors.muted
           }}>
-            ANIMAIS/DIA
+            Média
           </Text>
-        </Card>
+        </View>
       </View>
+
+      {/* Production Summary by Unit - Compact */}
+      {Object.keys(productionStats.byUnit).length > 0 && (
+        <View style={{ marginBottom: spacing.xl }}>
+          {Object.entries(productionStats.byUnit).map(([unit, stats]) => (
+            <View
+              key={unit}
+              style={{
+                backgroundColor: colors.surface,
+                padding: spacing.md,
+                borderRadius: 16,
+                marginBottom: spacing.sm,
+                borderLeftWidth: 4,
+                borderLeftColor: colors.primary,
+                shadowColor: colors.shadow || '#000',
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 2
+              }}
+            >
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: spacing.sm
+              }}>
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '700',
+                  color: colors.text
+                }}>
+                  {unit}
+                </Text>
+                <Text style={{
+                  fontSize: 20,
+                  fontWeight: '800',
+                  color: stats.efficiency >= 80 ? colors.success : stats.efficiency >= 60 ? '#FF8C00' : colors.danger
+                }}>
+                  {stats.efficiency}%
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <View>
+                  <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '600' }}>PRODUZIDO</Text>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: colors.success }}>{stats.produced}</Text>
+                </View>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '600' }}>PERDA</Text>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: colors.danger }}>{stats.loss}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '600' }}>META</Text>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{stats.meta}</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Simple Filter Toggle */}
+      <Pressable
+        onPress={() => setShowFilters(!showFilters)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.sm,
+          marginBottom: showFilters ? spacing.lg : spacing.md
+        }}
+      >
+        <MaterialCommunityIcons
+          name="filter-variant"
+          size={20}
+          color={colors.muted}
+        />
+        <Text style={{
+          fontSize: 16,
+          fontWeight: '600',
+          color: colors.muted
+        }}>
+          Filtrar
+        </Text>
+        {(productFilters.length > 0 || fromDate) && (
+          <View style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: colors.primary
+          }} />
+        )}
+        <MaterialCommunityIcons
+          name={showFilters ? "chevron-up" : "chevron-down"}
+          size={16}
+          color={colors.muted}
+        />
+      </Pressable>
+
+      {showFilters && (
+        <View style={{
+          backgroundColor: colors.surfaceAlt,
+          padding: spacing.lg,
+          borderRadius: 16,
+          marginBottom: spacing.lg,
+          gap: spacing.md
+        }}>
+          {/* Date Range */}
+          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <DateField
+                label=""
+                value={fromDate}
+                onChange={setFromDate}
+                placeholder="Data inicial"
+              />
+            </View>
+            <Text style={{ color: colors.muted, fontSize: 14 }}>até</Text>
+            <View style={{ flex: 1 }}>
+              <DateField
+                label=""
+                value={toDate}
+                onChange={setToDate}
+                placeholder="Data final"
+              />
+            </View>
+          </View>
+
+          {/* Product Chips */}
+          <View style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: spacing.xs
+          }}>
+            <Chip
+              label="Todos"
+              active={productFilters.length === 0}
+              onPress={() => setProductFilters([])}
+              small
+            />
+            {(products || []).map((p) => (
+              <Chip
+                key={p.id}
+                label={p.name}
+                active={productFilters.includes(p.id)}
+                onPress={() =>
+                  setProductFilters(curr =>
+                    curr.includes(p.id)
+                      ? curr.filter(id => id !== p.id)
+                      : [...curr, p.id]
+                  )
+                }
+                small
+              />
+            ))}
+          </View>
+
+          {/* Actions */}
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <Button
+              title="Aplicar"
+              onPress={() => fetchHistory(fromDate, toDate)}
+              style={{ flex: 1 }}
+              variant="primary"
+            />
+            <Button
+              title="Limpar"
+              variant="text"
+              onPress={() => {
+                setFromDate('');
+                setToDate(todayStr());
+                setProductFilters([]);
+                fetchHistory();
+              }}
+            />
+          </View>
+        </View>
+      )}
 
       {/* Section Header */}
       <View style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.sm,
-        marginBottom: spacing.sm
+        justifyContent: 'space-between',
+        marginBottom: spacing.lg
       }}>
-        <MaterialCommunityIcons
-          name="history"
-          size={20}
-          color={colors.text}
-        />
-        <Text style={[typography.h2, { fontSize: 18 }]}>
-          Histórico de Produção
+        <Text style={[typography.h2, { fontSize: 20 }]}>
+          Histórico
         </Text>
+        {(productFilters.length > 0 || fromDate) && (
+          <View style={{
+            backgroundColor: colors.primary + '20',
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.xs,
+            borderRadius: 12
+          }}>
+            <Text style={{
+              fontSize: 10,
+              color: colors.primary,
+              fontWeight: '700'
+            }}>
+              FILTRADO
+            </Text>
+          </View>
+        )}
       </View>
     </View>
-  ), [spacing, typography, colors, productionStats]);
+  ), [spacing, typography, colors, productionStats, showFilters, fromDate, toDate, productFilters, products]);
 
   const renderItem: ListRenderItem<Renderable> = useCallback(({ item }) => {
     if (item.type === 'h-header') {
       return (
         <View style={{
-          paddingHorizontal: spacing.md,
-          marginTop: spacing.lg,
-          marginBottom: spacing.sm
+          paddingHorizontal: spacing.lg,
+          marginTop: spacing.xl,
+          marginBottom: spacing.md
         }}>
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: spacing.sm,
-            paddingVertical: spacing.sm
+            gap: spacing.md
           }}>
-            <View style={{
-              backgroundColor: colors.primary + '20',
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.sm,
-              borderRadius: 12,
-              borderLeftWidth: 3,
-              borderLeftColor: colors.primary
-            }}>
-              <Text style={{
-                fontWeight: '800',
-                color: colors.primary,
-                fontSize: 13,
-                letterSpacing: 0.5
-              }}>
-                {item.title}
-              </Text>
-            </View>
-            <View style={{ flex: 1, height: 1, backgroundColor: colors.line, opacity: 0.5 }} />
             <Text style={{
-              color: colors.muted,
-              fontWeight: '600',
-              fontSize: 12
+              fontWeight: '700',
+              color: colors.text,
+              fontSize: 16
             }}>
-              {item.subtitle}
+              {item.title}
             </Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: colors.line, opacity: 0.3 }} />
           </View>
         </View>
       );
     }
     if (item.type === 'h-row') {
       return (
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+        <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.md }}>
           <HistoryRow item={item.item} colors={colors} spacing={spacing} typography={typography} loadItems={loadItems} cache={itemsCache} />
         </View>
       );
@@ -992,53 +1080,56 @@ export default function ProducaoScreen() {
         estimatedItemSize={120}
         ListEmptyComponent={!history ? <View style={{ paddingHorizontal: spacing.md }}><SkeletonList rows={5} /></View> : <EmptyState title="Nenhum lançamento registrado" />}
         extraData={itemsCache}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={5}
+        updateCellsBatchingPeriod={50}
+        disableAutoLayout={false}
       />
       <FAB onPress={() => setFormOpen(true)} />
       <BottomSheet open={formOpen} onClose={() => setFormOpen(false)} title="Registrar Produção">
-        <ScrollView>
-          <ProductionForm
-            prodDate={prodDate} setProdDate={setProdDate}
-            abateStr={abateStr} setAbateStr={setAbateStr}
-            products={products} selected={selected}
-            toggleProduct={toggleProduct} selectAll={selectAll}
-            clearSelection={clearSelection}
-          />
-          {selectedProducts.length > 0 && (
-            <View style={{
-              height: 1,
-              backgroundColor: colors.line,
-              opacity: 0.5,
-              marginVertical: spacing.lg
-            }} />
-          )}
+        <ProductionForm
+          prodDate={prodDate} setProdDate={setProdDate}
+          abateStr={abateStr} setAbateStr={setAbateStr}
+          products={products} selected={selected}
+          toggleProduct={toggleProduct} selectAll={selectAll}
+          clearSelection={clearSelection}
+        />
+
+        {selectedProducts.length > 0 && (
+          <View style={{
+            height: 1,
+            backgroundColor: colors.line,
+            opacity: 0.5,
+            marginVertical: spacing.lg
+          }} />
+        )}
+
+        <View style={{ gap: spacing.md }}>
           {selectedProducts.map((p) => (
-            <View key={p.id} style={{ marginBottom: spacing.md }}>
-              <ProductInputCard
-                product={p}
-                abate={abate}
-                value={produced[p.id] ?? ''}
-                onChangeText={(text: string) => setProduced(s => ({...s, [p.id]: text}))}
-                meta={meta}
-              />
-            </View>
+            <ProductInputCard
+              key={p.id}
+              product={p}
+              abate={abate}
+              value={produced[p.id] ?? ''}
+              onChangeText={(text: string) => setProduced(s => ({...s, [p.id]: text}))}
+              meta={meta}
+            />
           ))}
-          {selectedProducts.length > 0 && (
-            <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-              <Button
-                title="Salvar Produção"
-                onPress={save}
-                loading={saving}
-                disabled={saving || abate <= 0 || !selected.some(id => prodNum(id) > 0)}
-                full
-              />
-              {saving && (
-                <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center' }}>
-                  Salvando dados...
-                </Text>
-              )}
-            </View>
-          )}
-        </ScrollView>
+        </View>
+
+        {selectedProducts.length > 0 && (
+          <View style={{ marginTop: spacing.xl }}>
+            <Button
+              title="Registrar Produção"
+              onPress={save}
+              loading={saving}
+              disabled={saving || abate <= 0 || !selected.some(id => prodNum(id) > 0)}
+              full
+            />
+          </View>
+        )}
       </BottomSheet>
     </Screen>
   );

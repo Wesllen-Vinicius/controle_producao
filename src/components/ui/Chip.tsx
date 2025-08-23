@@ -47,8 +47,8 @@ export default function Chip({
 
   const dims = useMemo(
     () => ({
-      height: small ? 30 : 36,
-      padH: small ? spacing.sm : spacing.md,
+      height: small ? 32 : 40,
+      padH: small ? spacing.md : spacing.lg,
       gap: small ? spacing.xs : spacing.sm,
       textSize: small ? 12 : 14,
       iconSize: small ? 16 : 18,

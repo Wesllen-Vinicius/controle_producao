@@ -95,15 +95,47 @@ export const ThemeProvider: React.FC<React.PropsWithChildren> = ({ children }) =
     []
   );
 
-  /* sombras elegantes (iOS) + elevation (Android) — calibradas para o light novo */
+  /* Modern elevation system */
   const elevation: Elevation = useMemo(() => {
-    const iosBase = scheme === 'dark' ? 0.22 : 0.16; // levemente mais forte no dark
+    const shadowColor = colors.shadow ?? '#000';
+    const opacity = scheme === 'dark' ? 0.3 : 0.15;
+    
     return {
-      e0: { shadowColor: colors.shadow ?? '#000', shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
-      e1: { shadowColor: colors.shadow ?? '#000', shadowOpacity: Platform.OS === 'ios' ? iosBase * 0.45 : 0, shadowRadius: 3,  shadowOffset:{width:0,height:1}, elevation: 1 },
-      e2: { shadowColor: colors.shadow ?? '#000', shadowOpacity: Platform.OS === 'ios' ? iosBase * 0.60 : 0, shadowRadius: 6,  shadowOffset:{width:0,height:3}, elevation: 2 },
-      e3: { shadowColor: colors.shadow ?? '#000', shadowOpacity: Platform.OS === 'ios' ? iosBase * 0.75 : 0, shadowRadius: 10, shadowOffset:{width:0,height:6}, elevation: 3 },
-      e4: { shadowColor: colors.shadow ?? '#000', shadowOpacity: Platform.OS === 'ios' ? iosBase * 0.90 : 0, shadowRadius: 16, shadowOffset:{width:0,height:10}, elevation: 4 },
+      e0: { 
+        shadowColor, 
+        shadowOpacity: 0, 
+        shadowRadius: 0, 
+        shadowOffset: { width: 0, height: 0 }, 
+        elevation: 0 
+      },
+      e1: { 
+        shadowColor, 
+        shadowOpacity: Platform.OS === 'ios' ? opacity * 0.8 : 0, 
+        shadowRadius: 2, 
+        shadowOffset: { width: 0, height: 1 }, 
+        elevation: 1 
+      },
+      e2: { 
+        shadowColor, 
+        shadowOpacity: Platform.OS === 'ios' ? opacity : 0, 
+        shadowRadius: 4, 
+        shadowOffset: { width: 0, height: 2 }, 
+        elevation: 2 
+      },
+      e3: { 
+        shadowColor, 
+        shadowOpacity: Platform.OS === 'ios' ? opacity * 1.2 : 0, 
+        shadowRadius: 8, 
+        shadowOffset: { width: 0, height: 4 }, 
+        elevation: 3 
+      },
+      e4: { 
+        shadowColor, 
+        shadowOpacity: Platform.OS === 'ios' ? opacity * 1.5 : 0, 
+        shadowRadius: 12, 
+        shadowOffset: { width: 0, height: 6 }, 
+        elevation: 4 
+      },
     };
   }, [colors.shadow, scheme]);
 

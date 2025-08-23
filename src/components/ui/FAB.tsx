@@ -1,5 +1,5 @@
 // src/components/ui/FAB.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Animated } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,60 +12,91 @@ type Props = {
   visible?: boolean;
 };
 
-export default function FAB({ onPress, icon = 'plus', visible = true }: Props) {
-  const { colors, elevation, z } = useTheme();
+const FAB = React.memo(function FAB({ onPress, icon = 'plus', visible = true }: Props) {
+  const { colors, elevation, z, spacing } = useTheme();
   const h = useHaptics();
   const insets = useSafeAreaInsets();
-  const anim = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  
+  const translateY = useRef(new Animated.Value(visible ? 0 : 100)).current;
+  const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.spring(anim, {
-      toValue: visible ? 1 : 0,
+    Animated.spring(translateY, {
+      toValue: visible ? 0 : 100,
       useNativeDriver: true,
-      stiffness: 150,
-      damping: 20,
-      mass: 1,
+      tension: 120,
+      friction: 8,
     }).start();
-  }, [visible, anim]);
+  }, [visible]);
 
-  const translateY = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [100, 0], // Move 100 pixels para baixo para esconder
-  });
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scale, {
+      toValue: 0.92,
+      useNativeDriver: true,
+      tension: 400,
+      friction: 10,
+    }).start();
+  }, [scale]);
 
-  const scale = anim;
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 400,
+      friction: 10,
+    }).start();
+  }, [scale]);
+
+  const handlePress = useCallback(() => {
+    h.light();
+    onPress();
+  }, [h, onPress]);
 
   return (
     <Animated.View
       style={[
         styles.container,
         {
-          bottom: insets.bottom + 24, // Ajusta a partir da safe area
-          right: insets.right + 24,
-          transform: [{ translateY }, { scale }],
+          bottom: insets.bottom + spacing.lg,
+          right: spacing.lg,
+          transform: [{ translateY }],
           zIndex: z.base + 5,
         },
       ]}
     >
-      <Pressable
-        onPress={() => {
-          h.light();
-          onPress();
-        }}
-        style={({ pressed }) => [
+      <Animated.View 
+        style={[
           styles.fab,
           {
             backgroundColor: colors.primary,
-            transform: [{ scale: pressed ? 0.95 : 1 }],
-          },
-          elevation.e3,
+            transform: [{ scale }],
+            ...elevation.e3,
+          }
         ]}
       >
-        <MaterialCommunityIcons name={icon} size={26} color="#FFFFFF" />
-      </Pressable>
+        <Pressable
+          onPress={handlePress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={styles.pressable}
+          android_ripple={{ 
+            color: 'rgba(255,255,255,0.2)', 
+            radius: 28,
+            borderless: true 
+          }}
+        >
+          <MaterialCommunityIcons 
+            name={icon} 
+            size={24} 
+            color="#FFFFFF" 
+          />
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
-}
+});
+
+export default FAB;
 
 const styles = StyleSheet.create({
   container: {
@@ -74,6 +105,11 @@ const styles = StyleSheet.create({
   fab: {
     width: 56,
     height: 56,
+    borderRadius: 28,
+  },
+  pressable: {
+    width: '100%',
+    height: '100%',
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',

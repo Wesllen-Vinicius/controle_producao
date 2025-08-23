@@ -38,19 +38,26 @@ export type ThemeColors = {
   ripple?: string;
 };
 
-/* Spacing & Radius (tokens) */
+/* Spacing & Radius (tokens) - Modern design system */
 export const spacing = {
-  xs: 6,
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 26,
-  xxl: 34,
-};
-export const radius = {
-  sm: 12,
+  xs: 4,
+  sm: 8,
   md: 16,
-  lg: 20,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+  '2xl': 64,
+  '3xl': 80,
+};
+
+export const radius = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  '2xl': 32,
+  full: 999,
 };
 export type ThemeSpacing = typeof spacing;
 export type ThemeRadius  = typeof radius;
