@@ -1,4 +1,3 @@
-// screens/LoginScreen.tsx
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -6,18 +5,16 @@ import {
   StyleSheet,
   Keyboard,
   TouchableWithoutFeedback,
-  Alert,
   Pressable,
   TextInput,
   useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
   Animated,
+  StatusBar,
 } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-import Screen from '../components/Screen';
-import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 
@@ -34,6 +31,7 @@ export default function LoginScreen() {
   const [pass, setPass] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const emailRef = useRef<TextInput>(null);
   const passRef = useRef<TextInput>(null);
@@ -41,242 +39,321 @@ export default function LoginScreen() {
   const h = useHaptics();
   const { colors, spacing, typography, radius } = useTheme();
 
-  // animações
-  const intro = useRef(new Animated.Value(0)).current;          // 0..1 (entrada da tela)
-  const shake = useRef(new Animated.Value(0)).current;          // -1..1 (erro)
-  const cardScale = intro.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1] });
-  const cardOpacity = intro;
+  // Animações simplificadas
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const iconRotation = useRef(new Animated.Value(0)).current;
+  const iconScale = useRef(new Animated.Value(0.8)).current;
+  const formTranslateY = useRef(new Animated.Value(20)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(intro, {
-      toValue: 1,
-      useNativeDriver: true,
-      stiffness: 140,
-      damping: 16,
-      mass: 0.7,
-    }).start();
-  }, [intro]);
+    // Animação de entrada suave
+    Animated.stagger(150, [
+      Animated.timing(fadeAnim, { 
+        toValue: 1, 
+        duration: 600, 
+        useNativeDriver: true 
+      }),
+      Animated.spring(iconScale, { 
+        toValue: 1, 
+        useNativeDriver: true, 
+        stiffness: 100, 
+        damping: 10 
+      }),
+      Animated.timing(formTranslateY, { 
+        toValue: 0, 
+        duration: 400, 
+        useNativeDriver: true 
+      })
+    ]).start();
+
+    // Rotação sutil e contínua do ícone
+    const rotateIcon = () => {
+      iconRotation.setValue(0);
+      Animated.timing(iconRotation, {
+        toValue: 1,
+        duration: 12000,
+        useNativeDriver: true
+      }).start(() => rotateIcon());
+    };
+    rotateIcon();
+  }, []);
 
   const doShake = useCallback(() => {
-    shake.setValue(0);
     Animated.sequence([
-      Animated.timing(shake, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: -1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 0, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
     ]).start();
-  }, [shake]);
+  }, []);
 
-  const translateX = shake.interpolate({
-    inputRange: [-1, 0, 1],
-    outputRange: [-6, 0, 6],
+  const iconRotate = iconRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
   });
 
-  // largura máxima elegante e centrada
-  const contentMax = 520;
-  const contentWidth = Math.min(width - spacing.md * 2, contentMax);
+  const contentWidth = Math.min(width - 48, 400);
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        screenPad: {
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.lg,
-          paddingBottom: spacing.xl,
-          flex: 1,
+        container: { 
+          flex: 1, 
+          backgroundColor: colors.background 
         },
-        center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-        wrap: { width: contentWidth, alignSelf: 'center' },
-        header: { alignItems: 'center', gap: 6, marginBottom: spacing.md },
-        brandBadge: {
-          width: 56,
-          height: 56,
-          borderRadius: 56,
+        content: {
+          flex: 1,
+          paddingHorizontal: 24,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        formContainer: {
+          width: contentWidth,
+          alignSelf: 'center',
+        },
+        header: {
+          alignItems: 'center',
+          marginBottom: 48,
+        },
+        iconContainer: {
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: colors.primary + '10',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: colors.surfaceAlt,
-          borderWidth: 1,
-          borderColor: colors.line,
+          marginBottom: 16,
+          borderWidth: 2,
+          borderColor: colors.primary + '20',
         },
-        brandInitial: { fontWeight: '900', fontSize: 20, color: colors.text },
-        brand: { color: colors.muted, fontWeight: '700' },
-        title: { ...(typography.h1 as any), textAlign: 'center' },
-        card: { gap: spacing.md, alignSelf: 'stretch' },
-        linksWrap: { gap: spacing.xs, alignItems: 'center', marginTop: spacing.sm },
-        link: { color: colors.accent, fontWeight: '700' },
-        hint: { color: colors.muted, fontSize: 12, textAlign: 'center' as const },
-        inlineRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-        inlineLink: { color: colors.accent, fontWeight: '700' },
-        errorText: { color: '#DC2626', fontSize: 12, marginTop: -4 },
-        helper: { color: colors.muted, fontSize: 12 },
-        divider: { height: 1, backgroundColor: colors.line, opacity: 0.6, marginVertical: spacing.sm },
-        tips: {
-          padding: spacing.md,
-          backgroundColor: colors.surfaceAlt,
-          borderRadius: radius.lg,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.line,
+        appName: {
+          fontSize: 24,
+          fontWeight: '700',
+          color: colors.text,
+          letterSpacing: -0.5,
+          marginBottom: 4,
+        },
+        subtitle: {
+          fontSize: 14,
+          fontWeight: '500',
+          color: colors.muted,
+          letterSpacing: 0.2,
+        },
+        form: {
+          gap: 20,
+        },
+        inputContainer: {
+          gap: 16,
+        },
+        errorContainer: {
+          backgroundColor: colors.danger + '10',
+          borderColor: colors.danger + '20',
+          borderWidth: 1,
+          borderRadius: 8,
+          padding: 12,
+          marginTop: 8,
+        },
+        errorText: {
+          color: colors.danger,
+          fontSize: 13,
+          fontWeight: '600',
+          textAlign: 'center',
+        },
+        buttonContainer: {
+          marginTop: 8,
+        },
+        footer: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: 24,
+          paddingTop: 16,
+        },
+        link: {
+          color: colors.primary,
+          fontSize: 14,
+          fontWeight: '600',
         },
       }),
-    [colors, spacing, typography.h1, radius, contentWidth]
+    [colors, spacing, contentWidth]
   );
 
-  // ===== validação suave =====
-  const isValidEmail = (v: string) => /\S+@\S+\.\S+/.test(v);
-  const emailOk = isValidEmail(email);
-  const passOk = pass.length >= 4;
+  // Validação simples
+  const emailOk = email.includes('@') && email.includes('.') && email.length > 5;
+  const passOk = pass.length >= 6;
   const formOk = emailOk && passOk && !busy;
 
-  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    // limpa erro ao digitar
     if (error) setError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, pass]);
+  }, [email, pass, error]);
 
-  async function handleLogin() {
-    if (!email || !pass) {
-      h.warning();
-      setError('Preencha e-mail e senha.');
-      doShake();
-      return;
-    }
+  const handleLogin = useCallback(async () => {
+    Keyboard.dismiss();
+
     if (!emailOk) {
       h.warning();
-      setError('E-mail inválido.');
+      setError('Por favor, insira um e-mail válido.');
       doShake();
+      emailRef.current?.focus();
+      return;
+    }
+
+    if (!passOk) {
+      h.warning();
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      doShake();
+      passRef.current?.focus();
       return;
     }
 
     setBusy(true);
+    setError(null);
+
     try {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password: pass });
+      const cleanEmail = email.trim().toLowerCase();
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: pass
+      });
+
       if (err) throw err;
       h.success();
-      // sucesso — opcional: micro feedback
     } catch (e: any) {
       h.error();
-      const msg: string = e?.message || 'Falha na autenticação';
-      const friendly = /invalid login credentials/i.test(msg)
-        ? 'E-mail ou senha incorretos.'
-        : msg;
-      setError(friendly);
+
+      let friendlyMessage = 'Erro ao fazer login. Tente novamente.';
+
+      if (/invalid login credentials/i.test(e.message)) {
+        friendlyMessage = 'E-mail ou senha incorretos.';
+      } else if (/email not confirmed/i.test(e.message)) {
+        friendlyMessage = 'Confirme seu e-mail antes de fazer login.';
+      } else if (/too many requests/i.test(e.message)) {
+        friendlyMessage = 'Muitas tentativas. Tente novamente em alguns minutos.';
+      }
+
+      setError(friendlyMessage);
       doShake();
     } finally {
       setBusy(false);
     }
-  }
+  }, [email, pass, emailOk, passOk, h, doShake]);
 
   return (
-    <Screen padded>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.select({ ios: 24, android: 0 })}
+        keyboardVerticalOffset={Platform.select({ ios: 0, android: 0 })}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={styles.screenPad}>
-            <View style={styles.center}>
-              <View style={styles.wrap}>
-                {/* Cabeçalho/brand com micro-delight */}
-                <View style={styles.header}>
-                  <View style={styles.brandBadge}>
-                    <Text style={styles.brandInitial}>CP</Text>
-                  </View>
-                  <Text style={styles.brand}>Bem-vindo</Text>
-                  <Text style={styles.title}>Entrar</Text>
+          <View style={styles.content}>
+            <Animated.View style={[
+              styles.formContainer,
+              { 
+                opacity: fadeAnim,
+                transform: [{ translateX: shakeAnim }]
+              }
+            ]}>
+              {/* Header minimalista */}
+              <View style={styles.header}>
+                <Animated.View style={[
+                  styles.iconContainer,
+                  { 
+                    transform: [
+                      { scale: iconScale },
+                      { rotate: iconRotate }
+                    ] 
+                  }
+                ]}>
+                  <MaterialCommunityIcons 
+                    name="factory" 
+                    size={40} 
+                    color={colors.primary} 
+                  />
+                </Animated.View>
+                <Text style={styles.appName}>Controle de Produção</Text>
+                <Text style={styles.subtitle}>Entre para continuar</Text>
+              </View>
+
+              {/* Form minimalista */}
+              <Animated.View style={[
+                styles.form,
+                { transform: [{ translateY: formTranslateY }] }
+              ]}>
+                <View style={styles.inputContainer}>
+                  <Input
+                    ref={emailRef}
+                    label="E-mail"
+                    value={email}
+                    onChangeText={(text) => setEmail(text.toLowerCase().trim())}
+                    placeholder="seu@email.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passRef.current?.focus()}
+                    editable={!busy}
+                    maxLength={254}
+                  />
+
+                  <Input
+                    ref={passRef}
+                    label="Senha"
+                    value={pass}
+                    onChangeText={setPass}
+                    placeholder="Sua senha"
+                    secureTextEntry={!showPass}
+                    autoCapitalize="none"
+                    autoComplete="current-password"
+                    autoCorrect={false}
+                    maxLength={128}
+                    rightIcon={
+                      <MaterialCommunityIcons
+                        name={showPass ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={colors.muted}
+                      />
+                    }
+                    onPressRightIcon={() => setShowPass((s) => !s)}
+                    returnKeyType="go"
+                    onSubmitEditing={handleLogin}
+                    editable={!busy}
+                  />
                 </View>
 
-                <Animated.View style={{ transform: [{ translateX }], opacity: cardOpacity, }}>
-                  <Animated.View style={{ transform: [{ scale: cardScale }] }}>
-                    <Card padding="md" variant="filled" elevationLevel={2} style={styles.card}>
-                      <Input
-                        ref={emailRef}
-                        label="E-mail"
-                        value={email}
-                        onChangeText={setEmail}
-                        placeholder="voce@exemplo.com"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                        returnKeyType="next"
-                        onSubmitEditing={() => passRef.current?.focus()}
-                        editable={!busy}
-                        rightIcon={
-                          email.length > 0 ? (
-                            <MaterialCommunityIcons
-                              name={emailOk ? 'check-circle' : 'alert-circle'}
-                              size={18}
-                              color={emailOk ? '#22C55E' : '#DC2626'}
-                            />
-                          ) : undefined
-                        }
-                      />
-                      {!emailOk && email.length > 0 && (
-                        <Text style={styles.errorText}>Informe um e-mail válido.</Text>
-                      )}
+                {!!error && (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                )}
 
-                      <Input
-                        ref={passRef}
-                        label="Senha"
-                        value={pass}
-                        onChangeText={setPass}
-                        placeholder="Sua senha"
-                        secureTextEntry={!showPass}
-                        autoCapitalize="none"
-                        autoComplete="password"
-                        rightIcon={
-                          <MaterialCommunityIcons
-                            name={showPass ? 'eye-off-outline' : 'eye-outline'}
-                            size={20}
-                            color={colors.muted}
-                          />
-                        }
-                        onPressRightIcon={() => setShowPass((s) => !s)}
-                        returnKeyType="go"
-                        onSubmitEditing={handleLogin}
-                        editable={!busy}
-                      />
-                      {pass.length > 0 && !passOk && (
-                        <Text style={styles.helper}>Use ao menos 4 caracteres.</Text>
-                      )}
+                <View style={styles.buttonContainer}>
+                  <Button
+                    title={busy ? 'Entrando...' : 'Entrar'}
+                    onPress={handleLogin}
+                    loading={busy}
+                    disabled={!formOk}
+                    full
+                  />
+                </View>
 
-                      {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-                      <View style={styles.inlineRow}>
-                        <Pressable disabled={busy} onPress={() => nav.navigate('PasswordReset')}>
-                          <Text style={styles.inlineLink}>Esqueci a senha</Text>
-                        </Pressable>
-                        <Pressable disabled={busy} onPress={() => nav.navigate('Signup')}>
-                          <Text style={styles.inlineLink}>Criar conta</Text>
-                        </Pressable>
-                      </View>
-
-                      <Button
-                        title={busy ? 'Entrando…' : 'Entrar'}
-                        onPress={handleLogin}
-                        loading={busy}
-                        disabled={!formOk}
-                        full
-                      />
-
-                      <View style={styles.divider} />
-
-                      {/* Dicas sutis (acessibilidade/UX) */}
-                      <View style={styles.tips}>
-                        <Text style={styles.hint}>
-                          Dica: toque no ícone de olho para visualizar a senha. Você pode colar suas credenciais
-                          normalmente — nós não armazenamos nada localmente.
-                        </Text>
-                      </View>
-                    </Card>
-                  </Animated.View>
-                </Animated.View>
-              </View>
-            </View>
+                <View style={styles.footer}>
+                  <Pressable disabled={busy} onPress={() => nav.navigate('PasswordReset')}>
+                    <Text style={styles.link}>Esqueci a senha</Text>
+                  </Pressable>
+                  <Pressable disabled={busy} onPress={() => nav.navigate('Signup')}>
+                    <Text style={styles.link}>Criar conta</Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            </Animated.View>
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </Screen>
+    </View>
   );
 }

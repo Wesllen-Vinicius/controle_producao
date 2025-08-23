@@ -405,39 +405,65 @@ export default function AdminProductionsReportScreen() {
     setProductions(null);
     setItems(null);
 
-    let q = supabase
-      .from('productions')
-      .select('id,prod_date,abate')
-      .order('prod_date', { ascending: false })
-      .limit(200);
+    try {
+      let q = supabase
+        .from('productions')
+        .select('id,prod_date,abate')
+        .order('prod_date', { ascending: false })
+        .limit(1000);
 
-    if (from) q = q.gte('prod_date', from);
-    if (to) q = q.lte('prod_date', to);
+      if (from) q = q.gte('prod_date', from);
+      if (to) q = q.lte('prod_date', to);
 
-    const { data: prods, error: e1 } = await q;
-    if (e1) {
-      Alert.alert('Erro', e1.message);
-      return;
+      const { data: prods, error: e1 } = await q;
+      if (e1) {
+        const errorMsg = e1.message.includes('permission') 
+          ? 'Acesso negado. Verifique suas permissões.'
+          : e1.message.includes('network') 
+          ? 'Erro de conexão. Verifique sua internet.'
+          : `Erro ao carregar dados: ${e1.message}`;
+        Alert.alert('Erro', errorMsg);
+        return;
+      }
+
+      const list = (prods as Production[]) || [];
+      setProductions(list);
+
+      if (list.length === 0) {
+        setItems([]);
+        return;
+      }
+
+      if (list.length > 500) {
+        Alert.alert(
+          'Muitos dados', 
+          'Foram encontrados mais de 500 registros. Para melhor performance, considere filtrar por um período menor.'
+        );
+      }
+
+      const ids = list.map((p) => p.id);
+      const batchSize = 100;
+      const allItems: Item[] = [];
+
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        const { data: its, error: e2 } = await supabase
+          .from('production_items')
+          .select('id,production_id,product_id,produced,meta,diff,avg')
+          .in('production_id', batch);
+        
+        if (e2) {
+          Alert.alert('Erro', `Falha ao carregar items: ${e2.message}`);
+          return;
+        }
+        
+        allItems.push(...((its as Item[]) || []));
+      }
+      
+      setItems(allItems);
+    } catch (error: any) {
+      Alert.alert('Erro inesperado', error?.message || 'Falha ao carregar dados');
     }
-
-    const list = (prods as Production[]) || [];
-    setProductions(list);
-
-    if (list.length === 0) {
-      setItems([]);
-      return;
-    }
-
-    const ids = list.map((p) => p.id);
-    const { data: its, error: e2 } = await supabase
-      .from('production_items')
-      .select('id,production_id,product_id,produced,meta,diff,avg')
-      .in('production_id', ids);
-    if (e2) {
-      Alert.alert('Erro', e2.message);
-      return;
-    }
-    setItems((its as Item[]) || []);
   }, [from, to]);
 
   useEffect(() => {
@@ -720,45 +746,69 @@ export default function AdminProductionsReportScreen() {
 
   const doExport = useCallback(async () => {
     try {
-      const base = `relatorio_producao${prodFilters.length > 0 ? `_multi_${effectiveProductIds.length}` : ''}_${toISODate(new Date())}`;
+      const timestamp = toISODate(new Date());
+      const hasFilters = prodFilters.length > 0;
+      const base = `relatorio_producao${hasFilters ? `_filtrado_${effectiveProductIds.length}` : ''}_${timestamp}`;
 
       if (exportFmt === 'pdf') {
         const html = buildPdfHtml();
         let Print: any = null;
         let Sharing: any = null;
+        
         try {
-          // @ts-ignore (módulos opcionais)
           Print = require('expo-print');
-          // @ts-ignore
           Sharing = require('expo-sharing');
-        } catch {
-          Print = null;
-          Sharing = null;
+        } catch (error) {
+          Alert.alert(
+            'Módulos necessários',
+            'Para exportar PDF, instale os pacotes "expo-print" e "expo-sharing".\n\nExportando como HTML temporariamente...'
+          );
+          await Share.share({ title: `${base}.html`, message: html });
+          setExportOpen(false);
+          return;
         }
 
         if (Print?.printToFileAsync) {
-          const { uri } = await Print.printToFileAsync({ html });
+          const { uri } = await Print.printToFileAsync({ 
+            html, 
+            format: Print.Orientation.portrait,
+            margins: { left: 50, right: 50, top: 50, bottom: 50 }
+          });
+          
           if (Sharing?.isAvailableAsync && (await Sharing.isAvailableAsync())) {
-            await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `${base}.pdf` });
+            await Sharing.shareAsync(uri, { 
+              mimeType: 'application/pdf', 
+              dialogTitle: `${base}.pdf` 
+            });
           } else {
-            await Share.share({ url: uri, title: `${base}.pdf`, message: uri });
+            await Share.share({ 
+              url: uri, 
+              title: `${base}.pdf`, 
+              message: 'Relatório de produção exportado' 
+            });
           }
         } else {
-          Alert.alert(
-            'Exportar PDF',
-            'Para exportar em PDF, instale "expo-print" e "expo-sharing". Vou exportar como HTML por enquanto.'
-          );
-          await Share.share({ title: `${base}.html`, message: html });
+          throw new Error('Falha ao gerar PDF');
         }
+        
         setExportOpen(false);
         return;
       }
 
       const payload = exportFmt === 'csv' ? buildCsv() : buildJson();
-      await Share.share({ title: `${base}.${exportFmt}`, message: payload });
+      const fileSize = Math.round(payload.length / 1024);
+      
+      await Share.share({ 
+        title: `${base}.${exportFmt}`, 
+        message: `${payload}\n\n--- Arquivo ${fileSize}KB gerado em ${new Date().toLocaleString()} ---` 
+      });
+      
       setExportOpen(false);
     } catch (e: any) {
-      Alert.alert('Erro ao exportar', e?.message ?? 'Tente novamente.');
+      const errorMessage = e?.message?.includes('PDF') 
+        ? 'Falha ao gerar PDF. Tente outro formato.'
+        : e?.message ?? 'Falha ao exportar dados. Verifique sua conexão.';
+      Alert.alert('Erro ao exportar', errorMessage);
     }
   }, [exportFmt, prodFilters.length, effectiveProductIds.length, buildCsv, buildJson, buildPdfHtml]);
 
@@ -766,89 +816,201 @@ export default function AdminProductionsReportScreen() {
   const ListHeader = useMemo(() => {
     return (
       <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-        <View style={{ gap: spacing.md }}>
-          <Text style={typography.h1}>Relatório de Produções</Text>
+        <View style={{ gap: spacing.lg }}>
+          {/* Enhanced Page Header */}
+          <View>
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: spacing.sm
+            }}>
+              <View>
+                <Text style={[typography.h1, { fontSize: 24 }]}>Relatórios</Text>
+                <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '600' }}>
+                  Análise de Performance
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: colors.accent + '20',
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 4,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: colors.accent + '30'
+              }}>
+                <Text style={{ 
+                  color: colors.accent, 
+                  fontSize: 11, 
+                  fontWeight: '700' 
+                }}>
+                  ANALYTICS
+                </Text>
+              </View>
+            </View>
+          </View>
 
-          {/* Período */}
-          <Card style={{ gap: spacing.sm }} padding="md" variant="tonal">
-            <Text style={typography.h2}>Período</Text>
-            <View style={{ flexDirection: 'row' }}>
-              <View style={{ flex: 1, marginRight: spacing.sm }}>
-                <DateField label="De" value={from} onChange={setFrom} />
+          {/* Enhanced Period Selection */}
+          <Card 
+            style={{ 
+              gap: spacing.md,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.line,
+              elevation: 2,
+              shadowColor: colors.shadow,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+            }} 
+            padding="lg" 
+            variant="filled"
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <MaterialCommunityIcons name="calendar-range" size={20} color={colors.primary} />
+              <Text style={[typography.h2, { fontSize: 18 }]}>Período de Análise</Text>
+            </View>
+            
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <View style={{ flex: 1 }}>
+                <DateField label="Data Inicial" value={from} onChange={setFrom} />
               </View>
               <View style={{ flex: 1 }}>
-                <DateField label="Até" value={to} onChange={setTo} />
+                <DateField label="Data Final" value={to} onChange={setTo} />
               </View>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ ...(typography.label as any), color: colors.muted, marginRight: spacing.sm }}>Rápido:</Text>
+            <View>
+              <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm }}>
+                Períodos Predefinidos
+              </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: spacing.md }}>
-                <View style={{ flexDirection: 'row' }}>
-                  <Chip label="7 dias" onPress={() => quickRange('7d')} />
-                  <View style={{ width: spacing.xs }} />
-                  <Chip label="30 dias" onPress={() => quickRange('30d')} />
-                  <View style={{ width: spacing.xs }} />
-                  <Chip label="Este mês" onPress={() => quickRange('month')} />
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <Chip 
+                    label="📅 7 dias" 
+                    onPress={() => quickRange('7d')} 
+                  />
+                  <Chip 
+                    label="📊 30 dias" 
+                    onPress={() => quickRange('30d')} 
+                  />
+                  <Chip 
+                    label="🗓️ Este mês" 
+                    onPress={() => quickRange('month')} 
+                  />
                 </View>
               </ScrollView>
             </View>
 
-            <View style={{ marginTop: spacing.sm, flexDirection: 'row' }}>
-              <View style={{ flex: 1, marginRight: spacing.sm }}>
-                <Button title="Filtrar" small onPress={loadData} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button title="Exportar" small variant="tonal" onPress={() => setExportOpen(true)} />
-              </View>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <Button 
+                title="Aplicar Filtros" 
+                onPress={loadData}
+                leftIcon={<MaterialCommunityIcons name="filter" size={16} color={colors.primaryOn || '#FFFFFF'} />}
+                style={{ flex: 1 }}
+              />
+              <Button 
+                title="Exportar" 
+                variant="tonal" 
+                onPress={() => setExportOpen(true)}
+                leftIcon={<MaterialCommunityIcons name="download" size={16} color={colors.primary} />}
+                style={{ flex: 1 }}
+              />
             </View>
           </Card>
 
-          {/* Produtos (multi) — chips horizontais, sem quebrar layout */}
-          <Card style={{ gap: spacing.sm }} padding="md" variant="tonal">
-            <Text style={typography.h2}>Filtrar por produto</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row' }}>
-                <Chip
-                  label="Todos"
-                  active={prodFilters.length === 0}
-                  onPress={() => {
-                    setProdFilters([]);
-                    setUnitFilter('ALL');
-                  }}
-                />
-                <View style={{ width: spacing.xs }} />
-                {(products || []).map((p, idx) => {
-                  const active = prodFilters.includes(p.id);
-                  return (
-                    <React.Fragment key={p.id}>
+          {/* Enhanced Product Filters */}
+          <Card 
+            style={{ 
+              gap: spacing.md,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.line,
+              elevation: 1,
+              shadowColor: colors.shadow,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 6,
+            }} 
+            padding="lg" 
+            variant="filled"
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <MaterialCommunityIcons name="package-variant-closed" size={18} color={colors.text} />
+                <Text style={[typography.h2, { fontSize: 16 }]}>Filtros de Produto</Text>
+              </View>
+              {prodFilters.length > 0 && (
+                <View style={{
+                  backgroundColor: colors.primary + '20',
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.primary + '30'
+                }}>
+                  <Text style={{ 
+                    color: colors.primary, 
+                    fontSize: 11, 
+                    fontWeight: '700' 
+                  }}>
+                    {prodFilters.length} SELECIONADOS
+                  </Text>
+                </View>
+              )}
+            </View>
+            
+            <View>
+              <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm }}>
+                Produtos para Análise
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <Chip
+                    label="🏭 Todos os Produtos"
+                    active={prodFilters.length === 0}
+                    onPress={() => {
+                      setProdFilters([]);
+                      setUnitFilter('ALL');
+                    }}
+                  />
+                  {(products || []).map((p) => {
+                    const active = prodFilters.includes(p.id);
+                    return (
                       <Chip
+                        key={p.id}
                         label={`${p.name} (${p.unit})`}
                         active={active}
                         onPress={() =>
                           setProdFilters((curr) => (curr.includes(p.id) ? curr.filter((id) => id !== p.id) : [...curr, p.id]))
                         }
                       />
-                      {idx < (products || []).length - 1 && <View style={{ width: spacing.xs }} />}
-                    </React.Fragment>
-                  );
-                })}
-              </View>
-            </ScrollView>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
 
-            {/* Filtro por unidade (apenas quando houver mistura) */}
+            {/* Enhanced Unit Filter */}
             {prodFilters.length > 0 && unitsAvailable.length > 1 && (
               <View>
-                <Text style={[typography.label, { color: colors.muted, marginBottom: 6 }]}>Unidade</Text>
+                <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm }}>
+                  Filtro por Unidade de Medida
+                </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row' }}>
-                    <Chip label="Todas" active={unitFilter === 'ALL'} onPress={() => setUnitFilter('ALL')} />
-                    <View style={{ width: spacing.xs }} />
-                    {unitsAvailable.map((u, idx) => (
-                      <React.Fragment key={u}>
-                        <Chip label={String(u).toUpperCase()} active={unitFilter === u} onPress={() => setUnitFilter(u)} />
-                        {idx < unitsAvailable.length - 1 && <View style={{ width: spacing.xs }} />}
-                      </React.Fragment>
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                    <Chip 
+                      label="🔧 Todas as Unidades" 
+                      active={unitFilter === 'ALL'} 
+                      onPress={() => setUnitFilter('ALL')} 
+                    />
+                    {unitsAvailable.map((u) => (
+                      <Chip 
+                        key={u}
+                        label={`📏 ${String(u).toUpperCase()}`} 
+                        active={unitFilter === u} 
+                        onPress={() => setUnitFilter(u)} 
+                      />
                     ))}
                   </View>
                 </ScrollView>
@@ -856,49 +1018,228 @@ export default function AdminProductionsReportScreen() {
             )}
           </Card>
 
-          {/* Painel superior / Totais e gráfico */}
+          {/* Enhanced KPI Dashboard */}
           {totals ? (
             <>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <View style={{ width: tileW, marginRight: GAP, marginBottom: GAP }}>
-                  <KPI label="Abate total" value={totals.abate} />
-                </View>
-                <View style={{ width: tileW, marginBottom: GAP }}>
-                  <KPI label="Produção total" value={fmt(totals.produced)} />
-                </View>
-                <View style={{ width: tileW, marginRight: GAP, marginBottom: GAP }}>
-                  <KPI label="Meta total" value={fmt(totals.meta)} />
-                </View>
-                <View style={{ width: tileW, marginBottom: GAP }}>
-                  <KPI
-                    label="Perdas (dif.)"
-                    value={fmt(totals.diff)}
-                    status={totals.diff > 0 ? 'danger' : 'success'}
-                  />
-                </View>
+              {/* KPI Section Header */}
+              <View style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                gap: spacing.sm,
+                marginBottom: spacing.sm 
+              }}>
+                <MaterialCommunityIcons 
+                  name="chart-box" 
+                  size={20} 
+                  color={colors.text} 
+                />
+                <Text style={[typography.h2, { fontSize: 18 }]}>
+                  Indicadores de Performance
+                </Text>
+              </View>
+              
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
                 <View style={{ width: tileW }}>
-                  <KPI
-                    label="Cumprimento"
-                    value={`${Math.round((totals.produced / Math.max(1, totals.meta)) * 100)}%`}
-                    progress={Math.min(1, totals.produced / Math.max(1, totals.meta))}
-                    compact
-                  />
+                  <Card
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderLeftWidth: 4,
+                      borderLeftColor: colors.primary,
+                      elevation: 2,
+                      shadowColor: colors.shadow,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                    }}
+                    padding="md"
+                    variant="filled"
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>ANIMAIS ABATIDOS</Text>
+                      <MaterialCommunityIcons name="cow" size={16} color={colors.muted} />
+                    </View>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, letterSpacing: -0.5 }}>
+                      {totals.abate.toLocaleString()}
+                    </Text>
+                  </Card>
+                </View>
+                
+                <View style={{ width: tileW }}>
+                  <Card
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderLeftWidth: 4,
+                      borderLeftColor: colors.success,
+                      elevation: 2,
+                      shadowColor: colors.shadow,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                    }}
+                    padding="md"
+                    variant="filled"
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>PRODUÇÃO TOTAL</Text>
+                      <MaterialCommunityIcons name="factory" size={16} color={colors.muted} />
+                    </View>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.success, letterSpacing: -0.5 }}>
+                      {fmt(totals.produced)}
+                    </Text>
+                  </Card>
+                </View>
+                
+                <View style={{ width: tileW }}>
+                  <Card
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderLeftWidth: 4,
+                      borderLeftColor: colors.accent,
+                      elevation: 2,
+                      shadowColor: colors.shadow,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                    }}
+                    padding="md"
+                    variant="filled"
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>META TOTAL</Text>
+                      <MaterialCommunityIcons name="target" size={16} color={colors.muted} />
+                    </View>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.accent, letterSpacing: -0.5 }}>
+                      {fmt(totals.meta)}
+                    </Text>
+                  </Card>
+                </View>
+                
+                <View style={{ width: tileW }}>
+                  <Card
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderLeftWidth: 4,
+                      borderLeftColor: totals.diff > 0 ? colors.danger : colors.success,
+                      elevation: 2,
+                      shadowColor: colors.shadow,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                    }}
+                    padding="md"
+                    variant="filled"
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>
+                        {totals.diff > 0 ? 'PERDAS' : 'EXCEDENTE'}
+                      </Text>
+                      <MaterialCommunityIcons 
+                        name={totals.diff > 0 ? "trending-down" : "trending-up"} 
+                        size={16} 
+                        color={colors.muted} 
+                      />
+                    </View>
+                    <Text style={{ 
+                      fontSize: 24, 
+                      fontWeight: '900', 
+                      color: totals.diff > 0 ? colors.danger : colors.success,
+                      letterSpacing: -0.5 
+                    }}>
+                      {fmt(Math.abs(totals.diff))}
+                    </Text>
+                  </Card>
+                </View>
+                
+                <View style={{ width: '100%' }}>
+                  <Card
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderLeftWidth: 4,
+                      borderLeftColor: colors.primary,
+                      elevation: 2,
+                      shadowColor: colors.shadow,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                    }}
+                    padding="md"
+                    variant="filled"
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                        <MaterialCommunityIcons name="chart-line" size={18} color={colors.text} />
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>EFICIÊNCIA GERAL</Text>
+                      </View>
+                      <Text style={{ 
+                        fontSize: 32, 
+                        fontWeight: '900', 
+                        color: colors.primary,
+                        letterSpacing: -1
+                      }}>
+                        {Math.round((totals.produced / Math.max(1, totals.meta)) * 100)}%
+                      </Text>
+                    </View>
+                    
+                    {/* Progress bar */}
+                    <View style={{ 
+                      height: 12, 
+                      backgroundColor: colors.surfaceAlt, 
+                      borderRadius: 6, 
+                      overflow: 'hidden',
+                      borderWidth: 1,
+                      borderColor: colors.line
+                    }}>
+                      <View style={{ 
+                        height: '100%', 
+                        width: `${Math.min(100, Math.round((totals.produced / Math.max(1, totals.meta)) * 100))}%`, 
+                        backgroundColor: colors.primary,
+                        borderRadius: 5
+                      }} />
+                    </View>
+                    
+                    <Text style={{ 
+                      color: colors.muted, 
+                      fontSize: 12, 
+                      textAlign: 'center',
+                      marginTop: spacing.xs,
+                      fontWeight: '500'
+                    }}>
+                      {totals.produced >= totals.meta ? 'Meta superada!' : 
+                       totals.produced >= totals.meta * 0.9 ? 'Próximo da meta' : 
+                       'Abaixo da meta planejada'}
+                    </Text>
+                  </Card>
                 </View>
               </View>
 
-              <Card padding="md" variant="filled" elevationLevel={1} style={styles.stretch}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={typography.h2}>Evolução diária</Text>
-                  <View style={{ flexDirection: 'row' }}>
-                    {[7, 12, 30].map((n, i) => (
-                      <React.Fragment key={n}>
-                        <Chip
-                          label={`${n}`}
-                          active={barCount === (n as any)}
-                          onPress={() => setBarCount(n as 7 | 12 | 30)}
-                        />
-                        {i < 2 && <View style={{ width: 6 }} />}
-                      </React.Fragment>
+              {/* Enhanced Chart Section */}
+              <Card 
+                padding="lg" 
+                variant="filled" 
+                elevationLevel={2}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  shadowColor: colors.shadow,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <MaterialCommunityIcons name="chart-bar" size={20} color={colors.text} />
+                    <Text style={[typography.h2, { fontSize: 18 }]}>Evolução Diária</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                    {[7, 12, 30].map((n) => (
+                      <Chip
+                        key={n}
+                        label={`${n}d`}
+                        active={barCount === (n as any)}
+                        onPress={() => setBarCount(n as 7 | 12 | 30)}
+                      />
                     ))}
                   </View>
                 </View>
@@ -959,7 +1300,22 @@ export default function AdminProductionsReportScreen() {
             </View>
           )}
 
-          <Text style={typography.h2}>Por dia</Text>
+          {/* Daily Breakdown Section Header */}
+          <View style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center', 
+            gap: spacing.sm,
+            marginBottom: spacing.sm 
+          }}>
+            <MaterialCommunityIcons 
+              name="calendar-multiselect" 
+              size={20} 
+              color={colors.text} 
+            />
+            <Text style={[typography.h2, { fontSize: 18 }]}>
+              Detalhamento por Dia
+            </Text>
+          </View>
         </View>
       </View>
     );

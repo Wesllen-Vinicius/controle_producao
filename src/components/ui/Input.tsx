@@ -11,6 +11,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '../../state/ThemeProvider';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 type InputMode = 'text' | 'integer' | 'decimal';
 
@@ -21,23 +22,14 @@ type Props = Omit<TextInputProps, 'onChange' | 'onChangeText' | 'style'> & {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   onPressRightIcon?: () => void;
-  /** Sufixo ao lado direito (ex.: "KG", "UN") */
   suffix?: string;
-  /** Visual refinado para números (inteiro/decimal). */
   mode?: InputMode;
-  /** Número de casas decimais para `mode="decimal"` (default 2). */
   decimals?: number;
-  /** Permitir valores negativos (apenas `mode="decimal"` ou `integer`) */
   allowNegative?: boolean;
-  /** Largura total */
   full?: boolean;
-  /** Estilo do container */
   containerStyle?: StyleProp<ViewStyle>;
-  /** Estilo do rótulo */
   labelStyle?: StyleProp<TextStyle>;
-  /** Callback com o valor numérico (quando aplicável) */
   onValueNumber?: (num: number | null) => void;
-  /** Reintroduzido: callback padrão do RN */
   onChangeText?: (text: string) => void;
 };
 
@@ -110,8 +102,7 @@ const Input = forwardRef<TextInput, Props>(function Input(
         onValueNumber?.(out === '' || out === '-' ? null : Number(out));
       } else if (mode === 'decimal') {
         out = normalizeDecimal(t, decimals, allowNegative);
-        const num =
-          out === '' || out === '-' || out === '.' || out === '-.' ? null : Number(out);
+        const num = out === '' || out === '-' || out === '.' || out === '-.' ? null : Number(out);
         onValueNumber?.(num);
       } else {
         onValueNumber?.(null);
@@ -201,7 +192,7 @@ const Input = forwardRef<TextInput, Props>(function Input(
             accessibilityRole="button"
             accessibilityLabel="Limpar campo"
           >
-            <Text style={{ color: colors.muted, fontWeight: '800' }}>×</Text>
+            <MaterialCommunityIcons name="close-circle" size={18} color={colors.muted} />
           </Pressable>
         ) : null}
       </Pressable>

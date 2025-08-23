@@ -52,3 +52,9 @@ coverage/
 # Misc
 *.orig
 *.log
+
+# Keystores and credentials
+*.keystore
+credentials.json
+.claude
+*.claude

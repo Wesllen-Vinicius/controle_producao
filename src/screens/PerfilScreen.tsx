@@ -23,6 +23,7 @@ import { useTheme } from '../state/ThemeProvider';
 import { useAuth } from '../state/AuthProvider';
 import { supabase } from '../services/supabase';
 import { tryCopy } from '../utils/clipboard';
+import { useToast } from '../state/ToastProvider';
 
 /* ===== extra do app.json (links/contatos) ===== */
 function getExtra<T = any>(key: string, fallback?: T): T | undefined {
@@ -117,83 +118,186 @@ function ListRow({
 export default function PerfilScreen() {
   const { session, profile, signOut } = useAuth();
   const { colors, spacing, radius, typography } = useTheme();
+  const { showToast } = useToast();
 
   const name = profile?.username || session?.user?.email?.split('@')[0] || 'Usuário';
   const email = session?.user?.email || '';
   const initial = (name?.[0] || 'U').toUpperCase();
 
-  const version =
-    (Constants.expoConfig as any)?.version ??
-    (Constants.manifest as any)?.version ??
-    '—';
+  const version = (Constants.expoConfig as any)?.version ?? '—';
+  const buildNumber = (Constants.expoConfig as any)?.ios?.buildNumber ?? (Constants.expoConfig as any)?.android?.versionCode ?? '—';
 
-  const buildNumber =
-    (Constants.expoConfig as any)?.ios?.buildNumber ??
-    (Constants.expoConfig as any)?.android?.versionCode ??
-    (Constants.expoConfig as any)?.extra?.build ??
-    '—';
-
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        // removemos paddings daqui; vamos aplicar no contentContainerStyle do ScrollView
-        row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-        avatar: {
-          width: 64, height: 64, borderRadius: 64,
-          alignItems: 'center', justifyContent: 'center',
-          borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surfaceAlt,
-        },
-        avatarT: { fontWeight: '900', fontSize: 20, color: colors.text },
-        name: { fontWeight: '800', fontSize: 18, color: colors.text },
-        email: { color: colors.muted, marginTop: 2 },
-        rolePill: {
-          backgroundColor: colors.surfaceAlt,
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.xs,
-          borderRadius: radius.lg,
-          borderWidth: 1,
-          borderColor: colors.line,
-        },
-        pillText: { color: colors.text, fontWeight: '800' },
-        sectionTitle: { ...(typography.h2 as any), marginBottom: spacing.sm },
-        metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-        metaLabel: { color: colors.muted, fontWeight: '700' },
-        metaValue: { color: colors.text, fontWeight: '800' },
-      }),
-    [colors, spacing, radius, typography]
-  );
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xl,
+      gap: spacing.lg,
+    },
+    profileCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      gap: spacing.lg,
+      elevation: 3,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    userSection: { 
+      flexDirection: 'row', 
+      alignItems: 'center', 
+      gap: spacing.md 
+    },
+    avatar: { 
+      width: 80, 
+      height: 80, 
+      borderRadius: 24, 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      backgroundColor: colors.primary + '20',
+      borderWidth: 3,
+      borderColor: colors.primary + '40'
+    },
+    avatarText: { 
+      fontWeight: '900', 
+      fontSize: 28, 
+      color: colors.primary,
+      letterSpacing: 1
+    },
+    userInfo: { flex: 1, gap: spacing.xs },
+    userName: { 
+      fontWeight: '800', 
+      fontSize: 20, 
+      color: colors.text,
+      letterSpacing: -0.5
+    },
+    userEmail: { 
+      color: colors.muted, 
+      fontSize: 14,
+      fontWeight: '500'
+    },
+    rolePill: { 
+      backgroundColor: colors.success + '20',
+      paddingHorizontal: spacing.sm, 
+      paddingVertical: 6, 
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.success + '30'
+    },
+    pillText: { 
+      color: colors.success, 
+      fontWeight: '700',
+      fontSize: 12,
+      letterSpacing: 0.5
+    },
+    sectionCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.line,
+      overflow: 'hidden',
+      elevation: 1,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.surfaceAlt,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line
+    },
+    sectionTitle: { 
+      fontWeight: '700', 
+      fontSize: 16, 
+      color: colors.text 
+    },
+    metaRow: { 
+      flexDirection: 'row', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      paddingVertical: spacing.sm
+    },
+    metaLabel: { 
+      color: colors.muted, 
+      fontWeight: '600',
+      fontSize: 13
+    },
+    metaValue: { 
+      color: colors.text, 
+      fontWeight: '700',
+      fontSize: 14
+    },
+    dangerCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 2,
+      borderColor: colors.danger + '30',
+      overflow: 'hidden',
+      elevation: 1,
+      shadowColor: colors.danger,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+  }), [colors, spacing, radius, typography]);
 
   const copyHandler = useCallback(async (text: string, label: string) => {
     const ok = await tryCopy(text);
-    Alert.alert(label, ok ? 'Informação copiada para a área de transferência.' : 'Não foi possível copiar agora.');
-  }, []);
-
-  async function reportBug() {
-    const subject = encodeURIComponent(`[Bug] App v${version} (${buildNumber})`);
-    const body = encodeURIComponent(
-      [
-        'Descreva o problema (o que aconteceu, o que esperava, passos):',
-        '',
-        '---',
-        `Versão: ${version} (${buildNumber})`,
-        `SO: ${Platform.OS} ${Platform.Version}`,
-        `Usuário: ${email || session?.user?.id || '—'}`,
-      ].join('\n')
-    );
-
-    const url = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-    const can = await Linking.canOpenURL(url);
-    if (!can) {
-      Alert.alert(
-        'Reportar bug',
-        `Não foi possível abrir o e-mail. Envie para ${SUPPORT_EMAIL} com o assunto: [Bug] App v${version} (${buildNumber}).`
-      );
-      return;
+    if (ok) {
+      showToast({ type: 'success', message: `${label} copiado!` });
+    } else {
+      Alert.alert(label, 'Não foi possível copiar agora.');
     }
-    Linking.openURL(url).catch(() =>
-      Alert.alert('Reportar bug', 'Não foi possível abrir o e-mail agora.')
-    );
-  }
+  }, [showToast]);
+
+  const reportBug = useCallback(async () => {
+    const subject = encodeURIComponent(`[Bug Report] App v${version} (${buildNumber})`);
+    const userInfo = email || session?.user?.id?.slice(0, 8) + '...' || 'Anônimo';
+    const deviceInfo = `${Platform.OS} ${Platform.Version}`;
+    
+    const body = encodeURIComponent([
+      'Descreva o problema encontrado:',
+      '',
+      '',
+      '---',
+      'Informações técnicas:',
+      `Versão do app: ${version} (${buildNumber})`,
+      `Sistema: ${deviceInfo}`,
+      `Usuário: ${userInfo}`,
+      `Data: ${new Date().toLocaleString()}`
+    ].join('\n'));
+    
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+    
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert(
+          'Reportar bug',
+          `Para reportar um bug, envie um e-mail para:\n\n${SUPPORT_EMAIL}\n\nAssunto: [Bug Report] App v${version}`,
+          [
+            { text: 'OK' },
+            { text: 'Copiar e-mail', onPress: () => copyHandler(SUPPORT_EMAIL, 'E-mail de suporte') }
+          ]
+        );
+        return;
+      }
+      
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Erro', 'Não foi possível abrir o aplicativo de e-mail.');
+    }
+  }, [version, buildNumber, email, session?.user?.id, copyHandler]);
 
   const openLink = useCallback(async (url?: string) => {
     if (!url) return;
@@ -202,191 +306,237 @@ export default function PerfilScreen() {
       Alert.alert('Abrir link', 'Não foi possível abrir o link no momento.');
       return;
     }
-    Linking.openURL(url).catch(() => {
-      Alert.alert('Abrir link', 'Não foi possível abrir o link no momento.');
-    });
+    Linking.openURL(url).catch(() => Alert.alert('Abrir link', 'Não foi possível abrir o link no momento.'));
   }, []);
 
   const resetPassword = useCallback(async () => {
     if (!email) {
-      Alert.alert('Redefinir senha', 'E-mail de usuário não disponível.');
+      Alert.alert('Erro', 'E-mail não encontrado.');
       return;
     }
-    try {
-      const opts: any = RESET_REDIRECT_URL ? { redirectTo: RESET_REDIRECT_URL } : undefined;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, opts);
-      if (error) throw error;
-      Alert.alert('Redefinir senha', 'Enviamos um e-mail com as instruções para redefinir sua senha.');
-    } catch (e: any) {
-      Alert.alert('Redefinir senha', e?.message ?? 'Falha ao enviar o e-mail de redefinição.');
-    }
+    
+    Alert.alert(
+      'Redefinir senha',
+      'Deseja receber um e-mail com as instruções para redefinir sua senha?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Enviar', 
+          onPress: async () => {
+            try {
+              const opts: any = RESET_REDIRECT_URL ? { redirectTo: RESET_REDIRECT_URL } : undefined;
+              const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), opts);
+              if (error) throw error;
+              Alert.alert('E-mail enviado', 'Verifique sua caixa de entrada e spam. O link expira em 1 hora.');
+            } catch (e: any) {
+              const errorMessage = e?.message?.includes('rate_limit') 
+                ? 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.'
+                : e?.message ?? 'Falha ao enviar o e-mail.';
+              Alert.alert('Erro', errorMessage);
+            }
+          }
+        }
+      ]
+    );
   }, [email]);
 
   if (!session) {
     return (
       <Screen padded>
-        <View style={{ paddingHorizontal: 16 }}>
-          <Text style={{ color: colors.text }}>Faça login para ver seu perfil.</Text>
-        </View>
+        <Text style={{ color: colors.text }}>Faça login para ver seu perfil.</Text>
       </Screen>
     );
   }
 
   return (
-    // Screen sem scroll interno; vamos controlar o scroll aqui com elasticidade
     <Screen padded={false} scroll={false}>
       <Animated.ScrollView
-        // === elasticidade estilo “app grande” ===
         bounces
         overScrollMode="always"
-        decelerationRate="fast"
-        keyboardShouldPersistTaps="handled"
-        // padding/gap do conteúdo aqui (evita wrapper extra)
-        contentContainerStyle={{
-          paddingHorizontal: spacing?.md ?? 16,
-          paddingTop:        spacing?.sm ?? 8,
-          paddingBottom:     spacing?.xl ?? 24,
-          // gap entre blocos
-          rowGap:            spacing?.md ?? 12, // RN novos suportam rowGap/gap; mantém visual consistente
-        } as any}
+        contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-
-        {/* ===== Card Perfil ===== */}
-        <Card padding="md" variant="filled" elevationLevel={2} style={{ gap: spacing.md }}>
-          <View style={styles.row}>
-            <Pressable
-              onLongPress={() => copyHandler(name, 'Nome copiado')}
-              android_ripple={{ color: colors.line }}
+        {/* Enhanced Profile Header */}
+        <View style={styles.profileCard}>
+          <View style={styles.userSection}>
+            <Pressable 
+              onLongPress={() => copyHandler(name, 'Nome')} 
+              android_ripple={{ color: colors.line }} 
               style={styles.avatar}
             >
-              <Text style={styles.avatarT}>{initial}</Text>
+              <Text style={styles.avatarText}>{initial}</Text>
             </Pressable>
-
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{name}</Text>
-              <Pressable onLongPress={() => email && copyHandler(email, 'E-mail copiado')}>
-                <Text style={styles.email}>{email}</Text>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{name}</Text>
+              <Pressable onLongPress={() => email && copyHandler(email, 'E-mail')}>
+                <Text style={styles.userEmail}>{email}</Text>
               </Pressable>
+              {!!profile?.role && (
+                <View style={styles.rolePill}>
+                  <Text style={styles.pillText}>{profile.role.toUpperCase()}</Text>
+                </View>
+              )}
             </View>
-
-            {!!profile?.role && (
-              <View style={styles.rolePill}>
-                <Text style={styles.pillText}>{profile.role}</Text>
-              </View>
-            )}
           </View>
 
-          {/* Aparência */}
-          <View>
-            <Text style={styles.sectionTitle}>Aparência</Text>
+          {/* Quick Actions */}
+          <View style={{ gap: spacing.sm }}>
+            <Button 
+              title="Redefinir Senha" 
+              onPress={resetPassword}
+              variant="tonal"
+              leftIcon={<MaterialCommunityIcons name="lock-reset" size={16} color={colors.primary} />}
+              full
+            />
+            <Button 
+              title="Sair da Conta" 
+              onPress={() => {
+                Alert.alert(
+                  'Sair da conta',
+                  'Tem certeza que deseja sair? Você precisará fazer login novamente.',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Sair', style: 'destructive', onPress: signOut }
+                  ]
+                );
+              }} 
+              intent="danger" 
+              leftIcon={<MaterialCommunityIcons name="logout" size={16} color="#FFFFFF" />}
+              full 
+            />
+          </View>
+        </View>
+
+        {/* Appearance Settings */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <MaterialCommunityIcons name="palette" size={20} color={colors.text} />
+            <Text style={styles.sectionTitle}>Personalização</Text>
+          </View>
+          <View style={{ padding: spacing.md }}>
             <ThemeToggle />
           </View>
+        </View>
 
-          {/* Segurança */}
+        {/* Support & Information */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <MaterialCommunityIcons name="help-circle" size={20} color={colors.text} />
+            <Text style={styles.sectionTitle}>Suporte & Ajuda</Text>
+          </View>
           <View>
-            <Text style={styles.sectionTitle}>Segurança</Text>
-            <ListRow
-              icon="lock-reset"
-              title="Redefinir senha por e-mail"
-              subtitle="Enviaremos um link para o seu e-mail"
-              onPress={resetPassword}
-            />
+            <ListRow icon="bug-outline" title="Reportar Bug" subtitle="Relate problemas encontrados" onPress={reportBug} />
+            {!!WHATSAPP_URL && (
+              <ListRow 
+                icon="whatsapp" 
+                title="Suporte via WhatsApp" 
+                subtitle="Fale conosco diretamente"
+                onPress={() => openLink(WHATSAPP_URL)} 
+              />
+            )}
+            {!!PRIVACY_URL && (
+              <ListRow 
+                icon="shield-check" 
+                title="Política de Privacidade" 
+                subtitle="Como protegemos seus dados"
+                onPress={() => openLink(PRIVACY_URL)} 
+              />
+            )}
+            {!!TERMS_URL && (
+              <ListRow 
+                icon="file-document-outline" 
+                title="Termos de Uso" 
+                subtitle="Condições de utilização"
+                onPress={() => openLink(TERMS_URL)} 
+              />
+            )}
+            {!!RATE_URL && (
+              <ListRow 
+                icon="star-outline" 
+                title="Avaliar o App" 
+                subtitle="Deixe sua avaliação na loja"
+                onPress={() => openLink(RATE_URL)} 
+              />
+            )}
           </View>
+        </View>
 
-          {/* Sair */}
-          <Button title="Sair" onPress={signOut} intent="danger" full />
-        </Card>
-
-        {/* ===== Card Links / Sobre ===== */}
-        <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: 8 }}>
-          <Text style={typography.h2}>Suporte & Informações</Text>
-
-          <ListRow
-            icon="bug-outline"
-            title="Reportar bug"
-            subtitle="Abra o e-mail com um rascunho preenchido"
-            onPress={reportBug}
-          />
-
-          {!!WHATSAPP_URL && (
-            <ListRow
-              icon="whatsapp"
-              title="Falar no WhatsApp"
-              subtitle="Abriremos uma conversa com o suporte"
-              onPress={() => openLink(WHATSAPP_URL)}
-            />
-          )}
-
-          {!!PRIVACY_URL && (
-            <ListRow
-              icon="shield-check"
-              title="Política de privacidade"
-              onPress={() => openLink(PRIVACY_URL)}
-            />
-          )}
-
-          {!!TERMS_URL && (
-            <ListRow
-              icon="file-document-outline"
-              title="Termos de uso"
-              onPress={() => openLink(TERMS_URL)}
-            />
-          )}
-
-          {!!RATE_URL && (
-            <ListRow
-              icon="star-outline"
-              title="Avaliar o app"
-              subtitle={Platform.OS === 'ios' ? 'App Store' : 'Google Play'}
-              onPress={() => openLink(RATE_URL)}
-            />
-          )}
-
-          <View style={{ height: 1, backgroundColor: colors.line, opacity: 0.6, marginVertical: spacing.sm }} />
-
-          <Text style={[typography.label, { color: colors.muted, marginBottom: 6 }]}>Sobre</Text>
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ color: colors.muted, fontWeight: '700' }}>Versão</Text>
-            <Text style={{ color: colors.text, fontWeight: '800' }}>
-              {version} ({String(buildNumber)})
-            </Text>
+        {/* App Information */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <MaterialCommunityIcons name="information" size={20} color={colors.text} />
+            <Text style={styles.sectionTitle}>Informações do App</Text>
           </View>
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ color: colors.muted, fontWeight: '700' }}>Desenvolvido por</Text>
-            <Text style={{ color: colors.text, fontWeight: '800' }}>{DEVELOPER}</Text>
+          <View style={{ padding: spacing.md, gap: spacing.sm }}>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Versão do App</Text>
+              <Text style={styles.metaValue}>{version}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Build Number</Text>
+              <Text style={styles.metaValue}>{String(buildNumber)}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Desenvolvido por</Text>
+              <Text style={styles.metaValue}>{DEVELOPER}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Platform</Text>
+              <Text style={styles.metaValue}>{Platform.OS === 'ios' ? 'iOS' : 'Android'}</Text>
+            </View>
           </View>
-        </Card>
+        </View>
 
-        {/* Zona de perigo opcional */}
-        <Card padding="md" variant="outlined" elevationLevel={0} style={{ gap: 8 }}>
-          <Text style={[typography.h2, { color: '#DC2626' }]}>Zona de perigo</Text>
-          <ListRow
-            icon="account-cancel-outline"
-            title="Solicitar exclusão de conta"
-            subtitle={`Envie um e-mail para ${SUPPORT_EMAIL}`}
-            destructive
-            onPress={() =>
-              Alert.alert(
+        {/* Danger Zone */}
+        <View style={styles.dangerCard}>
+          <View style={[styles.sectionHeader, { backgroundColor: colors.danger + '10' }]}>
+            <MaterialCommunityIcons name="alert" size={20} color={colors.danger} />
+            <Text style={[styles.sectionTitle, { color: colors.danger }]}>Zona de Perigo</Text>
+          </View>
+          <View>
+            <ListRow
+              icon="account-cancel-outline"
+              title="Solicitar Exclusão de Conta"
+              subtitle="Esta ação é irreversível e removerá todos os dados"
+              destructive
+              onPress={() => Alert.alert(
                 'Excluir conta',
-                `Envie um e-mail para ${SUPPORT_EMAIL} solicitando a exclusão da sua conta.`,
+                `⚠️ ATENÇÃO: Esta ação é irreversível!\n\nTodos os seus dados serão permanentemente removidos.\n\nPara solicitar a exclusão, envie um e-mail para ${SUPPORT_EMAIL}`,
                 [
                   { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Enviar e-mail',
+                  { 
+                    text: 'Enviar solicitação', 
+                    style: 'destructive',
                     onPress: async () => {
                       const subject = encodeURIComponent('Solicitação de exclusão de conta');
-                      const url = `mailto:${SUPPORT_EMAIL}?subject=${subject}`;
-                      if (await Linking.canOpenURL(url)) Linking.openURL(url);
-                    },
-                  },
-                ],
-              )
-            }
-          />
-        </Card>
+                      const userInfo = email || session?.user?.id || 'Usuário não identificado';
+                      const body = encodeURIComponent([
+                        'Solicito a exclusão permanente da minha conta.',
+                        '',
+                        'Entendo que esta ação é irreversível e que todos os meus dados serão removidos.',
+                        '',
+                        `Conta: ${userInfo}`,
+                        `Data da solicitação: ${new Date().toLocaleString()}`
+                      ].join('\n'));
+                      const url = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+                      
+                      try {
+                        const canOpen = await Linking.canOpenURL(url);
+                        if (canOpen) {
+                          await Linking.openURL(url);
+                        } else {
+                          copyHandler(SUPPORT_EMAIL, 'E-mail de suporte');
+                        }
+                      } catch {
+                        Alert.alert('Erro', 'Não foi possível abrir o e-mail.');
+                      }
+                    }
+                  }
+                ]
+              )}
+            />
+          </View>
+        </View>
       </Animated.ScrollView>
     </Screen>
   );
