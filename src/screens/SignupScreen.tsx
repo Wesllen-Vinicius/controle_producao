@@ -1,4 +1,3 @@
-// screens/SignupScreen.tsx
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -6,19 +5,20 @@ import {
   StyleSheet,
   Keyboard,
   TouchableWithoutFeedback,
-  Alert,
+  Pressable,
   TextInput,
+  useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
   Animated,
-  Pressable,
-  Linking,
-  useWindowDimensions,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Constants from 'expo-constants';
 
-import Screen from '../components/Screen';
-import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 
@@ -26,15 +26,14 @@ import { supabase } from '../services/supabase';
 import { useHaptics } from '../hooks/useHaptics';
 import { useTheme } from '../state/ThemeProvider';
 import { useNavigation } from '@react-navigation/native';
-import Constants from 'expo-constants';
 
 /* ===== extra do app.json (links/redirect) ===== */
 function getExtra<T = any>(key: string, fallback?: T): T | undefined {
   const extra = (Constants.expoConfig as any)?.extra ?? (Constants.manifest as any)?.extra ?? {};
   return (extra?.[key] as T) ?? fallback;
 }
-const TERMS_URL    = getExtra<string>('termsUrl');
-const PRIVACY_URL  = getExtra<string>('privacyUrl');
+const TERMS_URL = getExtra<string>('termsUrl');
+const PRIVACY_URL = getExtra<string>('privacyUrl');
 const SIGNUP_REDIRECT_URL = getExtra<string>('signupRedirectUrl');
 
 export default function SignupScreen() {
@@ -42,297 +41,655 @@ export default function SignupScreen() {
   const { width } = useWindowDimensions();
 
   const [email, setEmail] = useState('');
-  const [pass, setPass]   = useState('');
+  const [pass, setPass] = useState('');
   const [pass2, setPass2] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
 
   const emailRef = useRef<TextInput>(null);
-  const passRef  = useRef<TextInput>(null);
+  const passRef = useRef<TextInput>(null);
   const pass2Ref = useRef<TextInput>(null);
 
   const h = useHaptics();
   const { colors, spacing, typography, radius } = useTheme();
 
-  // animações (entrada + shake em erro)
-  const intro  = useRef(new Animated.Value(0)).current;
-  const shake  = useRef(new Animated.Value(0)).current;
-  const cardScale   = intro.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1] });
-  const cardOpacity = intro;
-  const translateX  = shake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-6, 0, 6] });
+  // Enhanced animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const iconScale = useRef(new Animated.Value(0.8)).current;
+  const formTranslateY = useRef(new Animated.Value(20)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
+  const successAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(intro, {
-      toValue: 1,
-      useNativeDriver: true,
-      stiffness: 140,
-      damping: 16,
-      mass: 0.7,
-    }).start();
-  }, [intro]);
+    // Smooth entrance animation
+    Animated.stagger(150, [
+      Animated.timing(fadeAnim, { 
+        toValue: 1, 
+        duration: 600, 
+        useNativeDriver: true 
+      }),
+      Animated.spring(iconScale, { 
+        toValue: 1, 
+        useNativeDriver: true, 
+        stiffness: 100, 
+        damping: 10 
+      }),
+      Animated.timing(formTranslateY, { 
+        toValue: 0, 
+        duration: 400, 
+        useNativeDriver: true 
+      })
+    ]).start();
+
+    // Icon pulse animation
+    const pulseIcon = () => {
+      Animated.sequence([
+        Animated.timing(iconScale, {
+          toValue: 1.05,
+          duration: 2000,
+          useNativeDriver: true
+        }),
+        Animated.timing(iconScale, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true
+        })
+      ]).start(() => {
+        setTimeout(pulseIcon, 3000);
+      });
+    };
+    pulseIcon();
+  }, []);
 
   const doShake = useCallback(() => {
-    shake.setValue(0);
     Animated.sequence([
-      Animated.timing(shake, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: -1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 0, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
     ]).start();
-  }, [shake]);
+  }, []);
 
-  // largura máxima elegante e centrada (coeso com Login)
-  const contentMax = 520;
-  const contentWidth = Math.min(width - spacing.md * 2, contentMax);
+  const animateButtonPress = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(buttonScale, { toValue: 0.98, duration: 100, useNativeDriver: true }),
+      Animated.timing(buttonScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const animateSuccess = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(successAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(successAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const contentWidth = useMemo(() => Math.min(width - 48, 400), [width]);
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        page: {
-          alignSelf: 'stretch',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.lg,
-          paddingBottom: spacing.xl,
+        container: { 
+          flex: 1 
+        },
+        gradient: {
           flex: 1,
         },
-        center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-        wrap: { width: contentWidth, alignSelf: 'center' },
-        header: { alignItems: 'center', gap: 6, marginBottom: spacing.md },
-        brandBadge: {
-          width: 56, height: 56, borderRadius: 56,
-          alignItems: 'center', justifyContent: 'center',
-          backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.line,
+        content: {
+          flex: 1,
+          paddingHorizontal: 24,
+          justifyContent: 'center',
+          alignItems: 'center',
         },
-        brandInitial: { fontWeight: '900', fontSize: 20, color: colors.text },
-        brand: { color: colors.muted, fontWeight: '700' },
-        title: { ...(typography.h1 as any), textAlign: 'center' },
-        card: { gap: spacing.md, alignSelf: 'stretch' },
-        hint: { color: colors.muted, fontSize: 12, textAlign: 'center' as const },
-        link: { color: colors.accent, fontWeight: '700', textAlign: 'center' as const },
-        inline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-        errorText: { color: '#DC2626', fontSize: 12, marginTop: -4 },
-        strengthWrap: {
-          gap: 6,
-          padding: spacing.sm,
-          backgroundColor: colors.surfaceAlt,
-          borderRadius: radius.lg,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.line,
+        formContainer: {
+          width: contentWidth,
+          alignSelf: 'center',
         },
-        barBG: {
-          height: 8,
-          borderRadius: 999,
+        header: {
+          alignItems: 'center',
+          marginBottom: 48,
+        },
+        iconContainer: {
+          width: 80,
+          height: 80,
+          borderRadius: 40,
           backgroundColor: colors.surface,
-          borderWidth: StyleSheet.hairlineWidth,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+          borderWidth: 3,
+          borderColor: colors.primary,
+          ...Platform.select({
+            ios: {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 4,
+            },
+            android: {
+              elevation: 4,
+            },
+          }),
+        },
+        appName: {
+          fontSize: 24,
+          fontWeight: '700',
+          color: colors.text,
+          letterSpacing: -0.5,
+          marginBottom: 4,
+        },
+        subtitle: {
+          fontSize: 14,
+          fontWeight: '500',
+          color: colors.muted,
+          letterSpacing: 0.2,
+        },
+        form: {
+          gap: 20,
+        },
+        inputContainer: {
+          gap: 16,
+        },
+        strengthContainer: {
+          backgroundColor: colors.surface,
           borderColor: colors.line,
+          borderWidth: 1,
+          borderRadius: radius.md,
+          padding: 12,
+          gap: 8,
+        },
+        strengthBar: {
+          height: 4,
+          backgroundColor: colors.line,
+          borderRadius: 2,
           overflow: 'hidden',
         },
+        strengthFill: {
+          height: '100%',
+        },
+        strengthText: {
+          fontSize: 12,
+          fontWeight: '600',
+          color: colors.muted,
+        },
+        errorContainer: {
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          borderColor: 'rgba(239, 68, 68, 0.3)',
+          borderWidth: 1,
+          borderRadius: radius.md,
+          padding: 12,
+          marginTop: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        errorText: {
+          color: colors.danger,
+          fontSize: 13,
+          fontWeight: '600',
+          textAlign: 'center',
+          flex: 1,
+        },
+        buttonContainer: {
+          marginTop: 8,
+        },
+        buttonWrapper: {
+          position: 'relative',
+        },
+        successOverlay: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: radius.md,
+        },
+        footer: {
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginTop: 24,
+          paddingTop: 16,
+        },
+        link: {
+          color: colors.primary,
+          fontSize: 14,
+          fontWeight: '600',
+        },
+        termsContainer: {
+          marginTop: 12,
+          marginBottom: 8,
+        },
+        termsText: {
+          fontSize: 12,
+          color: colors.muted,
+          textAlign: 'center',
+          lineHeight: 16,
+        },
+        termsLink: {
+          color: colors.primary,
+          fontWeight: '600',
+        },
       }),
-    [colors, spacing, typography.h1, radius, contentWidth]
+    [colors, spacing, contentWidth, radius]
   );
 
-  // ===== validação
-  const isValidEmail = (v: string) => /\S+@\S+\.\S+/.test(v);
+  // Enhanced validation
+  const validateEmail = (emailText: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(emailText) && emailText.length <= 254;
+  };
 
-  // força da senha (0..3)
-  const passScore = useMemo(() => {
-    let s = 0;
-    if (pass.length >= 6) s++;
-    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) s++;
-    if (/\d/.test(pass) && /[^A-Za-z0-9]/.test(pass)) s++;
-    return s;
-  }, [pass]);
+  const validatePassword = (passwordText: string) => {
+    return passwordText.length >= 6 && passwordText.length <= 128;
+  };
 
-  const scoreLabel = ['Muito fraca', 'Fraca', 'Boa', 'Forte'][passScore];
-  const scorePct   = [0.25, 0.45, 0.7, 1][passScore];
-  const scoreColor = ['#DC2626', '#F59E0B', '#3B82F6', '#22C55E'][passScore];
+  const emailOk = useMemo(() => validateEmail(email), [email]);
+  const passOk = useMemo(() => validatePassword(pass), [pass]);
+  const matchOk = useMemo(() => pass.length > 0 && pass === pass2, [pass, pass2]);
 
-  const emailOk = isValidEmail(email);
-  const passOk  = pass.length >= 6;
-  const matchOk = pass.length > 0 && pass === pass2;
+  // Computed validation states
+  const emailValid = !emailTouched || emailOk;
+  const passwordValid = !passwordTouched || passOk;
+  const confirmValid = !confirmTouched || matchOk;
 
-  const formOk  = emailOk && passOk && matchOk && !busy;
+  // Password strength calculation
+  const passwordStrength = useMemo(() => {
+    if (pass.length === 0) return { score: 0, label: '', color: colors.muted };
+    
+    let score = 0;
+    if (pass.length >= 6) score++;
+    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++;
+    if (/\d/.test(pass) && /[^A-Za-z0-9]/.test(pass)) score++;
+    
+    const labels = ['Muito fraca', 'Fraca', 'Boa', 'Forte'];
+    const colors_strength = ['#DC2626', '#F59E0B', '#3B82F6', '#22C55E'];
+    
+    return {
+      score,
+      label: labels[score] || '',
+      color: colors_strength[score] || colors.muted,
+      progress: (score + 1) / 4
+    };
+  }, [pass, colors.muted]);
 
-  useEffect(() => { if (error) setError(null); }, [email, pass, pass2, error]);
+  const hasContent = email.length > 0 && pass.length > 0 && pass2.length > 0;
+  const formOk = useMemo(() => emailOk && passOk && matchOk && !busy, [emailOk, passOk, matchOk, busy]);
 
-  async function handleSignup() {
-    if (!formOk) {
+  // Touch handlers
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (!emailTouched && text.length > 0) {
+      setEmailTouched(true);
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPass(text);
+    if (!passwordTouched && text.length > 0) {
+      setPasswordTouched(true);
+    }
+  };
+
+  const handleConfirmChange = (text: string) => {
+    setPass2(text);
+    if (!confirmTouched && text.length > 0) {
+      setConfirmTouched(true);
+    }
+  };
+
+  useEffect(() => {
+    if (error) {
+      setError(null);
+    }
+  }, [email, pass, pass2]);
+
+  const handleSignup = useCallback(async () => {
+    Keyboard.dismiss();
+
+    if (!emailOk) {
       h.warning();
-      setError(!emailOk ? 'E-mail inválido.' : !passOk ? 'A senha precisa ter ao menos 6 caracteres.' : !matchOk ? 'As senhas não conferem.' : 'Preencha os campos.');
+      setError('Por favor, insira um e-mail válido.');
       doShake();
+      emailRef.current?.focus();
+      return;
+    }
+
+    if (!passOk) {
+      h.warning();
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      doShake();
+      passRef.current?.focus();
+      return;
+    }
+
+    if (!matchOk) {
+      h.warning();
+      setError('As senhas não conferem.');
+      doShake();
+      pass2Ref.current?.focus();
       return;
     }
 
     setBusy(true);
+    setError(null);
+
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
+      const cleanEmail = email.trim().toLowerCase();
+      const { error: err } = await supabase.auth.signUp({
+        email: cleanEmail,
         password: pass,
         options: SIGNUP_REDIRECT_URL ? { emailRedirectTo: SIGNUP_REDIRECT_URL } : undefined,
       });
-      if (error) throw error;
+
+      if (err) throw err;
+      
+      animateSuccess();
       h.success();
-      Alert.alert('Conta criada', 'Enviamos um e-mail de confirmação. Verifique sua caixa de entrada.');
-      nav.navigate('Login');
+      
+      Alert.alert(
+        'Conta criada!', 
+        'Enviamos um e-mail de confirmação. Verifique sua caixa de entrada.',
+        [{ text: 'OK', onPress: () => nav.navigate('Login') }]
+      );
     } catch (e: any) {
       h.error();
-      const msg: string = e?.message || 'Falha ao cadastrar';
-      const friendly = /already|registered|exists/i.test(msg)
-        ? 'Este e-mail já está cadastrado. Tente entrar.'
-        : msg;
-      setError(friendly);
+
+      let friendlyMessage = 'Erro ao criar conta. Tente novamente.';
+
+      if (/already|registered|exists/i.test(e.message)) {
+        friendlyMessage = 'Este e-mail já está cadastrado. Tente fazer login.';
+      } else if (/invalid email/i.test(e.message)) {
+        friendlyMessage = 'E-mail inválido.';
+      } else if (/password/i.test(e.message)) {
+        friendlyMessage = 'Senha não atende aos critérios de segurança.';
+      }
+
+      setError(friendlyMessage);
       doShake();
     } finally {
       setBusy(false);
     }
-  }
+  }, [email, pass, pass2, emailOk, passOk, matchOk, h, doShake, nav]);
 
   const openLink = useCallback(async (url?: string) => {
     if (!url) return;
-    const can = await Linking.canOpenURL(url);
-    if (!can) return Alert.alert('Abrir link', 'Não foi possível abrir o link.');
-    Linking.openURL(url).catch(() => Alert.alert('Abrir link', 'Não foi possível abrir o link.'));
+    // You could implement link opening logic here
+    Alert.alert('Link', `Abrir: ${url}`);
   }, []);
 
   return (
-    <Screen padded>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[
+          colors.background, 
+          colors.background + 'F0',
+          colors.surface + 'E0',
+          colors.background
+        ]}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        locations={[0, 0.2, 0.8, 1]}
+      >
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.select({ ios: 24, android: 0 })}
+        keyboardVerticalOffset={Platform.select({ ios: 0, android: 0 })}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={styles.page}>
-            <View style={styles.center}>
-              <View style={styles.wrap}>
-                <View style={styles.header}>
-                  <View style={styles.brandBadge}>
-                    <Text style={styles.brandInitial}>CP</Text>
-                  </View>
-                  <Text style={styles.brand}>Bem-vindo</Text>
-                  <Text style={styles.title}>Criar conta</Text>
+        <TouchableWithoutFeedback 
+          onPress={Keyboard.dismiss} 
+          accessible={false}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.content}>
+            <Animated.View style={[
+              styles.formContainer,
+              { 
+                opacity: fadeAnim,
+                transform: [{ translateX: shakeAnim }]
+              }
+            ]}>
+              {/* Header */}
+              <View style={styles.header}>
+                <Animated.View style={[
+                  styles.iconContainer,
+                  { 
+                    transform: [{ scale: iconScale }]
+                  }
+                ]}>
+                  <MaterialCommunityIcons 
+                    name="account-plus" 
+                    size={40} 
+                    color={colors.primary}
+                    accessibilityLabel="Ícone de criar conta" 
+                  />
+                </Animated.View>
+                <Text style={styles.appName}>Criar Conta</Text>
+                <Text style={styles.subtitle}>Preencha os dados abaixo</Text>
+              </View>
+
+              {/* Form */}
+              <Animated.View style={[
+                styles.form,
+                { transform: [{ translateY: formTranslateY }] }
+              ]}>
+                <View style={styles.inputContainer}>
+                  <Input
+                    ref={emailRef}
+                    label="E-mail"
+                    value={email}
+                    onChangeText={handleEmailChange}
+                    placeholder="seu@email.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passRef.current?.focus()}
+                    editable={!busy}
+                    maxLength={254}
+                    error={!emailValid ? 'Digite um e-mail válido (exemplo@dominio.com)' : undefined}
+                    leftIcon={
+                      <MaterialCommunityIcons 
+                        name="email-outline" 
+                        size={20} 
+                        color={
+                          !emailTouched || email.length === 0 ? colors.muted :
+                          emailValid ? colors.success : colors.danger
+                        } 
+                      />
+                    }
+                  />
+
+                  <Input
+                    ref={passRef}
+                    label="Senha"
+                    value={pass}
+                    onChangeText={handlePasswordChange}
+                    placeholder="Crie uma senha"
+                    secureTextEntry={!showPass}
+                    autoCapitalize="none"
+                    autoComplete="new-password"
+                    autoCorrect={false}
+                    maxLength={128}
+                    error={!passwordValid ? 'A senha deve ter pelo menos 6 caracteres' : undefined}
+                    leftIcon={
+                      <MaterialCommunityIcons 
+                        name="lock-outline" 
+                        size={20} 
+                        color={
+                          !passwordTouched || pass.length === 0 ? colors.muted :
+                          passwordValid ? colors.success : colors.danger
+                        } 
+                      />
+                    }
+                    rightIcon={
+                      <MaterialCommunityIcons
+                        name={showPass ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={colors.muted}
+                      />
+                    }
+                    onPressRightIcon={() => setShowPass((s) => !s)}
+                    returnKeyType="next"
+                    onSubmitEditing={() => pass2Ref.current?.focus()}
+                    editable={!busy}
+                  />
+
+                  {/* Password Strength Indicator */}
+                  {pass.length > 0 && (
+                    <View style={styles.strengthContainer}>
+                      <View style={styles.strengthBar}>
+                        <View 
+                          style={[
+                            styles.strengthFill,
+                            { 
+                              width: `${passwordStrength.progress * 100}%`,
+                              backgroundColor: passwordStrength.color 
+                            }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={styles.strengthText}>
+                        Força da senha: <Text style={{ color: passwordStrength.color }}>{passwordStrength.label}</Text>
+                      </Text>
+                    </View>
+                  )}
+
+                  <Input
+                    ref={pass2Ref}
+                    label="Confirmar senha"
+                    value={pass2}
+                    onChangeText={handleConfirmChange}
+                    placeholder="Repita a senha"
+                    secureTextEntry={!showPass}
+                    autoCapitalize="none"
+                    autoComplete="new-password"
+                    autoCorrect={false}
+                    maxLength={128}
+                    error={!confirmValid ? 'As senhas não conferem' : undefined}
+                    leftIcon={
+                      <MaterialCommunityIcons 
+                        name="lock-check-outline" 
+                        size={20} 
+                        color={
+                          !confirmTouched || pass2.length === 0 ? colors.muted :
+                          confirmValid ? colors.success : colors.danger
+                        } 
+                      />
+                    }
+                    returnKeyType="go"
+                    onSubmitEditing={handleSignup}
+                    editable={!busy}
+                  />
                 </View>
 
-                <Animated.View style={{ transform: [{ translateX }], opacity: cardOpacity }}>
-                  <Animated.View style={{ transform: [{ scale: cardScale }] }}>
-                    <Card padding="md" variant="filled" elevationLevel={2} style={styles.card}>
-                      <Input
-                        ref={emailRef}
-                        label="E-mail"
-                        value={email}
-                        onChangeText={setEmail}
-                        placeholder="voce@exemplo.com"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                        returnKeyType="next"
-                        onSubmitEditing={() => passRef.current?.focus()}
-                        editable={!busy}
-                        rightIcon={
-                          email.length > 0 ? (
-                            <MaterialCommunityIcons
-                              name={emailOk ? 'check-circle' : 'alert-circle'}
-                              size={18}
-                              color={emailOk ? '#22C55E' : '#DC2626'}
-                            />
-                          ) : undefined
-                        }
-                      />
-                      {!emailOk && email.length > 0 && (
-                        <Text style={styles.errorText}>Informe um e-mail válido.</Text>
-                      )}
+                {/* Terms */}
+                <View style={styles.termsContainer}>
+                  <Text style={styles.termsText}>
+                    Ao criar a conta, você concorda com os{' '}
+                    <Text style={styles.termsLink} onPress={() => openLink(TERMS_URL)}>
+                      Termos de Uso
+                    </Text>
+                    {' '}e com a{' '}
+                    <Text style={styles.termsLink} onPress={() => openLink(PRIVACY_URL)}>
+                      Política de Privacidade
+                    </Text>.
+                  </Text>
+                </View>
 
-                      <Input
-                        ref={passRef}
-                        label="Senha"
-                        value={pass}
-                        onChangeText={setPass}
-                        placeholder="Crie uma senha"
-                        secureTextEntry={!showPass}
-                        autoCapitalize="none"
-                        autoComplete="password"
-                        rightIcon={
-                          <MaterialCommunityIcons
-                            name={showPass ? 'eye-off-outline' : 'eye-outline'}
-                            size={20}
-                            color={colors.muted}
+                {!!error && (
+                  <View 
+                    style={styles.errorContainer}
+                    accessible
+                    accessibilityRole="alert"
+                    accessibilityLiveRegion="assertive"
+                  >
+                    <MaterialCommunityIcons 
+                      name="alert-circle" 
+                      size={16} 
+                      color={colors.danger} 
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                )}
+
+                <View style={styles.buttonContainer}>
+                  <Animated.View style={[
+                    styles.buttonWrapper,
+                    { transform: [{ scale: buttonScale }] }
+                  ]}>
+                    <Button
+                      title={busy ? 'Criando conta...' : 'Criar conta'}
+                      onPress={() => {
+                        animateButtonPress();
+                        setTimeout(handleSignup, 100);
+                      }}
+                      loading={busy}
+                      disabled={!hasContent || busy}
+                      variant={formOk ? 'primary' : 'tonal'}
+                      full
+                      leftIcon={
+                        busy ? (
+                          <ActivityIndicator size="small" color={formOk ? "white" : "#666"} />
+                        ) : (
+                          <MaterialCommunityIcons 
+                            name="account-plus" 
+                            size={18} 
+                            color={formOk ? "white" : "#666"}
                           />
+                        )
+                      }
+                      accessibilityLabel={busy ? 'Criando conta, aguarde' : 'Criar conta'}
+                    />
+                  
+                    {/* Success overlay animation */}
+                    <Animated.View 
+                      style={[
+                        styles.successOverlay,
+                        {
+                          opacity: successAnim,
+                          transform: [{ scale: successAnim }],
                         }
-                        onPressRightIcon={() => setShowPass((s) => !s)}
-                        returnKeyType="next"
-                        onSubmitEditing={() => pass2Ref.current?.focus()}
-                        editable={!busy}
-                      />
-
-                      {/* Medidor de força da senha */}
-                      {pass.length > 0 && (
-                        <View style={styles.strengthWrap}>
-                          <View style={styles.barBG}>
-                            <View style={{ width: `${Math.round(scorePct * 100)}%`, height: '100%', backgroundColor: scoreColor }} />
-                          </View>
-                          <Text style={{ color: colors.muted, fontSize: 12 }}>
-                            Força da senha: <Text style={{ color: colors.text, fontWeight: '800' }}>{scoreLabel}</Text>
-                          </Text>
-                        </View>
-                      )}
-
-                      <Input
-                        ref={pass2Ref}
-                        label="Confirmar senha"
-                        value={pass2}
-                        onChangeText={setPass2}
-                        placeholder="Repita a senha"
-                        secureTextEntry={!showPass}
-                        autoCapitalize="none"
-                        autoComplete="password"
-                        returnKeyType="go"
-                        onSubmitEditing={handleSignup}
-                        editable={!busy}
-                        rightIcon={
-                          pass2.length > 0 ? (
-                            <MaterialCommunityIcons
-                              name={matchOk ? 'check-circle' : 'alert-circle'}
-                              size={18}
-                              color={matchOk ? '#22C55E' : '#DC2626'}
-                            />
-                          ) : undefined
-                        }
-                      />
-                      {pass2.length > 0 && !matchOk && (
-                        <Text style={styles.errorText}>As senhas não conferem.</Text>
-                      )}
-
-                      {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-                      <View style={{ gap: 8 }}>
-                        <Text style={styles.hint}>
-                          Ao criar a conta, você concorda com os{' '}
-                          <Text style={styles.link} onPress={() => openLink(TERMS_URL)}>Termos de Uso</Text>
-                          {' '}e com a{' '}
-                          <Text style={styles.link} onPress={() => openLink(PRIVACY_URL)}>Política de Privacidade</Text>.
-                        </Text>
-                      </View>
-
-                      <Button
-                        title={busy ? 'Criando…' : 'Cadastrar'}
-                        onPress={handleSignup}
-                        loading={busy}
-                        disabled={!formOk}
-                        full
-                      />
-
-                      <Pressable onPress={() => nav.navigate('Login')}>
-                        <Text style={styles.link}>Já tem conta? Entrar</Text>
-                      </Pressable>
-                    </Card>
+                      ]}
+                      pointerEvents="none"
+                    >
+                      <MaterialCommunityIcons name="check-circle" size={32} color={colors.success} />
+                    </Animated.View>
                   </Animated.View>
-                </Animated.View>
-              </View>
-            </View>
+                </View>
+
+                <View style={styles.footer}>
+                  <Pressable 
+                    disabled={busy} 
+                    onPress={() => nav.navigate('Login')}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                    accessibilityRole="button"
+                    accessibilityLabel="Já tem conta? Fazer login"
+                    accessibilityHint="Toque para ir para a tela de login"
+                    accessibilityState={{ disabled: busy }}
+                  >
+                    <Text style={styles.link}>Já tem conta? Entrar</Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            </Animated.View>
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </Screen>
+      </LinearGradient>
+    </View>
   );
 }

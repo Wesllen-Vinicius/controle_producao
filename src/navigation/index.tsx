@@ -1,9 +1,11 @@
-// navigation/Navigator.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, CardStyleInterpolators, TransitionPresets } from '@react-navigation/stack';
+import { Platform } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
+// Main App Screens
 import ProducaoScreen from '../screens/ProducaoScreen';
 import EstoqueScreen from '../screens/EstoqueScreen';
 import PerfilScreen from '../screens/PerfilScreen';
@@ -12,112 +14,287 @@ import AdminProductionsReportScreen from '../screens/Relatorio';
 import ProductionDetailsScreen from '../screens/ProductionDetailsScreen';
 import TransactionDetailsScreen from '../screens/TransactionDetailsScreen';
 
-// ⟵ novas telas de auth separadas
+// Authentication Screens
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import PasswordResetScreen from '../screens/PasswordResetScreen';
 
+// Providers
 import { useAuth } from '../state/AuthProvider';
 import { useTheme } from '../state/ThemeProvider';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+const AuthStack = createStackNavigator();
 
+// Icon mapping for better performance
+const TAB_ICONS = {
+  'Produção': 'factory',
+  'Estoque': 'warehouse',
+  'Perfil': 'account-circle',
+  'Admin': 'cog-outline',
+  'Relatórios': 'chart-box-outline',
+} as const;
+
+// Enhanced tab bar component with optimized rendering
 function AppTabs() {
   const { profile } = useAuth();
   const { colors } = useTheme();
 
+  const tabBarOptions = useMemo(() => ({
+    headerShown: false,
+    lazy: true,
+    tabBarHideOnKeyboard: Platform.OS === 'android',
+    tabBarStyle: {
+      backgroundColor: colors.surface,
+      borderTopColor: colors.line,
+      borderTopWidth: 1,
+      height: Platform.OS === 'ios' ? 88 : 60,
+      paddingBottom: Platform.OS === 'ios' ? 28 : 6,
+      paddingTop: 6,
+      elevation: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+    },
+    tabBarActiveTintColor: colors.primary,
+    tabBarInactiveTintColor: colors.muted,
+    tabBarLabelStyle: {
+      fontSize: 12,
+      fontWeight: '600' as const,
+      marginTop: 2,
+    },
+    tabBarIconStyle: {
+      marginBottom: -2,
+    },
+  }), [colors]);
+
+  const getTabBarIcon = useMemo(() => 
+    ({ route }: { route: any }) => 
+      ({ color, size }: { color: string; size: number }) => {
+        const iconName = TAB_ICONS[route.name as keyof typeof TAB_ICONS] || 'dots-horizontal';
+        return (
+          <MaterialCommunityIcons 
+            name={iconName as any} 
+            color={color} 
+            size={size} 
+          />
+        );
+      }, 
+    []
+  );
+
+  const isAdmin = profile?.role === 'admin';
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.line,
-          height: 60,
-          paddingBottom: 6,
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarIcon: ({ color, size }) => {
-          const name =
-            route.name === 'Produção'   ? 'cow' :
-            route.name === 'Estoque'    ? 'warehouse' :
-            route.name === 'Perfil'     ? 'account-circle' :
-            route.name === 'Admin'      ? 'cog' :
-            route.name === 'Relatórios' ? 'chart-box' :
-            'dots-horizontal';
-          return <MaterialCommunityIcons name={name as any} color={color} size={size} />;
-        },
+        ...tabBarOptions,
+        tabBarIcon: getTabBarIcon({ route }),
       })}
+      sceneContainerStyle={{ backgroundColor: colors.background }}
     >
-      <Tab.Screen name="Produção" component={ProducaoScreen} />
-      <Tab.Screen name="Estoque" component={EstoqueScreen} />
-      <Tab.Screen name="Perfil" component={PerfilScreen} />
-      {profile?.role === 'admin' && (
+      <Tab.Screen 
+        name="Produção" 
+        component={ProducaoScreen}
+        options={{
+          tabBarTestID: 'tab-producao',
+          tabBarAccessibilityLabel: 'Produção',
+        }}
+      />
+      <Tab.Screen 
+        name="Estoque" 
+        component={EstoqueScreen}
+        options={{
+          tabBarTestID: 'tab-estoque',
+          tabBarAccessibilityLabel: 'Estoque',
+        }}
+      />
+      <Tab.Screen 
+        name="Perfil" 
+        component={PerfilScreen}
+        options={{
+          tabBarTestID: 'tab-perfil',
+          tabBarAccessibilityLabel: 'Perfil',
+        }}
+      />
+      {isAdmin && (
         <>
-          <Tab.Screen name="Admin" component={ProductsAdminScreen} />
-          <Tab.Screen name="Relatórios" component={AdminProductionsReportScreen} />
+          <Tab.Screen 
+            name="Admin" 
+            component={ProductsAdminScreen}
+            options={{
+              tabBarTestID: 'tab-admin',
+              tabBarAccessibilityLabel: 'Administração',
+            }}
+          />
+          <Tab.Screen 
+            name="Relatórios" 
+            component={AdminProductionsReportScreen}
+            options={{
+              tabBarTestID: 'tab-relatorios',
+              tabBarAccessibilityLabel: 'Relatórios',
+            }}
+          />
         </>
       )}
     </Tab.Navigator>
   );
 }
 
-export default function Navigator() {
-  const { session } = useAuth();
+// Authentication Stack with custom transitions
+function AuthNavigator() {
   const { colors, typography } = useTheme();
 
+  const screenOptions = useMemo(() => ({
+    headerStyle: { 
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    headerTintColor: colors.text,
+    headerTitleStyle: { 
+      color: colors.text, 
+      fontSize: 18,
+      fontWeight: '600' as const,
+    },
+    headerBackTitleVisible: false,
+    headerLeftContainerStyle: { paddingLeft: 16 },
+    headerRightContainerStyle: { paddingRight: 16 },
+    // Enhanced transitions for auth flow
+    ...Platform.select({
+      ios: TransitionPresets.SlideFromRightIOS,
+      android: TransitionPresets.SlideFromRightIOS,
+    }),
+  }), [colors]);
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
-          headerTitleStyle: { color: colors.text, ...(typography?.h2 as any) },
+    <AuthStack.Navigator screenOptions={screenOptions}>
+      <AuthStack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ 
+          headerShown: false,
+          animationTypeForReplace: 'pop',
         }}
-      >
-        {session ? (
-          <>
-            {/* App autenticado */}
-            <Stack.Screen
-              name="App"
-              component={AppTabs}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ProductionDetails"
-              component={ProductionDetailsScreen}
-              options={{ title: 'Detalhes da Produção' }}
-            />
-            <Stack.Screen
-              name="TransactionDetails"
-              component={TransactionDetailsScreen}
-              options={{ title: 'Movimentação' }}
-            />
-          </>
-        ) : (
-          <>
-            {/* Fluxo de autenticação */}
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Signup"
-              component={SignupScreen}
-              options={{ title: 'Criar conta', headerBackTitle: 'Voltar' }}
-            />
-            <Stack.Screen
-              name="PasswordReset"
-              component={PasswordResetScreen}
-              options={{ title: 'Recuperar senha', headerBackTitle: 'Voltar' }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
+      />
+      <AuthStack.Screen
+        name="Signup"
+        component={SignupScreen}
+        options={{ 
+          headerShown: false,
+          presentation: 'modal',
+          ...Platform.select({
+            ios: TransitionPresets.ModalSlideFromBottomIOS,
+            android: TransitionPresets.FadeFromBottomAndroid,
+          }),
+        }}
+      />
+      <AuthStack.Screen
+        name="PasswordReset"
+        component={PasswordResetScreen}
+        options={{ 
+          headerShown: false,
+          presentation: 'modal',
+          ...Platform.select({
+            ios: TransitionPresets.ModalSlideFromBottomIOS,
+            android: TransitionPresets.FadeFromBottomAndroid,
+          }),
+        }}
+      />
+    </AuthStack.Navigator>
+  );
+}
+
+// Main App Stack with optimized transitions
+function AppNavigator() {
+  const { colors } = useTheme();
+
+  const screenOptions = useMemo(() => ({
+    headerStyle: { 
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    headerTintColor: colors.text,
+    headerTitleStyle: { 
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '600' as const,
+    },
+    headerBackTitleVisible: false,
+    headerLeftContainerStyle: { paddingLeft: 16 },
+    headerRightContainerStyle: { paddingRight: 16 },
+    // Smooth transitions for app screens
+    ...Platform.select({
+      ios: TransitionPresets.SlideFromRightIOS,
+      android: TransitionPresets.SlideFromRightIOS,
+    }),
+  }), [colors]);
+
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name="AppTabs"
+        component={AppTabs}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ProductionDetails"
+        component={ProductionDetailsScreen}
+        options={{ 
+          title: 'Detalhes da Produção',
+          headerBackTitle: 'Voltar',
+        }}
+      />
+      <Stack.Screen
+        name="TransactionDetails"
+        component={TransactionDetailsScreen}
+        options={{ 
+          title: 'Detalhes da Movimentação',
+          headerBackTitle: 'Voltar',
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+// Main Navigation Container
+export default function Navigator() {
+  const { session, loading } = useAuth();
+  const { colors } = useTheme();
+
+  const navigationTheme = useMemo(() => ({
+    dark: false,
+    colors: {
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.line,
+      notification: colors.primary,
+    },
+  }), [colors]);
+
+  // Show loading state if auth is still loading
+  if (loading) {
+    return null; // You could return a splash screen component here
+  }
+
+  return (
+    <NavigationContainer theme={navigationTheme}>
+      {session ? <AppNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );
 }
