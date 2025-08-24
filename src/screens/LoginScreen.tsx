@@ -25,6 +25,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 
 import { supabase } from '../services/supabase';
+import { securityService } from '../services/securityService';
 import { useHaptics } from '../hooks/useHaptics';
 import { useTheme } from '../state/ThemeProvider';
 import { useNavigation } from '@react-navigation/native';
@@ -493,6 +494,18 @@ export default function LoginScreen() {
   const handleLogin = useCallback(async () => {
     Keyboard.dismiss();
 
+    const cleanEmail = securityService.sanitizeInput(email.trim().toLowerCase());
+
+    // Verificar rate limiting
+    const { allowed, remainingAttempts, lockoutEndsAt } = await securityService.checkLoginAttempts(cleanEmail);
+    
+    if (!allowed) {
+      const lockoutTime = lockoutEndsAt ? new Date(lockoutEndsAt).toLocaleTimeString() : '';
+      setError(`Muitas tentativas falharam. Tente novamente às ${lockoutTime}.`);
+      h.warning();
+      return;
+    }
+
     if (!emailOk) {
       h.warning();
       setError('Por favor, insira um e-mail válido.');
@@ -513,13 +526,16 @@ export default function LoginScreen() {
     setError(null);
 
     try {
-      const cleanEmail = email.trim().toLowerCase();
       const { error: err } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: pass
       });
 
       if (err) throw err;
+      
+      // Registrar tentativa bem-sucedida
+      await securityService.recordLoginAttempt(cleanEmail, true);
+      await securityService.logSecurityEvent('login_success', { email: cleanEmail });
       
       // Save credentials if remember me is enabled
       await saveCredentials();
@@ -540,10 +556,17 @@ export default function LoginScreen() {
     } catch (e: any) {
       h.error();
 
+      // Registrar tentativa falhada
+      await securityService.recordLoginAttempt(cleanEmail, false);
+      await securityService.logSecurityEvent('login_failed', { 
+        email: cleanEmail, 
+        error: e.message 
+      });
+
       let friendlyMessage = 'Erro ao fazer login. Tente novamente.';
 
       if (/invalid login credentials/i.test(e.message)) {
-        friendlyMessage = 'E-mail ou senha incorretos.';
+        friendlyMessage = `E-mail ou senha incorretos. ${remainingAttempts - 1} tentativas restantes.`;
       } else if (/email not confirmed/i.test(e.message)) {
         friendlyMessage = 'Confirme seu e-mail antes de fazer login.';
       } else if (/too many requests/i.test(e.message)) {

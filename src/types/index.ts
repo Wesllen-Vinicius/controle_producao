@@ -106,6 +106,20 @@ export interface ValidationRule<T = any> {
   message: string;
 }
 
-export interface FormValidation<T = Record<string, any>> {
+export type FormValidation<T = Record<string, any>> = {
   [K in keyof T]?: ValidationRule<T[K]>[];
+};
+
+// Error boundary types
+export interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+  errorInfo?: any;
+}
+
+// Analytics types
+export interface AnalyticsEvent {
+  name: string;
+  properties?: Record<string, any>;
+  timestamp: number;
 }

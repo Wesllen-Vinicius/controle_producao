@@ -24,7 +24,7 @@ export class ValidationService {
 
   isValidString(value: string, minLength = 1, maxLength = 255): boolean {
     const trimmed = value?.trim();
-    return trimmed && trimmed.length >= minLength && trimmed.length <= maxLength;
+    return !!(trimmed && trimmed.length >= minLength && trimmed.length <= maxLength);
   }
 
   isValidNumber(value: number | string, min = 0, max = Number.MAX_SAFE_INTEGER): boolean {

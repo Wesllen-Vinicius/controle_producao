@@ -34,6 +34,7 @@ import { useHaptics } from '../hooks/useHaptics';
 import { useTheme } from '../state/ThemeProvider';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
+import { usePerformanceOptimization, useThrottle } from '../hooks/usePerformanceOptimization';
 import FAB from '../components/ui/FAB';
 import BottomSheet from '../components/ui/BottomSheet';
 import DateField from '../components/DateField';
@@ -486,6 +487,7 @@ export default function ProducaoScreen() {
   const h = useHaptics();
   const { colors, spacing, typography } = useTheme();
   const styles = useStyles();
+  const { runAfterInteractions, isAppActive } = usePerformanceOptimization();
 
   const [formOpen, setFormOpen] = useState(false);
   const [prodDate, setProdDate] = useState<string>(todayStr());
@@ -507,9 +509,12 @@ export default function ProducaoScreen() {
   const abate = useMemo(() => parseInt(abateStr || '0', 10) || 0, [abateStr]);
 
   const fetchProducts = useCallback(async () => {
+    // Só executa se o app estiver ativo para economizar bateria
+    if (!isAppActive()) return;
+    
     const { data } = await supabase.from('products').select('id,name,unit,meta_por_animal').order('name');
     setProducts((data as Product[]) || []);
-  }, []);
+  }, [isAppActive]);
 
   const fetchHistory = useCallback(async (startDate?: string, endDate?: string) => {
     let query = supabase.from('productions').select('id,prod_date,abate').order('prod_date', { ascending: false });

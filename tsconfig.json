@@ -5,8 +5,8 @@
       "dom",
       "es2017"
     ],
-    "jsx": "react",
-    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "strict": true,
@@ -16,7 +16,9 @@
       "@/*": [
         "src/*"
       ]
-    }
+    },
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
   },
   "extends": "expo/tsconfig.base"
 }

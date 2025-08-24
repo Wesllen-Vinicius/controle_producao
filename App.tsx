@@ -15,6 +15,7 @@ import Navigator from './src/navigation';
 import { ThemeProvider, useTheme } from './src/state/ThemeProvider';
 import { AuthProvider } from './src/state/AuthProvider';
 import { ToastProvider } from './src/state/ToastProvider';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 // não esconda automaticamente
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -56,16 +57,18 @@ export default function App() {
   if (!ready) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayout}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <AppBody />
-            </ToastProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayout}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <AppBody />
+              </ToastProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
