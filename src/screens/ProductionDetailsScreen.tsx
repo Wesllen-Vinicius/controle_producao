@@ -78,7 +78,7 @@ export default function ProductionDetailsScreen() {
 
   return (
     <Screen padded>
-      <Text style={typography.h1}>Detalhes da Produção</Text>
+      <Text style={[typography.h1, { color: colors.text }]}>Detalhes da Produção</Text>
 
       <Card padding="md" variant="filled" elevationLevel={1} style={{ gap: spacing.sm }}>
         {header ? (
@@ -103,7 +103,7 @@ export default function ProductionDetailsScreen() {
         />
       </View>
 
-      <Text style={[typography.h2, { marginTop: spacing.md }]}>Itens</Text>
+      <Text style={[typography.h2, { marginTop: spacing.md, color: colors.text }]}>Itens</Text>
 
       {!items ? (
         <Card padding="md"><SkeletonList rows={3} /></Card>

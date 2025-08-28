@@ -50,7 +50,7 @@ export default function PasswordResetScreen() {
   const emailRef = useRef<TextInput>(null);
 
   const h = useHaptics();
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, typography, radius, theme } = useTheme();
 
   // Enhanced animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -657,7 +657,7 @@ export default function PasswordResetScreen() {
         end={{ x: 1, y: 1 }}
         locations={[0, 0.2, 0.8, 1]}
       >
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} translucent={false} />
       
       <KeyboardAvoidingView
         style={{ flex: 1 }}

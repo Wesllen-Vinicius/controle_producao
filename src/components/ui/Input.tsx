@@ -44,18 +44,33 @@ function normalizeInteger(text: string, allowNegative?: boolean) {
 }
 
 function normalizeDecimal(text: string, decimals: number, allowNegative?: boolean) {
-  let t = text.replace(',', '.');
-  t = t.replace(new RegExp(`[^0-9\\.${allowNegative ? '-' : ''}]`, 'g'), '');
+  // Primeiro, permitir tanto vírgula quanto ponto durante a digitação
+  let t = text.replace(new RegExp(`[^0-9\\.,${allowNegative ? '-' : ''}]`, 'g'), '');
+  
+  // Converter vírgulas para pontos para processamento interno
+  t = t.replace(/,/g, '.');
+  
+  // Remover pontos/vírgulas extras, mantendo apenas o primeiro
   const parts = t.split('.');
   if (parts.length > 2) t = parts[0] + '.' + parts.slice(1).join('');
-  if (!allowNegative) t = t.replace(/-/g, ''); else t = t.replace(/(?!^)-/g, '');
+  
+  // Tratar sinais negativos
+  if (!allowNegative) t = t.replace(/-/g, ''); 
+  else t = t.replace(/(?!^)-/g, '');
+  
+  // Limitar casas decimais
   const [intPart, decPart = ''] = t.split('.');
   const limited = decPart.slice(0, Math.max(0, decimals));
   t = limited.length ? `${intPart}.${limited}` : intPart;
+  
+  // Normalizar zeros à esquerda
   if (t.startsWith('00')) t = t.replace(/^0+/, '0');
+  
+  // Casos especiais
   if (t === '-') return t;
   if (t === '.') return '0.';
   if (t === '-.') return '-0.';
+  
   return t;
 }
 

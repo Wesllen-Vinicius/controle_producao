@@ -1,5 +1,5 @@
 // screens/ProductsAdminScreen.tsx
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -44,6 +44,8 @@ export default function ProductsAdminScreen() {
   const [metaStr, setMetaStr] = useState<string>(''); // String controlada pelo InputNumber
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const nameInputRef = useRef<any>(null);
 
   const styles = useMemo(
     () =>
@@ -241,7 +243,7 @@ export default function ProductsAdminScreen() {
   if (!isAdmin) {
     return (
       <Screen padded>
-        <Text style={typography.body}>Acesso restrito.</Text>
+        <Text style={[typography.body, { color: colors.text }]}>Acesso restrito.</Text>
       </Screen>
     );
   }
@@ -258,7 +260,7 @@ export default function ProductsAdminScreen() {
           marginBottom: spacing.sm
         }}>
           <View>
-            <Text style={[typography.h1, { fontSize: 24 }]}>Produtos</Text>
+            <Text style={[typography.h1, { fontSize: 24, color: colors.text }]}>Produtos</Text>
             <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '600' }}>
               Gerenciamento de Catálogo
             </Text>
@@ -330,7 +332,7 @@ export default function ProductsAdminScreen() {
               size={20} 
               color={editing ? colors.accent : colors.primary} 
             />
-            <Text style={[typography.h2, { fontSize: 18 }]}>
+            <Text style={[typography.h2, { fontSize: 18, color: colors.text }]}>
               {editing ? 'Editar Produto' : 'Novo Produto'}
             </Text>
           </View>
@@ -343,6 +345,7 @@ export default function ProductsAdminScreen() {
 
         <View style={{ gap: spacing.md }}>
           <Input
+            ref={nameInputRef}
             label="Nome do produto"
             value={name}
             onChangeText={(text) => setName(text.slice(0, 50))}
@@ -505,7 +508,7 @@ export default function ProductsAdminScreen() {
                 size={18} 
                 color={colors.text} 
               />
-              <Text style={[typography.h2, { fontSize: 18 }]}>
+              <Text style={[typography.h2, { fontSize: 18, color: colors.text }]}>
                 Catálogo de Produtos
               </Text>
             </View>
@@ -582,6 +585,11 @@ export default function ProductsAdminScreen() {
                         setUnit(String(item.unit).toUpperCase());
                         setMetaStr(String(item.meta_por_animal));
                         h.light();
+                        
+                        // Auto-focus on the name input after a short delay
+                        setTimeout(() => {
+                          nameInputRef.current?.focus();
+                        }, 300);
                       }}
                     />
                   </View>

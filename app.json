@@ -5,16 +5,12 @@
     "scheme": "producaoestoque",
     "version": "2.0.0",
     "orientation": "portrait",
-
     "backgroundColor": "#0E1116",
-
     "icon": "./assets/rosa-dos-ventos.png",
-
     "splash": {
       "resizeMode": "cover",
       "backgroundColor": "#0E1116"
     },
-
     "android": {
       "package": "com.wes.producao_estoque",
       "icon": "./assets/rosa-dos-ventos.png",
@@ -24,7 +20,6 @@
         "backgroundColor": "#0E1116"
       }
     },
-
     "ios": {
       "supportsTablet": false,
       "splash": {
@@ -36,17 +31,14 @@
         }
       }
     },
-
     "androidStatusBar": {
       "backgroundColor": "#0E1116",
       "barStyle": "light-content",
       "translucent": false
     },
-
     "web": {
       "favicon": "./assets/rosa-dos-ventos.png"
     },
-
     "extra": {
       "eas": {
         "developer": "Wesllen Lima",
@@ -59,7 +51,11 @@
         "projectId": "feff1883-7930-4dcf-ab43-b599bc9e5bab"
       }
     },
-
-    "assetBundlePatterns": ["**/*"]
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

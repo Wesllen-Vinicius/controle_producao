@@ -20,6 +20,9 @@ import {
 
 import Screen from '../components/Screen';
 import ThemeToggle from '../components/ThemeToggle';
+import BottomSheet from '../components/ui/BottomSheet';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 import { useHaptics } from '../hooks/useHaptics';
 import { usePerformanceOptimization } from '../hooks/usePerformanceOptimization';
 
@@ -155,7 +158,7 @@ const ListRow = React.memo(function ListRow({
 /* ===== Tela ===== */
 export default function PerfilScreen() {
   const { session, profile, signOut } = useAuth();
-  const { colors, spacing, radius, typography } = useTheme();
+  const { colors, spacing, radius, typography, theme } = useTheme();
   const { showToast } = useToast();
   const h = useHaptics();
   const { isAppActive } = usePerformanceOptimization();
@@ -171,6 +174,14 @@ export default function PerfilScreen() {
     '—';
 
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Estados do modal de troca de senha
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
   const avatarScale = useRef(new Animated.Value(0.95)).current;
@@ -433,34 +444,68 @@ export default function PerfilScreen() {
     Linking.openURL(url).catch(() => Alert.alert('Abrir link', 'Não foi possível abrir o link no momento.'));
   }, []);
 
-  const resetPassword = useCallback(async () => {
-    if (!email) {
-      h.error();
-      Alert.alert('Erro', 'E-mail não encontrado.');
+  const changePassword = useCallback(async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      h.warning();
+      Alert.alert('Atenção', 'Preencha todos os campos.');
       return;
     }
-    Alert.alert('Redefinir senha', 'Deseja receber um e-mail com as instruções para redefinir sua senha?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Enviar',
-        onPress: async () => {
-          try {
-            const opts: any = RESET_REDIRECT_URL ? { redirectTo: RESET_REDIRECT_URL } : undefined;
-            const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), opts);
-            if (error) throw error;
-            h.success();
-            Alert.alert('E-mail enviado', 'Verifique sua caixa de entrada e spam. O link expira em 1 hora.');
-          } catch (e: any) {
-            h.error();
-            const msg = e?.message?.includes('rate_limit')
-              ? 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.'
-              : e?.message ?? 'Falha ao enviar o e-mail.';
-            Alert.alert('Erro', msg);
-          }
-        },
-      },
-    ]);
-  }, [email, h]);
+
+    if (newPassword !== confirmPassword) {
+      h.warning();
+      Alert.alert('Atenção', 'As senhas não coincidem.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      h.warning();
+      Alert.alert('Atenção', 'A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      // Primeiro, tentar fazer login com a senha atual para verificar se está correta
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password: currentPassword
+      });
+
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          h.error();
+          Alert.alert('Erro', 'Senha atual incorreta.');
+          return;
+        }
+        throw signInError;
+      }
+
+      // Se chegou aqui, a senha atual está correta, então podemos alterar
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) throw updateError;
+
+      h.success();
+      showToast({ type: 'success', message: 'Senha alterada com sucesso!' });
+      
+      // Limpar campos e fechar modal
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordModalOpen(false);
+
+    } catch (e: any) {
+      h.error();
+      const msg = e?.message?.includes('rate_limit')
+        ? 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.'
+        : e?.message ?? 'Falha ao alterar a senha.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setChangingPassword(false);
+    }
+  }, [currentPassword, newPassword, confirmPassword, email, h, showToast]);
 
   const handleSignOut = useCallback(() => {
     Alert.alert('Sair da conta', 'Tem certeza que deseja sair? Você precisará fazer login novamente.', [
@@ -485,7 +530,7 @@ export default function PerfilScreen() {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
+          <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} translucent={false} />
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', textAlign: 'center' }}>
               Faça login para ver seu perfil.
@@ -504,7 +549,7 @@ export default function PerfilScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
+        <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} translucent={false} />
 
         <ScrollView
           bounces
@@ -572,12 +617,12 @@ export default function PerfilScreen() {
           {/* Quick Actions */}
           <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.actionGrid}>
-              <Pressable style={styles.actionCard} onPress={resetPassword}>
+              <Pressable style={styles.actionCard} onPress={() => setPasswordModalOpen(true)}>
                 <View style={[styles.actionIcon, { backgroundColor: colors.primary + '15' }]}>
                   <MaterialCommunityIcons name="lock-reset" size={20} color={colors.primary} />
                 </View>
-                <Text style={styles.actionTitle}>Redefinir Senha</Text>
-                <Text style={styles.actionSubtitle}>Alterar credenciais</Text>
+                <Text style={styles.actionTitle}>Alterar Senha</Text>
+                <Text style={styles.actionSubtitle}>Trocar credenciais</Text>
               </Pressable>
 
               <Pressable style={styles.actionCard} onPress={handleSignOut}>
@@ -723,6 +768,96 @@ export default function PerfilScreen() {
           </Animated.View>
         </ScrollView>
       </LinearGradient>
+
+      {/* Modal de Troca de Senha */}
+      <BottomSheet 
+        open={passwordModalOpen} 
+        onClose={() => {
+          setPasswordModalOpen(false);
+          setCurrentPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+        }} 
+        title="Alterar Senha"
+      >
+        <View style={{ gap: spacing.md, padding: spacing.md }}>
+          <Input
+            label="Senha atual"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            placeholder="Digite sua senha atual"
+            secureTextEntry
+            autoComplete="current-password"
+            leftIcon={
+              <MaterialCommunityIcons 
+                name="lock-outline" 
+                size={18} 
+                color={colors.muted} 
+              />
+            }
+          />
+          
+          <Input
+            label="Nova senha"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder="Digite a nova senha (mín. 6 caracteres)"
+            secureTextEntry
+            autoComplete="new-password"
+            leftIcon={
+              <MaterialCommunityIcons 
+                name="lock" 
+                size={18} 
+                color={colors.muted} 
+              />
+            }
+          />
+          
+          <Input
+            label="Confirmar nova senha"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="Digite novamente a nova senha"
+            secureTextEntry
+            autoComplete="new-password"
+            leftIcon={
+              <MaterialCommunityIcons 
+                name="lock-check" 
+                size={18} 
+                color={colors.muted} 
+              />
+            }
+          />
+
+          <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+            <Button
+              title="Alterar Senha"
+              onPress={changePassword}
+              loading={changingPassword}
+              disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+              leftIcon={
+                <MaterialCommunityIcons 
+                  name="content-save" 
+                  size={18} 
+                  color={colors.surface} 
+                />
+              }
+            />
+            
+            <Button
+              title="Cancelar"
+              variant="text"
+              onPress={() => {
+                setPasswordModalOpen(false);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+              disabled={changingPassword}
+            />
+          </View>
+        </View>
+      </BottomSheet>
     </Screen>
   );
 }

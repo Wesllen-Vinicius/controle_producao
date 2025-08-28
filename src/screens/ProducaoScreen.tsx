@@ -738,7 +738,7 @@ export default function ProducaoScreen() {
     <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md }}>
       {/* Clean Header */}
       <View style={{ marginBottom: spacing.xl }}>
-        <Text style={[typography.h1, { fontSize: 28, marginBottom: spacing.xs }]}>Produção</Text>
+        <Text style={[typography.h1, { fontSize: 28, marginBottom: spacing.xs, color: colors.text }]}>Produção</Text>
         <Text style={{ color: colors.muted, fontSize: 15, fontWeight: '500' }}>
           {productionStats.thisMonth} registros este mês
         </Text>
@@ -1009,7 +1009,7 @@ export default function ProducaoScreen() {
         justifyContent: 'space-between',
         marginBottom: spacing.lg
       }}>
-        <Text style={[typography.h2, { fontSize: 20 }]}>
+        <Text style={[typography.h2, { fontSize: 20, color: colors.text }]}>
           Histórico
         </Text>
         {(productFilters.length > 0 || fromDate) && (

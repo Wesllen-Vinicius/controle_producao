@@ -88,7 +88,7 @@ export default function TransactionDetailsScreen() {
 
   return (
     <Screen padded>
-      <Text style={typography.h1}>Movimentação</Text>
+      <Text style={[typography.h1, { color: colors.text }]}>Movimentação</Text>
 
       <Card padding="md" variant="filled" elevationLevel={1} style={{ gap: spacing.sm }}>
         {!tx ? (

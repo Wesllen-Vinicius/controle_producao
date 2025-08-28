@@ -139,7 +139,7 @@ const BalanceRow = memo(function BalanceRow({ name, unit, value, max, updatedAt,
                             color={statusColor} 
                         />
                         <View style={{ flex: 1 }}>
-                            <Text style={[typography.h2, { fontSize: 16 }]} numberOfLines={1}>
+                            <Text style={[typography.h2, { fontSize: 16, color: colors.text }]} numberOfLines={1}>
                                 {name}
                             </Text>
                             {unit && (
@@ -342,7 +342,7 @@ const TxRow = memo(function TxRow({ tx, products }: TxRowProps) {
                 
                 <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={[typography.h2, { fontSize: 14, fontWeight: '700' }]}>
+                        <Text style={[typography.h2, { fontSize: 14, fontWeight: '700', color: colors.text }]}>
                             {txTypeInfo.label}
                         </Text>
                         <View style={{
@@ -417,6 +417,40 @@ const TxRow = memo(function TxRow({ tx, products }: TxRowProps) {
                             </Text>
                         </View>
                     )}
+                    {tx.metadata?.justification && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                            <MaterialCommunityIcons 
+                                name="text-box" 
+                                size={14} 
+                                color={colors.muted} 
+                            />
+                            <Text style={{ 
+                                color: colors.muted, 
+                                fontSize: 12, 
+                                fontWeight: '500',
+                                flex: 1
+                            }} numberOfLines={1}>
+                                {tx.metadata.justification}
+                            </Text>
+                        </View>
+                    )}
+                    {tx.metadata?.observation && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                            <MaterialCommunityIcons 
+                                name="note-text" 
+                                size={14} 
+                                color={colors.muted} 
+                            />
+                            <Text style={{ 
+                                color: colors.muted, 
+                                fontSize: 12, 
+                                fontWeight: '500',
+                                flex: 1
+                            }} numberOfLines={1}>
+                                {tx.metadata.observation}
+                            </Text>
+                        </View>
+                    )}
                 </View>
                 
                 <View style={{ alignItems: 'flex-end' }}>
@@ -472,14 +506,19 @@ interface MovePanelProps {
   setMvType: (type: Tx['tx_type']) => void;
   mvCustomer: string;
   setMvCustomer: (customer: string) => void;
+  mvObservation: string;
+  setMvObservation: (observation: string) => void;
+  mvJustification: string;
+  setMvJustification: (justification: string) => void;
   mvQty: string;
   setMvQty: (qty: string) => void;
   balances: Balance[] | null;
   addTx: () => void;
   saving: boolean;
+  profile: any;
 }
 
-const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCustomer, setMvCustomer, mvQty, setMvQty, balances, addTx, saving }: MovePanelProps) => {
+const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCustomer, setMvCustomer, mvObservation, setMvObservation, mvJustification, setMvJustification, mvQty, setMvQty, balances, addTx, saving, profile }: MovePanelProps) => {
     const { colors, spacing, typography, radius } = useTheme();
     const prodsById = useMemo(() => new Map((products || []).map((p: Product) => [p.id, p])), [products]);
     const mvProdUnit: Unit | null = mvProd ? prodsById.get(mvProd)?.unit ?? null : null;
@@ -487,7 +526,7 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
 
     const saldoAtual: number = mvProd ? (balances || []).find(b => b.product_id === mvProd)?.saldo ?? 0 : 0;
 
-    const valNum = parseFloat(mvQty || '0') || 0;
+    const valNum = parseFloat((mvQty || '0').replace(',', '.')) || 0;
     const delta = mvType === 'entrada' ? valNum : 
                   (mvType === 'saida' || mvType === 'venda') ? -valNum : 
                   mvType === 'ajuste' ? (valNum - saldoAtual) : 0;
@@ -495,14 +534,15 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
     const step = mvIsInteger ? 1 : 0.1;
     const decs = mvIsInteger ? 0 : 3;
     const presets = mvIsInteger ? [1, 5, 10, 20, 50] : [0.1, 0.5, 1, 5, 10];
-    const formValido = !!mvProd && valNum > 0 && (mvType !== 'saida' && mvType !== 'venda' || previsto >= 0);
+    const formValido = !!mvProd && valNum > 0 && (mvType !== 'saida' && mvType !== 'venda' || previsto >= 0) && (mvType !== 'ajuste' || mvObservation.trim()) && (mvType !== 'saida' || mvJustification.trim());
 
     const selectedProduct = mvProd ? prodsById.get(mvProd) : null;
+    const isAdmin = profile?.role === 'admin';
 
     const txTypeOptions = [
         { id: 'entrada', label: 'Entrada', icon: 'plus-circle', color: colors.success, description: 'Adicionar ao estoque' },
-        { id: 'saida', label: 'Saída', icon: 'minus-circle', color: colors.danger, description: 'Retirar do estoque' },
-        { id: 'ajuste', label: 'Ajuste', icon: 'tune-variant', color: colors.accent, description: 'Correção de saldo' },
+        { id: 'saida', label: 'Saída', icon: 'minus-circle', color: colors.danger, description: 'Retirar do estoque (com justificativa)' },
+        ...(isAdmin ? [{ id: 'ajuste', label: 'Ajuste', icon: 'tune-variant', color: colors.accent, description: 'Correção de saldo (Somente Admin)' }] : []),
         { id: 'venda', label: 'Venda', icon: 'cash-register', color: '#FF8C00', description: 'Venda para cliente' }
     ];
 
@@ -512,7 +552,7 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                 {/* Product selection */}
                 <View>
                     <View style={{ marginBottom: spacing.sm }}>
-                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600' }]}>Produto</Text>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600', color: colors.text }]}>Produto</Text>
                         <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>
                             Selecione o produto para movimentar
                         </Text>
@@ -535,7 +575,7 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                                     color={colors.primary} 
                                 />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={{ fontWeight: '700', fontSize: 16 }}>
+                                    <Text style={{ fontWeight: '700', fontSize: 16, color: colors.text }}>
                                         {selectedProduct.name}
                                     </Text>
                                     <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
@@ -565,7 +605,7 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                 {/* Transaction type */}
                 <View>
                     <View style={{ marginBottom: spacing.sm }}>
-                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600' }]}>Tipo de Movimentação</Text>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600', color: colors.text }]}>Tipo de Movimentação</Text>
                         <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>
                             Escolha o tipo de operação
                         </Text>
@@ -615,7 +655,7 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                 {/* Customer field for sales */}
                 {mvType === 'venda' && (
                     <View>
-                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }]}>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600', marginBottom: spacing.sm, color: colors.text }]}>
                             Cliente
                         </Text>
                         <Input 
@@ -628,10 +668,44 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                     </View>
                 )}
 
+                {/* Observation field for adjustments */}
+                {mvType === 'ajuste' && (
+                    <View>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600', marginBottom: spacing.sm, color: colors.text }]}>
+                            Observação *
+                        </Text>
+                        <Input 
+                            label="Motivo do ajuste (obrigatório)" 
+                            value={mvObservation} 
+                            onChangeText={setMvObservation} 
+                            placeholder="Ex.: Correção de inventário, produto vencido, etc."
+                            leftIcon={<MaterialCommunityIcons name="note-text" size={16} color={colors.muted} />}
+                            multiline
+                        />
+                    </View>
+                )}
+
+                {/* Justification field for exits */}
+                {mvType === 'saida' && (
+                    <View>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600', marginBottom: spacing.sm, color: colors.text }]}>
+                            Justificativa *
+                        </Text>
+                        <Input 
+                            label="Motivo da saída (obrigatório)" 
+                            value={mvJustification} 
+                            onChangeText={setMvJustification} 
+                            placeholder="Ex.: Produto defeituoso, transferência, perda, etc."
+                            leftIcon={<MaterialCommunityIcons name="text-box" size={16} color={colors.muted} />}
+                            multiline
+                        />
+                    </View>
+                )}
+
                 {/* Quantity input */}
                 <View>
                     <View style={{ marginBottom: spacing.sm }}>
-                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600' }]}>Quantidade</Text>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600', color: colors.text }]}>Quantidade</Text>
                         <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>
                             {mvIsInteger ? 'Quantidade em unidades' : 'Quantidade com até 3 decimais'}
                         </Text>
@@ -642,7 +716,7 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                             title="−" 
                             small 
                             variant="tonal" 
-                            onPress={() => setMvQty(Math.max(0, valNum - step).toFixed(decs))} 
+                            onPress={() => setMvQty(Math.max(0, parseFloat((mvQty || '0').replace(',', '.')) - step).toFixed(decs))} 
                             disabled={valNum <= 0}
                         />
                         <View style={{ flex: 1 }}>
@@ -659,12 +733,12 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                             title="+" 
                             small 
                             variant="tonal" 
-                            onPress={() => setMvQty((valNum + step).toFixed(decs))} 
+                            onPress={() => setMvQty((parseFloat((mvQty || '0').replace(',', '.')) + step).toFixed(decs))} 
                         />
                     </View>
                     
                     <View>
-                        <Text style={[typography.label, { fontSize: 12, marginBottom: spacing.xs, opacity: 0.7 }]}>
+                        <Text style={[typography.label, { fontSize: 12, marginBottom: spacing.xs, opacity: 0.7, color: colors.text }]}>
                             VALORES RÁPIDOS
                         </Text>
                         <ScrollView 
@@ -676,7 +750,7 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                                 <Chip 
                                     key={preset} 
                                     label={`+${preset}`} 
-                                    onPress={() => setMvQty((valNum + preset).toFixed(decs))} 
+                                    onPress={() => setMvQty((parseFloat((mvQty || '0').replace(',', '.')) + preset).toFixed(decs))} 
                                 />
                             ))}
                         </ScrollView>
@@ -695,7 +769,7 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
                         }}
                     >
                         <View style={{ marginBottom: spacing.sm }}>
-                            <Text style={[typography.label, { fontWeight: '600', fontSize: 14 }]}>
+                            <Text style={[typography.label, { fontWeight: '600', fontSize: 14, color: colors.text }]}>
                                 Previsão de Saldo
                             </Text>
                         </View>
@@ -774,32 +848,32 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
 
                 {/* Action buttons */}
                 <View style={{ 
-                    flexDirection: 'row', 
+                    flexDirection: 'column',
                     gap: spacing.sm, 
                     marginTop: spacing.lg,
                     paddingTop: spacing.md,
                     borderTopWidth: 1,
                     borderTopColor: colors.line
                 }}>
-                    <View style={{ flex: 1 }}>
-                        <Button 
-                            title="Limpar" 
-                            variant="text" 
-                            onPress={() => { 
-                                setMvQty(''); 
-                                setMvCustomer(''); 
-                            }} 
-                            disabled={saving} 
-                        />
-                    </View>
-                    <View style={{ flex: 2 }}>
-                        <Button 
-                            title="Registrar Movimentação" 
-                            onPress={addTx} 
-                            loading={saving} 
-                            disabled={saving || !formValido} 
-                        />
-                    </View>
+                    <Button 
+                        title="Registrar Movimentação" 
+                        onPress={addTx} 
+                        loading={saving} 
+                        disabled={saving || !formValido} 
+                        full
+                    />
+                    <Button 
+                        title="Limpar" 
+                        variant="text" 
+                        onPress={() => { 
+                            setMvQty(''); 
+                            setMvCustomer(''); 
+                            setMvObservation(''); 
+                            setMvJustification(''); 
+                        }} 
+                        disabled={saving} 
+                        full
+                    />
                 </View>
             </View>
         </ScrollView>
@@ -853,7 +927,7 @@ const DayHeader = memo(function DayHeader({ title, subtitle }: { title: string; 
 const PAGE_SIZE = 40;
 
 export default function EstoqueScreen() {
-    const { session } = useAuth();
+    const { session, profile } = useAuth();
     const { showToast } = useToast();
     const h = useHaptics();
     const { colors, spacing, typography } = useTheme();
@@ -872,6 +946,8 @@ export default function EstoqueScreen() {
     const [mvType, setMvType] = useState<Tx['tx_type']>('saida');
     const [mvQty, setMvQty] = useState('');
     const [mvCustomer, setMvCustomer] = useState('');
+    const [mvObservation, setMvObservation] = useState('');
+    const [mvJustification, setMvJustification] = useState('');
     const [saving, setSaving] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingPage, setLoadingPage] = useState(false);
@@ -1004,8 +1080,16 @@ export default function EstoqueScreen() {
         const m = new Map<string, number>();
         (txs || []).forEach(t => {
             if (t.created_at.slice(0, 10) !== todayYmd) return;
-            const sign = t.tx_type === 'entrada' ? 1 : ((t.tx_type === 'saida' || t.tx_type === 'venda') ? -1 : 0);
-            m.set(t.product_id, (m.get(t.product_id) || 0) + t.quantity * sign);
+            let delta = 0;
+            if (t.tx_type === 'entrada') {
+                delta = t.quantity;
+            } else if (t.tx_type === 'saida' || t.tx_type === 'venda') {
+                delta = -t.quantity;
+            } else if (t.tx_type === 'ajuste') {
+                // For adjustments, the stored quantity is already the delta (change amount)
+                delta = t.quantity;
+            }
+            m.set(t.product_id, (m.get(t.product_id) || 0) + delta);
         });
         return m;
     }, [txs, todayYmd]);
@@ -1024,10 +1108,31 @@ export default function EstoqueScreen() {
             return;
         }
 
-        const mvQtyNum = parseFloat(mvQty || '0') || 0;
+        // Validação de permissão para ajustes
+        if (mvType === 'ajuste' && profile?.role !== 'admin') {
+            h.warning();
+            Alert.alert('Acesso negado', 'Apenas administradores podem realizar ajustes de estoque.');
+            return;
+        }
+
+        const mvQtyNum = parseFloat((mvQty || '0').replace(',', '.')) || 0;
         if (!mvQtyNum || mvQtyNum <= 0) {
             h.warning();
             Alert.alert('Atenção', 'Informe uma quantidade válida maior que zero.');
+            return;
+        }
+
+        // Validação de observação obrigatória para ajustes
+        if (mvType === 'ajuste' && !mvObservation.trim()) {
+            h.warning();
+            Alert.alert('Atenção', 'Informe o motivo do ajuste de estoque.');
+            return;
+        }
+
+        // Validação de justificativa obrigatória para saídas
+        if (mvType === 'saida' && !mvJustification.trim()) {
+            h.warning();
+            Alert.alert('Atenção', 'Informe a justificativa para a saída de estoque.');
             return;
         }
 
@@ -1067,14 +1172,26 @@ export default function EstoqueScreen() {
             setSaving(true);
             
             try {
+                // Calculate the actual quantity to store based on transaction type
+                let actualQuantity = mvQtyNum;
+                if (mvType === 'ajuste') {
+                    // For adjustments, store the delta (difference from current balance)
+                    const currentBalance = balanceById.get(mvProd) ?? 0;
+                    actualQuantity = mvQtyNum - currentBalance;
+                }
+                
                 const sanitizedPayload = {
                     product_id: mvProd,
-                    quantity: Math.round(mvQtyNum * 1000) / 1000, // Arredondar para 3 casas decimais
+                    quantity: Math.round(actualQuantity * 1000) / 1000, // Arredondar para 3 casas decimais
                     unit: product.unit,
                     tx_type: mvType,
                     created_by: session.user.id,
                     metadata: (mvType === 'venda' && mvCustomer.trim()) 
-                        ? { customer: mvCustomer.trim().substring(0, 100) } 
+                        ? { customer: mvCustomer.trim().substring(0, 100) }
+                        : (mvType === 'ajuste' && mvObservation.trim())
+                        ? { observation: mvObservation.trim().substring(0, 200) }
+                        : (mvType === 'saida' && mvJustification.trim())
+                        ? { justification: mvJustification.trim().substring(0, 200) }
                         : null
                 };
 
@@ -1107,6 +1224,8 @@ export default function EstoqueScreen() {
                 // Resetar formulário
                 setMvQty('');
                 setMvCustomer('');
+                setMvObservation('');
+                setMvJustification('');
                 setFormOpen(false);
 
             } catch (e: any) {
@@ -1149,7 +1268,7 @@ export default function EstoqueScreen() {
                 marginBottom: spacing.md
             }}>
                 <View>
-                    <Text style={[typography.h1, { fontSize: 24 }]}>Estoque</Text>
+                    <Text style={[typography.h1, { fontSize: 24, color: colors.text }]}>Estoque</Text>
                     <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '600' }}>
                         Controle de Inventário
                     </Text>
@@ -1258,7 +1377,7 @@ export default function EstoqueScreen() {
                         size={20} 
                         color={colors.text} 
                     />
-                    <Text style={[typography.h2, { fontSize: 18 }]}>
+                    <Text style={[typography.h2, { fontSize: 18, color: colors.text }]}>
                         Saldos Atuais
                     </Text>
                 </View>
@@ -1305,7 +1424,7 @@ export default function EstoqueScreen() {
                     size={20} 
                     color={colors.text} 
                 />
-                <Text style={[typography.h2, { fontSize: 18 }]}>
+                <Text style={[typography.h2, { fontSize: 18, color: colors.text }]}>
                     Histórico de Movimentos
                 </Text>
             </View>
@@ -1387,21 +1506,26 @@ export default function EstoqueScreen() {
                     setMvType={setMvType} 
                     mvCustomer={mvCustomer} 
                     setMvCustomer={setMvCustomer} 
+                    mvObservation={mvObservation}
+                    setMvObservation={setMvObservation}
+                    mvJustification={mvJustification}
+                    setMvJustification={setMvJustification}
                     mvQty={mvQty} 
                     setMvQty={setMvQty} 
                     balances={balances} 
                     addTx={addTx} 
                     saving={saving} 
+                    profile={profile}
                 />
             </BottomSheet>
 
             <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filtrar Histórico">
                 <View style={{ gap: spacing.md, padding: spacing.md }}>
-                    <View><Text style={typography.label}>Produto</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}>
+                    <View><Text style={[typography.label, { color: colors.text }]}>Produto</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}>
                         <Chip label="Todos" active={!selProd} onPress={() => setSelProd(null)} />
                         {(products || []).map(p => <Chip key={p.id} label={p.name} active={selProd === p.id} onPress={() => setSelProd(p.id)} />)}
                     </ScrollView></View>
-                    <View><Text style={typography.label}>Tipo</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}>
+                    <View><Text style={[typography.label, { color: colors.text }]}>Tipo</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}>
                         <Chip label="Todos" active={!filterType} onPress={() => setFilterType(undefined)} />
                         {(['entrada', 'saida', 'ajuste', 'venda'] as const).map(t => <Chip key={t} label={t} active={filterType === t} onPress={() => setFilterType(t)} />)}
                     </ScrollView></View>

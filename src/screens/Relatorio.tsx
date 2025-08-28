@@ -89,7 +89,7 @@ const DateField = React.memo(function DateField({
 
   return (
     <View style={{ gap: spacing.xs }}>
-      {!!label && <Text style={[typography.label, { fontWeight: '600', fontSize: 12 }]}>{label}</Text>}
+      {!!label && <Text style={[typography.label, { fontWeight: '600', fontSize: 12, color: colors.text }]}>{label}</Text>}
       <Pressable
         onPress={() => setShow(true)}
         style={{
@@ -598,7 +598,7 @@ const ProductTotalTile = React.memo(function ProductTotalTile({
 export default function AdminProductionsReportScreen() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, typography, radius, theme } = useTheme();
   const { width } = useWindowDimensions();
   const h = useHaptics();
   const { runAfterInteractions, isAppActive } = usePerformanceOptimization();
@@ -928,22 +928,30 @@ export default function AdminProductionsReportScreen() {
 
   /** ===================== Export helpers ===================== */
   const buildCsv = useCallback(() => {
+    // Função para formatar números para CSV brasileiro (vírgula decimal)
+    const fmtCsv = (n: number | null | undefined, dec = 2) => {
+      return String(Number(n ?? 0).toFixed(dec)).replace('.', ',');
+    };
+    
     const hasFilter = prodFilters.length > 0;
     if (hasFilter) {
       const rows = [
-        'date;abate;produced;meta;diff;cumprimento_%',
+        'Data;Abate;Produzido;Meta;Diferenca;Cumprimento_%',
         ...(days || []).map((d) => {
           const cumprimento = d.meta > 0 ? (d.produced / d.meta) * 100 : 0;
-          return `${d.date};${d.abate};${fmt(d.produced)};${fmt(d.meta)};${fmt(d.diff)};${Math.round(cumprimento)}`;
+          const dateFormatted = new Date(d.date).toLocaleDateString('pt-BR');
+          return `${dateFormatted};${d.abate};${fmtCsv(d.produced)};${fmtCsv(d.meta)};${fmtCsv(d.diff)};${fmtCsv(cumprimento, 1)}`;
         }),
       ];
       return rows.join('\n');
     }
     const rows = [
-      'product;unit;produced;meta;diff;cumprimento_%',
+      'Produto;Unidade;Produzido;Meta;Diferenca;Cumprimento_%',
       ...(totalsPerProduct || []).map((r) => {
         const cumprimento = r.meta > 0 ? (r.produced / r.meta) * 100 : 0;
-        return `${r.name};${r.unit};${fmt(r.produced)};${fmt(r.meta)};${fmt(r.diff)};${Math.round(cumprimento)}`;
+        // Escapar nomes de produto que contenham ponto e vírgula
+        const escapedName = r.name.replace(/;/g, ',');
+        return `${escapedName};${r.unit};${fmtCsv(r.produced)};${fmtCsv(r.meta)};${fmtCsv(r.diff)};${fmtCsv(cumprimento, 1)}`;
       }),
     ];
     return rows.join('\n');
@@ -1479,15 +1487,17 @@ export default function AdminProductionsReportScreen() {
                   variant="filled"
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
                       <MaterialCommunityIcons name="chart-line" size={18} color={colors.primary} />
-                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', letterSpacing: 0.2 }}>EFICIÊNCIA GERAL</Text>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', letterSpacing: 0.2, flex: 1 }} numberOfLines={1}>EFICIÊNCIA GERAL</Text>
                     </View>
                     <Text style={{
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: '800',
                       color: colors.primary,
-                      letterSpacing: -1
+                      letterSpacing: -1,
+                      minWidth: 70,
+                      textAlign: 'right'
                     }}>
                       {String(Math.round((totals?.produced ?? 0) / Math.max(1, totals?.meta ?? 1) * 100))}%
                     </Text>
@@ -1655,7 +1665,7 @@ export default function AdminProductionsReportScreen() {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
+          <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} translucent={false} />
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ color: colors.text, textAlign: 'center', fontSize: 16, fontWeight: '600' }}>
               Acesso restrito a administradores.
@@ -1674,7 +1684,7 @@ export default function AdminProductionsReportScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
+        <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} translucent={false} />
 
         <FlashList
           {...perfProps}
