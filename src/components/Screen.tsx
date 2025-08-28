@@ -1,6 +1,6 @@
 // components/Screen.tsx
 import React from 'react';
-import { SafeAreaView, Edge } from 'react-native-safe-area-context';
+import { SafeAreaView, Edge, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -37,13 +37,21 @@ export default function Screen({
   keyboardVerticalOffset = 0,
 }: Props) {
   const { colors, spacing } = useTheme();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   // paddings responsivos (mantém padrão lateral do app)
   const horizontal = width >= 480 ? spacing.lg : spacing.md;
   const padH = padded ? horizontal : 0;
-  const padTop = padded ? spacing.lg : 0;
-  const padBottom = padded ? spacing.xl : 0;
+  
+  // Padding top responsivo baseado no safe area e altura da tela
+  const dynamicTopPadding = Math.max(spacing.lg, insets.top * 0.5);
+  const padTop = padded ? dynamicTopPadding : 0;
+  
+  // Padding bottom responsivo 
+  const dynamicBottomPadding = Math.max(spacing.xl, insets.bottom + spacing.lg);
+  const padBottom = padded ? dynamicBottomPadding : 0;
+  
   const contentWidth = Math.min(width, maxContentWidth);
 
   // IMPORTANTE:
@@ -68,12 +76,15 @@ export default function Screen({
         style: [styles.viewContent, { alignItems: 'center', paddingHorizontal: padH }],
       };
 
+  // Keyboard offset responsivo
+  const responsiveKeyboardOffset = keyboardVerticalOffset || (Platform.OS === 'ios' ? insets.top : 0);
+
   return (
     <SafeAreaView edges={edges} style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         // iOS: padding; Android: height (pan/resize é configurável no app.json)
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={keyboardVerticalOffset}
+        keyboardVerticalOffset={responsiveKeyboardOffset}
         style={styles.flex}
       >
         <Container {...(scrollProps as any)}>

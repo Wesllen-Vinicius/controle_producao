@@ -106,7 +106,9 @@ const BalanceRow = memo(function BalanceRow({ name, unit, value, max, updatedAt,
     
     const qtyStr = formatQty(unit, value);
     const neg = value < 0;
-    const low = value > 0 && value <= max * 0.2; // Low stock warning
+    // Low stock: menos de 10 unidades OU menos de 5% do máximo saldo (mínimo 2)
+    const lowThreshold = isUN(unit) ? 10 : Math.max(2, max * 0.05);
+    const low = value > 0 && value <= lowThreshold;
     const hasDelta = typeof todayDelta === 'number' && !Number.isNaN(todayDelta);
     const up = (todayDelta ?? 0) > 0;
     const down = (todayDelta ?? 0) < 0;
@@ -478,7 +480,7 @@ interface MovePanelProps {
 }
 
 const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCustomer, setMvCustomer, mvQty, setMvQty, balances, addTx, saving }: MovePanelProps) => {
-    const { colors, spacing, typography } = useTheme();
+    const { colors, spacing, typography, radius } = useTheme();
     const prodsById = useMemo(() => new Map((products || []).map((p: Product) => [p.id, p])), [products]);
     const mvProdUnit: Unit | null = mvProd ? prodsById.get(mvProd)?.unit ?? null : null;
     const mvIsInteger = isUN(mvProdUnit);
@@ -486,22 +488,321 @@ const MovePanel = memo(({ products, mvProd, setMvProd, mvType, setMvType, mvCust
     const saldoAtual: number = mvProd ? (balances || []).find(b => b.product_id === mvProd)?.saldo ?? 0 : 0;
 
     const valNum = parseFloat(mvQty || '0') || 0;
-    const delta = mvType === 'entrada' ? valNum : ((mvType === 'saida' || mvType === 'venda') ? -valNum : 0);
+    const delta = mvType === 'entrada' ? valNum : 
+                  (mvType === 'saida' || mvType === 'venda') ? -valNum : 
+                  mvType === 'ajuste' ? (valNum - saldoAtual) : 0;
     const previsto = saldoAtual + delta;
     const step = mvIsInteger ? 1 : 0.1;
     const decs = mvIsInteger ? 0 : 3;
     const presets = mvIsInteger ? [1, 5, 10, 20, 50] : [0.1, 0.5, 1, 5, 10];
     const formValido = !!mvProd && valNum > 0 && (mvType !== 'saida' && mvType !== 'venda' || previsto >= 0);
 
+    const selectedProduct = mvProd ? prodsById.get(mvProd) : null;
+
+    const txTypeOptions = [
+        { id: 'entrada', label: 'Entrada', icon: 'plus-circle', color: colors.success, description: 'Adicionar ao estoque' },
+        { id: 'saida', label: 'Saída', icon: 'minus-circle', color: colors.danger, description: 'Retirar do estoque' },
+        { id: 'ajuste', label: 'Ajuste', icon: 'tune-variant', color: colors.accent, description: 'Correção de saldo' },
+        { id: 'venda', label: 'Venda', icon: 'cash-register', color: '#FF8C00', description: 'Venda para cliente' }
+    ];
+
     return (
-        <View style={{ gap: spacing.md, padding: spacing.md }}>
-            <View><Text style={typography.label}>Produto</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}>{(products || []).map((p: Product) => (<Chip key={p.id} label={`${p.name} (${p.unit})`} active={mvProd === p.id} onPress={() => setMvProd(p.id)} />))}</ScrollView></View>
-            <View><Text style={typography.label}>Tipo de Movimentação</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs }}>{(['entrada', 'saida', 'ajuste', 'venda'] as const).map((t) => (<Chip key={t} label={t} active={mvType === t} onPress={() => setMvType(t)} />))}</ScrollView></View>
-            {mvType === 'venda' && <Input label="Cliente (opcional)" value={mvCustomer} onChangeText={setMvCustomer} placeholder="Ex.: Cliente Final" />}
-            <View style={{ gap: 8 }}><Text style={typography.label}>Quantidade</Text><View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}><Button title="−" small variant="tonal" onPress={() => setMvQty(Math.max(0, valNum - step).toFixed(decs))} /><View style={{ flex: 1 }}><InputNumber mode={mvIsInteger ? 'integer' : 'decimal'} decimals={decs} value={mvQty} onChangeText={setMvQty} placeholder="0" suffix={mvProdUnit ? String(mvProdUnit).toUpperCase() : undefined} /></View><Button title="+" small variant="tonal" onPress={() => setMvQty((valNum + step).toFixed(decs))} /></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>{presets.map((p) => (<Chip key={p} label={`+${p}`} onPress={() => setMvQty((valNum + p).toFixed(decs))} />))}</ScrollView></View>
-            <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: 6 }}><Text style={[typography.label, { opacity: 0.8 }]}>Previsão de Saldo</Text><View style={{ flexDirection: 'row', alignItems: 'center' }}><Text style={{ fontWeight: '800' }}>{formatQty(mvProdUnit, saldoAtual)}</Text><MaterialCommunityIcons name="arrow-right" size={18} color={colors.muted} style={{ marginHorizontal: 8 }} /><Text style={{ fontWeight: '800', color: previsto < 0 ? colors.danger : colors.text }}>{formatQty(mvProdUnit, previsto)}</Text><View style={{ flex: 1 }} />{!!mvProdUnit && (<Text style={{ color: colors.muted, fontSize: 12 }}>{String(mvProdUnit).toUpperCase()}</Text>)}</View>{(mvType === 'saida' || mvType === 'venda') && previsto < 0 && (<Text style={{ color: colors.danger, fontSize: 12, fontWeight: '600' }}>Saldo ficará negativo.</Text>)}</Card>
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}><View style={{ flex: 1 }}><Button title="Limpar" variant="text" onPress={() => { setMvQty(''); setMvCustomer(''); }} disabled={saving} /></View><View style={{ flex: 1 }}><Button title="Registrar" onPress={addTx} loading={saving} disabled={saving || !formValido} /></View></View>
-        </View>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            <View style={{ gap: spacing.lg, padding: spacing.md }}>
+                {/* Product selection */}
+                <View>
+                    <View style={{ marginBottom: spacing.sm }}>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600' }]}>Produto</Text>
+                        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>
+                            Selecione o produto para movimentar
+                        </Text>
+                    </View>
+                    
+                    {selectedProduct && (
+                        <Card 
+                            padding="md" 
+                            variant="tonal" 
+                            style={{ 
+                                marginBottom: spacing.sm,
+                                borderLeftWidth: 3,
+                                borderLeftColor: colors.primary 
+                            }}
+                        >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                                <MaterialCommunityIcons 
+                                    name="package-variant" 
+                                    size={20} 
+                                    color={colors.primary} 
+                                />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontWeight: '700', fontSize: 16 }}>
+                                        {selectedProduct.name}
+                                    </Text>
+                                    <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
+                                        Unidade: {selectedProduct.unit} • Saldo atual: {formatQty(mvProdUnit, saldoAtual)}
+                                    </Text>
+                                </View>
+                            </View>
+                        </Card>
+                    )}
+                    
+                    <ScrollView 
+                        horizontal 
+                        showsHorizontalScrollIndicator={false} 
+                        contentContainerStyle={{ gap: spacing.sm }}
+                    >
+                        {(products || []).map((p: Product) => (
+                            <Chip 
+                                key={p.id} 
+                                label={`${p.name} (${p.unit})`} 
+                                active={mvProd === p.id} 
+                                onPress={() => setMvProd(p.id)} 
+                            />
+                        ))}
+                    </ScrollView>
+                </View>
+
+                {/* Transaction type */}
+                <View>
+                    <View style={{ marginBottom: spacing.sm }}>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600' }]}>Tipo de Movimentação</Text>
+                        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>
+                            Escolha o tipo de operação
+                        </Text>
+                    </View>
+                    
+                    <View style={{ gap: spacing.sm }}>
+                        {txTypeOptions.map((option) => (
+                            <Pressable
+                                key={option.id}
+                                onPress={() => setMvType(option.id as Tx['tx_type'])}
+                                style={{
+                                    borderRadius: radius.md,
+                                    borderWidth: 2,
+                                    borderColor: mvType === option.id ? option.color : colors.line,
+                                    backgroundColor: mvType === option.id ? option.color + '10' : colors.surface,
+                                    padding: spacing.md
+                                }}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                                    <MaterialCommunityIcons 
+                                        name={option.icon as any} 
+                                        size={20} 
+                                        color={mvType === option.id ? option.color : colors.muted} 
+                                    />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ 
+                                            fontWeight: '600', 
+                                            color: mvType === option.id ? option.color : colors.text,
+                                            fontSize: 14
+                                        }}>
+                                            {option.label}
+                                        </Text>
+                                        <Text style={{ 
+                                            color: colors.muted, 
+                                            fontSize: 12, 
+                                            marginTop: 1 
+                                        }}>
+                                            {option.description}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </Pressable>
+                        ))}
+                    </View>
+                </View>
+
+                {/* Customer field for sales */}
+                {mvType === 'venda' && (
+                    <View>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }]}>
+                            Cliente
+                        </Text>
+                        <Input 
+                            label="Nome do cliente (opcional)" 
+                            value={mvCustomer} 
+                            onChangeText={setMvCustomer} 
+                            placeholder="Ex.: João Silva, Empresa XYZ"
+                            leftIcon={<MaterialCommunityIcons name="account" size={16} color={colors.muted} />}
+                        />
+                    </View>
+                )}
+
+                {/* Quantity input */}
+                <View>
+                    <View style={{ marginBottom: spacing.sm }}>
+                        <Text style={[typography.label, { fontSize: 16, fontWeight: '600' }]}>Quantidade</Text>
+                        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>
+                            {mvIsInteger ? 'Quantidade em unidades' : 'Quantidade com até 3 decimais'}
+                        </Text>
+                    </View>
+                    
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                        <Button 
+                            title="−" 
+                            small 
+                            variant="tonal" 
+                            onPress={() => setMvQty(Math.max(0, valNum - step).toFixed(decs))} 
+                            disabled={valNum <= 0}
+                        />
+                        <View style={{ flex: 1 }}>
+                            <InputNumber 
+                                mode={mvIsInteger ? 'integer' : 'decimal'} 
+                                decimals={decs} 
+                                value={mvQty} 
+                                onChangeText={setMvQty} 
+                                placeholder="0" 
+                                suffix={mvProdUnit ? String(mvProdUnit).toUpperCase() : undefined} 
+                            />
+                        </View>
+                        <Button 
+                            title="+" 
+                            small 
+                            variant="tonal" 
+                            onPress={() => setMvQty((valNum + step).toFixed(decs))} 
+                        />
+                    </View>
+                    
+                    <View>
+                        <Text style={[typography.label, { fontSize: 12, marginBottom: spacing.xs, opacity: 0.7 }]}>
+                            VALORES RÁPIDOS
+                        </Text>
+                        <ScrollView 
+                            horizontal 
+                            showsHorizontalScrollIndicator={false} 
+                            contentContainerStyle={{ gap: spacing.sm }}
+                        >
+                            {presets.map((preset) => (
+                                <Chip 
+                                    key={preset} 
+                                    label={`+${preset}`} 
+                                    onPress={() => setMvQty((valNum + preset).toFixed(decs))} 
+                                />
+                            ))}
+                        </ScrollView>
+                    </View>
+                </View>
+
+                {/* Balance preview */}
+                {mvProd && (
+                    <Card 
+                        padding="md" 
+                        variant="filled" 
+                        style={{ 
+                            backgroundColor: previsto < 0 ? colors.danger + '05' : colors.success + '05',
+                            borderWidth: 1,
+                            borderColor: previsto < 0 ? colors.danger + '30' : colors.success + '30'
+                        }}
+                    >
+                        <View style={{ marginBottom: spacing.sm }}>
+                            <Text style={[typography.label, { fontWeight: '600', fontSize: 14 }]}>
+                                Previsão de Saldo
+                            </Text>
+                        </View>
+                        
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <View style={{ alignItems: 'center' }}>
+                                <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>
+                                    ATUAL
+                                </Text>
+                                <Text style={{ 
+                                    fontWeight: '900', 
+                                    fontSize: 18, 
+                                    color: saldoAtual < 0 ? colors.danger : colors.text 
+                                }}>
+                                    {formatQty(mvProdUnit, saldoAtual)}
+                                </Text>
+                            </View>
+                            
+                            <MaterialCommunityIcons 
+                                name="arrow-right" 
+                                size={20} 
+                                color={colors.muted} 
+                                style={{ marginHorizontal: spacing.md }} 
+                            />
+                            
+                            <View style={{ alignItems: 'center' }}>
+                                <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>
+                                    PREVISTO
+                                </Text>
+                                <Text style={{ 
+                                    fontWeight: '900', 
+                                    fontSize: 18, 
+                                    color: previsto < 0 ? colors.danger : colors.success 
+                                }}>
+                                    {formatQty(mvProdUnit, previsto)}
+                                </Text>
+                            </View>
+                        </View>
+                        
+                        {!!mvProdUnit && (
+                            <Text style={{ 
+                                color: colors.muted, 
+                                fontSize: 12, 
+                                textAlign: 'center',
+                                marginTop: spacing.xs,
+                                fontWeight: '500'
+                            }}>
+                                Unidade: {String(mvProdUnit).toUpperCase()}
+                            </Text>
+                        )}
+                        
+                        {(mvType === 'saida' || mvType === 'venda') && previsto < 0 && (
+                            <View style={{ 
+                                marginTop: spacing.sm,
+                                padding: spacing.sm,
+                                backgroundColor: colors.danger + '10',
+                                borderRadius: radius.sm,
+                                borderWidth: 1,
+                                borderColor: colors.danger + '30'
+                            }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                                    <MaterialCommunityIcons name="alert" size={16} color={colors.danger} />
+                                    <Text style={{ 
+                                        color: colors.danger, 
+                                        fontSize: 12, 
+                                        fontWeight: '600',
+                                        flex: 1
+                                    }}>
+                                        Esta operação resultará em saldo negativo
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
+                    </Card>
+                )}
+
+                {/* Action buttons */}
+                <View style={{ 
+                    flexDirection: 'row', 
+                    gap: spacing.sm, 
+                    marginTop: spacing.lg,
+                    paddingTop: spacing.md,
+                    borderTopWidth: 1,
+                    borderTopColor: colors.line
+                }}>
+                    <View style={{ flex: 1 }}>
+                        <Button 
+                            title="Limpar" 
+                            variant="text" 
+                            onPress={() => { 
+                                setMvQty(''); 
+                                setMvCustomer(''); 
+                            }} 
+                            disabled={saving} 
+                        />
+                    </View>
+                    <View style={{ flex: 2 }}>
+                        <Button 
+                            title="Registrar Movimentação" 
+                            onPress={addTx} 
+                            loading={saving} 
+                            disabled={saving || !formValido} 
+                        />
+                    </View>
+                </View>
+            </View>
+        </ScrollView>
     );
 });
 
@@ -824,7 +1125,15 @@ export default function EstoqueScreen() {
     const statsData = useMemo(() => {
         const totalProducts = balances?.length || 0;
         const negativeStock = balances?.filter(b => b.saldo < 0).length || 0;
-        const lowStock = balances?.filter(b => b.saldo > 0 && b.saldo <= maxSaldo * 0.2).length || 0;
+        
+        // Calcular baixo estoque usando a mesma lógica do BalanceRow
+        const lowStock = balances?.filter(b => {
+            if (b.saldo <= 0) return false;
+            const unit = b.unit;
+            const lowThreshold = isUN(unit) ? 10 : Math.max(2, maxSaldo * 0.05);
+            return b.saldo <= lowThreshold;
+        }).length || 0;
+        
         const totalMovements = txs?.length || 0;
         
         return { totalProducts, negativeStock, lowStock, totalMovements };
@@ -1070,7 +1379,20 @@ export default function EstoqueScreen() {
             <FAB onPress={() => setFormOpen(true)} />
 
             <BottomSheet open={formOpen} onClose={() => setFormOpen(false)} title="Registrar Movimentação">
-                <ScrollView><MovePanel products={products} mvProd={mvProd} setMvProd={setMvProd} mvType={mvType} setMvType={setMvType} mvCustomer={mvCustomer} setMvCustomer={setMvCustomer} mvQty={mvQty} setMvQty={setMvQty} balances={balances} addTx={addTx} saving={saving} /></ScrollView>
+                <MovePanel 
+                    products={products} 
+                    mvProd={mvProd} 
+                    setMvProd={setMvProd} 
+                    mvType={mvType} 
+                    setMvType={setMvType} 
+                    mvCustomer={mvCustomer} 
+                    setMvCustomer={setMvCustomer} 
+                    mvQty={mvQty} 
+                    setMvQty={setMvQty} 
+                    balances={balances} 
+                    addTx={addTx} 
+                    saving={saving} 
+                />
             </BottomSheet>
 
             <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filtrar Histórico">

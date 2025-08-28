@@ -1,5 +1,7 @@
 // screens/ProducaoScreen.tsx
-import React, {
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import {
   memo,
   useCallback,
   useEffect,
@@ -11,33 +13,28 @@ import {
   Alert,
   Animated,
   LayoutAnimation,
-  Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import DateField from '../components/DateField';
 import Screen from '../components/Screen';
-import Card from '../components/ui/Card';
-import Chip from '../components/ui/Chip';
-import Button from '../components/ui/Button';
-import { InputNumber } from '../components/ui/Input';
-import EmptyState from '../components/ui/EmptyState';
 import SkeletonList from '../components/SkeletonList';
+import BottomSheet from '../components/ui/BottomSheet';
+import Button from '../components/ui/Button';
+import Chip from '../components/ui/Chip';
+import EmptyState from '../components/ui/EmptyState';
+import FAB from '../components/ui/FAB';
+import { InputNumber } from '../components/ui/Input';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
+import { useHaptics } from '../hooks/useHaptics';
+import { usePerformanceOptimization } from '../hooks/usePerformanceOptimization';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../state/AuthProvider';
-import { useToast } from '../state/ToastProvider';
-import { useHaptics } from '../hooks/useHaptics';
 import { useTheme } from '../state/ThemeProvider';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
-import { usePerformanceOptimization, useThrottle } from '../hooks/usePerformanceOptimization';
-import FAB from '../components/ui/FAB';
-import BottomSheet from '../components/ui/BottomSheet';
-import DateField from '../components/DateField';
+import { useToast } from '../state/ToastProvider';
 
 /* ===== Tipos e Helpers ===== */
 type Unit = 'UN' | 'KG' | 'L' | 'CX' | 'MT' | 'PC' | string;
@@ -511,7 +508,7 @@ export default function ProducaoScreen() {
   const fetchProducts = useCallback(async () => {
     // Só executa se o app estiver ativo para economizar bateria
     if (!isAppActive()) return;
-    
+
     const { data } = await supabase.from('products').select('id,name,unit,meta_por_animal').order('name');
     setProducts((data as Product[]) || []);
   }, [isAppActive]);
@@ -773,7 +770,7 @@ export default function ProducaoScreen() {
             fontWeight: '600',
             color: colors.muted
           }}>
-            Total
+            Total de registros.
           </Text>
         </View>
 
@@ -797,7 +794,7 @@ export default function ProducaoScreen() {
             fontWeight: '600',
             color: colors.muted
           }}>
-            Este mês
+            Registros este mês.
           </Text>
         </View>
 
@@ -821,7 +818,7 @@ export default function ProducaoScreen() {
             fontWeight: '600',
             color: colors.muted
           }}>
-            Média
+            Média de Animais mortos.
           </Text>
         </View>
       </View>

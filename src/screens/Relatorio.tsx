@@ -1,35 +1,39 @@
 // screens/AdminProductionsReportScreen.tsx
+import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Platform,
   Pressable,
+  RefreshControl,
+  ScrollView,
   Share,
+  StatusBar,
   StyleSheet,
   Text,
-  View,
-  RefreshControl,
   useWindowDimensions,
-  ScrollView,
+  View
 } from 'react-native';
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
 
 import Screen from '../components/Screen';
+import SkeletonList from '../components/SkeletonList';
+import BottomSheet from '../components/ui/BottomSheet';
+import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Chip from '../components/ui/Chip';
-import Button from '../components/ui/Button';
-import KPI from '../components/ui/KPI';
 import EmptyState from '../components/ui/EmptyState';
-import BottomSheet from '../components/ui/BottomSheet';
-import SkeletonList from '../components/SkeletonList';
+import KPI from '../components/ui/KPI';
 
+import { useHaptics } from '../hooks/useHaptics';
+import { usePerformanceOptimization } from '../hooks/usePerformanceOptimization';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../state/AuthProvider';
 import { useTheme } from '../state/ThemeProvider';
 
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 /** ===================== Tipos ===================== */
 type Unit = 'UN' | 'KG' | 'L' | 'CX' | 'PC' | string;
@@ -59,7 +63,7 @@ const parseISODate = (s?: string) => {
 };
 const toISODate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const fmt = (n: number, dec = 2) => Number(n ?? 0).toFixed(dec);
+const fmt = (n: number | null | undefined, dec = 2) => String(Number(n ?? 0).toFixed(dec));
 
 /** ===================== DateField ===================== */
 const DateField = React.memo(function DateField({
@@ -81,27 +85,42 @@ const DateField = React.memo(function DateField({
     if (date) onChange(toISODate(date));
   };
 
-  const iosInline =
-    Platform.OS === 'ios' && typeof Platform.Version === 'number' && Platform.Version >= 14;
+  const iosInline = Platform.OS === 'ios' && typeof Platform.Version === 'number' && Platform.Version >= 14;
 
   return (
-    <View style={{ gap: 6 }}>
-      {!!label && <Text style={[typography.label]}>{label}</Text>}
+    <View style={{ gap: spacing.xs }}>
+      {!!label && <Text style={[typography.label, { fontWeight: '600', fontSize: 12 }]}>{label}</Text>}
       <Pressable
         onPress={() => setShow(true)}
         style={{
-          backgroundColor: colors.surfaceAlt,
-          borderRadius: radius.lg,
+          backgroundColor: colors.surface,
+          borderRadius: radius.md,
           borderColor: colors.line,
           borderWidth: 1,
-          height: 52,
+          height: 48,
           paddingHorizontal: spacing.md,
           alignItems: 'center',
           flexDirection: 'row',
+          ...Platform.select({
+            ios: {
+              shadowColor: colors.shadow || '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+            },
+            android: {
+              elevation: 1,
+            },
+          }),
         }}
       >
-        <MaterialCommunityIcons name="calendar-blank" size={18} color={colors.muted} />
-        <Text style={{ color: value ? colors.text : colors.muted, marginLeft: 8, fontWeight: '600' }}>
+        <MaterialCommunityIcons name="calendar-blank" size={18} color={colors.primary} />
+        <Text style={{
+          color: value ? colors.text : colors.muted,
+          marginLeft: spacing.sm,
+          fontWeight: '500',
+          fontSize: 15
+        }}>
           {value || placeholder}
         </Text>
       </Pressable>
@@ -118,241 +137,480 @@ const DateField = React.memo(function DateField({
   );
 });
 
-/** ===================== Mini gráfico ===================== */
-function Bar({
-  prodH,
-  metaH,
-  colorProd,
-  colorMeta,
-}: {
-  prodH: number;
-  metaH: number;
-  colorProd: string;
-  colorMeta: string;
+/** ===================== Mini gráfico com animações ===================== */
+function Bar({ prodH, metaH, colorProd, colorMeta }: {
+  prodH: number; metaH: number; colorProd: string; colorMeta: string;
 }) {
   const a1 = useRef(new Animated.Value(0)).current;
   const a2 = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.spring(a1, { toValue: prodH, useNativeDriver: false, stiffness: 160, damping: 18, mass: 0.7 }).start();
-    Animated.spring(a2, { toValue: metaH, useNativeDriver: false, stiffness: 160, damping: 18, mass: 0.7 }).start();
+    const prodHeight = Math.max(0, Math.min(200, prodH || 0));
+    const metaHeight = Math.max(0, Math.min(200, metaH || 0));
+    
+    Animated.stagger(60, [
+      Animated.spring(a1, {
+        toValue: prodHeight,
+        useNativeDriver: false,
+        stiffness: 180,
+        damping: 12,
+        mass: 0.6
+      }),
+      Animated.spring(a2, {
+        toValue: metaHeight,
+        useNativeDriver: false,
+        stiffness: 180,
+        damping: 12,
+        mass: 0.6
+      })
+    ]).start();
   }, [prodH, metaH, a1, a2]);
+
   return (
-    <View style={{ flex: 1, alignItems: 'stretch', justifyContent: 'flex-end', paddingHorizontal: 4 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-        <Animated.View style={{ flex: 1, height: a1, backgroundColor: colorProd, borderRadius: 4, marginRight: 4 }} />
-        <Animated.View style={{ flex: 1, height: a2, backgroundColor: colorMeta, borderRadius: 4, opacity: 0.7 }} />
+    <View style={{ flex: 1, alignItems: 'stretch', justifyContent: 'flex-end', paddingHorizontal: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 1 }}>
+        <Animated.View style={{
+          flex: 1,
+          height: a1,
+          backgroundColor: colorProd || '#22c55e',
+          borderRadius: 3,
+          minHeight: 2
+        }} />
+        <Animated.View style={{
+          flex: 1,
+          height: a2,
+          backgroundColor: colorMeta || '#6b7280',
+          borderRadius: 3,
+          opacity: 0.7,
+          minHeight: 2
+        }} />
       </View>
     </View>
   );
 }
 
 const BarsChart = React.memo(function BarsChart({
-  data,
-  unit,
-  maxBars = 12,
+  data, unit, maxBars = 12,
 }: {
   data: { label: string; produced: number; meta: number }[];
   unit: string;
   maxBars?: number;
 }) {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, radius } = useTheme();
   const sliced = data.slice(-maxBars);
   const maxVal = Math.max(1, ...sliced.flatMap((d) => [d.produced, d.meta]));
+
+  if (!sliced.length) {
+    return (
+      <View style={{
+        height: 120,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.surfaceAlt,
+        borderRadius: radius.sm,
+        padding: spacing.lg,
+      }}>
+        <MaterialCommunityIcons name="chart-line" size={32} color={colors.muted} />
+        <Text style={{
+          color: colors.muted,
+          fontSize: 14,
+          fontWeight: '500',
+          textAlign: 'center',
+          marginTop: spacing.sm
+        }}>
+          Sem dados para exibir no gráfico
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ gap: spacing.sm }}>
       <View style={{ flexDirection: 'row', gap: spacing.md, flexWrap: 'wrap' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: colors.accent }} />
-          <Text style={{ color: colors.text, fontWeight: '700' }}>Produzido</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success }} />
+          <Text style={{ color: colors.text, fontWeight: '600', fontSize: 12 }}>Produzido</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: colors.muted }} />
-          <Text style={{ color: colors.text, fontWeight: '700' }}>Meta</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.muted, opacity: 0.7 }} />
+          <Text style={{ color: colors.text, fontWeight: '600', fontSize: 12 }}>Meta</Text>
         </View>
       </View>
 
-      <View style={{ height: 160, flexDirection: 'row', alignItems: 'flex-end' }}>
+      <View style={{
+        height: 120,
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: 1,
+        backgroundColor: colors.surfaceAlt,
+        borderRadius: radius.sm,
+        padding: spacing.sm,
+      }}>
         {sliced.map((d, idx) => {
-          const prodH = (d.produced / maxVal) * 140;
-          const metaH = (d.meta / maxVal) * 140;
-          return <Bar key={idx} prodH={prodH} metaH={metaH} colorProd={colors.accent} colorMeta={colors.muted} />;
+          const prodH = Math.max(2, ((d?.produced || 0) / maxVal) * 100);
+          const metaH = Math.max(2, ((d?.meta || 0) / maxVal) * 100);
+          return (
+            <Bar
+              key={`${d.label}-${idx}`}
+              prodH={prodH}
+              metaH={metaH}
+              colorProd={colors.success}
+              colorMeta={colors.muted}
+            />
+          );
         })}
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         {sliced.map((d, idx) => (
-          <Text key={idx} style={{ color: colors.muted, fontSize: 10, width: 24, textAlign: 'center' }}>
-            {d.label.slice(5)}
+          <Text key={`label-${d.label}-${idx}`} style={{
+            color: colors.muted,
+            fontSize: 9,
+            width: 20,
+            textAlign: 'center',
+            fontWeight: '500'
+          }}>
+            {d?.label ? String(d.label).slice(-2) : ''}
           </Text>
         ))}
       </View>
 
-      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'right' }}>
-        Valores em {unit?.toUpperCase?.() || 'UN'}
+      <Text style={{
+        color: colors.muted,
+        fontSize: 10,
+        textAlign: 'right',
+        fontWeight: '500'
+      }}>
+        Valores em {String(unit || 'UN').toUpperCase()}
       </Text>
     </View>
   );
 });
 
 /** ===================== Sheet wrapper ===================== */
-function Sheet({
-  open,
-  onClose,
-  title,
-  subtitle,
-  children,
+const Sheet = React.memo(function Sheet({
+  open, onClose, title, subtitle, children,
 }: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
+  open: boolean; onClose: () => void; title: string; subtitle?: string; children: React.ReactNode;
 }) {
+  const { colors, spacing } = useTheme();
+  
   return (
-    <BottomSheet open={open} onClose={onClose} title={title} subtitle={subtitle || ''}>
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      {subtitle && (
+        <Text style={{
+          color: colors.muted,
+          fontSize: 14,
+          fontWeight: '500',
+          marginBottom: spacing.md,
+          paddingHorizontal: spacing.md
+        }}>
+          {subtitle}
+        </Text>
+      )}
       {children}
     </BottomSheet>
   );
-}
+});
 
-/** ===================== Day row ===================== */
+/** ===================== Day row melhorado ===================== */
 const DayRow = React.memo(function DayRow({
-  item,
-  hasProductFilter,
-  colors,
-  spacing,
-  typography,
+  item, hasProductFilter, colors, spacing, typography,
 }: {
-  item: DayTotals;
-  hasProductFilter: boolean;
-  colors: any;
-  spacing: any;
-  typography: any;
+  item: DayTotals; hasProductFilter: boolean; colors: any; spacing: any; typography: any;
 }) {
   const progress = item.meta > 0 ? Math.min(1, Math.max(0, item.produced / item.meta)) : 0;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(progressAnim, {
+      toValue: progress,
+      useNativeDriver: false,
+      stiffness: 120,
+      damping: 12,
+    }).start();
+  }, [progress]);
+
+  const labelForDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    
+    if (dateStr === today.toISOString().slice(0, 10)) return 'Hoje';
+    if (dateStr === yesterday.toISOString().slice(0, 10)) return 'Ontem';
+    return date.toLocaleDateString('pt-BR');
+  };
 
   return (
-    <Card padding="md" variant="filled" elevationLevel={0} style={{ gap: 8, alignSelf: 'stretch' }}>
-      <Text style={[typography.h2, { fontSize: 16 }]}>{item.date}</Text>
-      <Text style={{ color: colors.muted, fontWeight: '700' }}>Abate: {item.abate}</Text>
+    <View style={{
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: spacing.md,
+      borderLeftWidth: 4,
+      borderLeftColor: progress >= 0.8 ? colors.success : progress >= 0.6 ? '#FF8C00' : colors.danger,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.shadow || '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.08,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 1,
+        },
+      }),
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
+          {labelForDate(item.date)}
+        </Text>
+        <View style={{
+          backgroundColor: colors.primary + '10',
+          paddingHorizontal: spacing.xs,
+          paddingVertical: 2,
+          borderRadius: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4
+        }}>
+          <MaterialCommunityIcons name="cow" size={14} color={colors.primary} />
+          <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 12 }}>
+            {String(item.abate || 0)}
+          </Text>
+        </View>
+      </View>
 
       {hasProductFilter ? (
         <>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            <View style={{ minWidth: '48%', marginRight: spacing.sm, marginBottom: spacing.sm }}>
-              <KPI label="Produção" value={fmt(item.produced)} compact />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+            <View>
+              <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>PRODUZIDO</Text>
+              <Text style={{ color: colors.success, fontSize: 14, fontWeight: '700' }}>
+                {fmt(item.produced)}
+              </Text>
             </View>
-            <View style={{ minWidth: '48%', marginBottom: spacing.sm }}>
-              <KPI label="Meta" value={fmt(item.meta)} compact />
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>META</Text>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>
+                {fmt(item.meta)}
+              </Text>
             </View>
-            <View style={{ minWidth: '48%' }}>
-              <KPI
-                label="Dif."
-                value={fmt(item.diff)}
-                status={item.diff > 0 ? 'danger' : 'success'}
-                compact
-              />
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>
+                {item.diff >= 0 ? 'EXCESSO' : 'DÉFICIT'}
+              </Text>
+              <Text style={{
+                color: item.diff >= 0 ? colors.success : colors.danger,
+                fontSize: 14,
+                fontWeight: '700'
+              }}>
+                {fmt(Math.abs(item.diff))}
+              </Text>
             </View>
           </View>
 
-          <View
-            style={{
-              height: 10,
-              backgroundColor: colors.surfaceAlt,
-              borderRadius: 999,
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: colors.line,
-              overflow: 'hidden',
-              marginTop: 2,
-            }}
-          >
-            <Animated.View
-              style={{
-                height: '100%',
-                width: `${Math.round(progress * 100)}%`,
-                backgroundColor: colors.primary,
-              }}
-            />
+          <View style={{
+            backgroundColor: colors.surfaceAlt,
+            borderRadius: 6,
+            overflow: 'hidden',
+            height: 6,
+            marginBottom: spacing.xs
+          }}>
+            <Animated.View style={{
+              height: '100%',
+              width: progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%'],
+                extrapolate: 'clamp',
+              }),
+              backgroundColor: progress >= 0.8 ? colors.success : progress >= 0.6 ? '#FF8C00' : colors.danger,
+            }} />
           </View>
-          <Text style={{ color: colors.muted, alignSelf: 'flex-end', fontSize: 12 }}>
-            {Math.round(progress * 100)}% de cumprimento
-          </Text>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '500' }}>
+              Eficiência da Produção
+            </Text>
+            <Text style={{
+              fontSize: 11,
+              fontWeight: '600',
+              color: progress >= 0.8 ? colors.success : progress >= 0.6 ? '#FF8C00' : colors.danger,
+            }}>
+              {Math.round((progress || 0) * 100)}%
+            </Text>
+          </View>
         </>
       ) : (
-        <Text style={{ color: colors.muted }}>Selecione produtos para ver metas e diferenças.</Text>
+        <View style={{
+          backgroundColor: colors.accent + '10',
+          padding: spacing.sm,
+          borderRadius: spacing.sm,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm
+        }}>
+          <MaterialCommunityIcons name="information-outline" size={16} color={colors.accent} />
+          <Text style={{ color: colors.accent, fontWeight: '500', flex: 1, fontSize: 13 }}>
+            Selecione produtos para ver métricas detalhadas
+          </Text>
+        </View>
       )}
-    </Card>
+    </View>
   );
 });
 
-/** ===================== Tile de Totais por Produto ===================== */
+/** ===================== Tile de Totais por Produto melhorado ===================== */
 const ProductTotalTile = React.memo(function ProductTotalTile({
-  name,
-  unit,
-  produced,
-  meta,
-  diff,
+  name, unit, produced, meta, diff,
 }: {
-  name: string;
-  unit: string;
-  produced: number;
-  meta: number;
-  diff: number;
+  name: string; unit: string; produced: number; meta: number; diff: number;
 }) {
   const { colors, spacing } = useTheme();
   const progress = meta > 0 ? Math.min(1, Math.max(0, produced / meta)) : 0;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(progressAnim, {
+      toValue: progress,
+      useNativeDriver: false,
+      stiffness: 120,
+      damping: 15,
+    }).start();
+  }, [progress]);
+
+  const isUN = String(unit).toUpperCase() === 'UN';
+  const fmtValue = (n: number) => (isUN ? Math.round(n).toString() : n.toFixed(1));
 
   return (
-    <Card padding="md" variant="tonal" elevationLevel={0} style={{ gap: 8 }}>
-      <Text style={{ fontWeight: '800', color: colors.text }} numberOfLines={2}>
-        {name} <Text style={{ color: colors.muted }}>({String(unit).toUpperCase()})</Text>
-      </Text>
-
-      <View
-        style={{
-          height: 10,
-          backgroundColor: colors.surface,
-          borderRadius: 999,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.line,
-          overflow: 'hidden',
-        }}
-      >
-        <View style={{ width: `${Math.round(progress * 100)}%`, height: '100%', backgroundColor: colors.primary }} />
-      </View>
-
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        <View style={{ minWidth: '48%', marginRight: spacing.sm, marginTop: spacing.xs }}>
-          <Text style={{ color: colors.muted, fontWeight: '700' }}>Produzido</Text>
-          <Text style={{ fontWeight: '900', color: colors.text }}>{fmt(produced)}</Text>
-        </View>
-        <View style={{ minWidth: '48%', marginTop: spacing.xs }}>
-          <Text style={{ color: colors.muted, fontWeight: '700' }}>Meta</Text>
-          <Text style={{ fontWeight: '900', color: colors.text }}>{fmt(meta)}</Text>
-        </View>
-        <View style={{ minWidth: '48%', marginTop: spacing.xs }}>
-          <Text style={{ color: colors.muted, fontWeight: '700' }}>Diferença</Text>
-          <Text style={{ fontWeight: '900', color: diff > 0 ? '#DC2626' : colors.text }}>
-            {fmt(diff)}
+    <View style={{
+      backgroundColor: colors.surface,
+      padding: spacing.md,
+      borderRadius: 12,
+      borderLeftWidth: 4,
+      borderLeftColor: progress >= 0.8 ? colors.success : progress >= 0.5 ? '#FF8C00' : colors.danger,
+      minHeight: 130,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.shadow || '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 1,
+        },
+      }),
+    }}>
+      <View style={{ marginBottom: spacing.sm }}>
+        <Text style={{
+          fontSize: 14,
+          fontWeight: '600',
+          color: colors.text,
+          marginBottom: 4,
+          lineHeight: 18,
+        }} numberOfLines={2}>
+          {name}
+        </Text>
+        <View style={{
+          backgroundColor: colors.primary + '10',
+          paddingHorizontal: spacing.xs,
+          paddingVertical: 2,
+          borderRadius: 6,
+          alignSelf: 'flex-start'
+        }}>
+          <Text style={{
+            color: colors.primary,
+            fontWeight: '600',
+            fontSize: 10,
+          }}>
+            {String(unit || 'UN').toUpperCase()}
           </Text>
         </View>
       </View>
-    </Card>
+
+      <View style={{
+        backgroundColor: colors.surfaceAlt,
+        borderRadius: 6,
+        overflow: 'hidden',
+        height: 6,
+        marginBottom: spacing.sm
+      }}>
+        <Animated.View style={{
+          height: '100%',
+          width: progressAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0%', '100%'],
+            extrapolate: 'clamp',
+          }),
+          backgroundColor: progress >= 0.8 ? colors.success : progress >= 0.5 ? '#FF8C00' : colors.danger,
+        }} />
+      </View>
+
+      <View style={{ gap: spacing.xs }}>
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Text style={{
+            fontSize: 11,
+            color: colors.muted,
+            fontWeight: '600'
+          }}>
+            Produzido: {fmtValue(produced)} / {fmtValue(meta)} {unit}
+          </Text>
+          <Text style={{
+            fontSize: 11,
+            fontWeight: '600',
+            color: progress >= 0.8 ? colors.success : progress >= 0.5 ? '#FF8C00' : colors.danger
+          }}>
+            {Math.round(progress * 100)}%
+          </Text>
+        </View>
+
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Text style={{
+            fontSize: 11,
+            color: colors.muted,
+            fontWeight: '500'
+          }}>
+            {diff >= 0 ? 'Excesso' : 'Déficit'}
+          </Text>
+          <Text style={{
+            fontSize: 11,
+            color: diff >= 0 ? colors.success : colors.danger,
+            fontWeight: '600'
+          }}>
+            {fmtValue(Math.abs(diff))} {unit}
+          </Text>
+        </View>
+      </View>
+    </View>
   );
 });
 
-/** ===================== Tela ===================== */
+/** ===================== Tela Principal ===================== */
 export default function AdminProductionsReportScreen() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
-  const { colors, spacing, typography } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
   const { width } = useWindowDimensions();
+  const h = useHaptics();
+  const { runAfterInteractions, isAppActive } = usePerformanceOptimization();
 
-  // paddings do header para calcular grid
-  const PADDING_H = spacing.md * 2;
-  const GAP = spacing.sm;
-  const tileW = Math.max(160, Math.floor((width - PADDING_H - GAP) / 2)); // 2 colunas responsivas
+  // Estados de animação
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  // Layout mais compacto similar ao Twitter/X
+  const CONTENT_PADDING = spacing.md;
+  const GAP = spacing.xs;
+  const tileW = Math.max(140, Math.floor((width - CONTENT_PADDING * 2 - GAP) / 2));
 
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
@@ -365,15 +623,30 @@ export default function AdminProductionsReportScreen() {
   const [sortTotals, setSortTotals] = useState<'produced' | 'compliance' | 'name'>('produced');
 
   const [sortOpen, setSortOpen] = useState(false);
-
   const [productions, setProductions] = useState<Production[] | null>(null);
   const [items, setItems] = useState<Item[] | null>(null);
-
   const [refreshing, setRefreshing] = useState(false);
 
   // export
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFmt, setExportFmt] = useState<'csv' | 'json' | 'pdf'>('csv');
+
+  // Animação de entrada
+  useEffect(() => {
+    Animated.stagger(100, [
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        stiffness: 150,
+        damping: 15,
+      })
+    ]).start();
+  }, []);
 
   // datas padrão
   useEffect(() => {
@@ -384,24 +657,54 @@ export default function AdminProductionsReportScreen() {
     }
   }, [from, to]);
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        stretch: { alignSelf: 'stretch' },
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1 },
+    gradient: { flex: 1 },
+    section: {
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+    },
+    headerSection: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    compactCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.line,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.shadow || '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 1,
+        },
       }),
-    [],
-  );
+    },
+  }), [spacing, colors]);
 
   const loadProducts = useCallback(async () => {
+    if (!isAppActive()) return;
+
     const { data, error } = await supabase.from('products').select('id,name,unit').order('name');
     if (error) {
+      h.error();
       Alert.alert('Erro', error.message);
       return;
     }
     setProducts((data as Product[]) || []);
-  }, []);
+  }, [h, isAppActive]);
 
   const loadData = useCallback(async () => {
+    if (!isAppActive()) return;
+
     setProductions(null);
     setItems(null);
 
@@ -417,9 +720,10 @@ export default function AdminProductionsReportScreen() {
 
       const { data: prods, error: e1 } = await q;
       if (e1) {
-        const errorMsg = e1.message.includes('permission') 
+        h.error();
+        const errorMsg = e1.message.includes('permission')
           ? 'Acesso negado. Verifique suas permissões.'
-          : e1.message.includes('network') 
+          : e1.message.includes('network')
           ? 'Erro de conexão. Verifique sua internet.'
           : `Erro ao carregar dados: ${e1.message}`;
         Alert.alert('Erro', errorMsg);
@@ -436,7 +740,7 @@ export default function AdminProductionsReportScreen() {
 
       if (list.length > 500) {
         Alert.alert(
-          'Muitos dados', 
+          'Muitos dados',
           'Foram encontrados mais de 500 registros. Para melhor performance, considere filtrar por um período menor.'
         );
       }
@@ -451,20 +755,23 @@ export default function AdminProductionsReportScreen() {
           .from('production_items')
           .select('id,production_id,product_id,produced,meta,diff,avg')
           .in('production_id', batch);
-        
+
         if (e2) {
+          h.error();
           Alert.alert('Erro', `Falha ao carregar items: ${e2.message}`);
           return;
         }
-        
+
         allItems.push(...((its as Item[]) || []));
       }
-      
+
       setItems(allItems);
+      h.success();
     } catch (error: any) {
+      h.error();
       Alert.alert('Erro inesperado', error?.message || 'Falha ao carregar dados');
     }
-  }, [from, to]);
+  }, [from, to, h, isAppActive]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -474,10 +781,13 @@ export default function AdminProductionsReportScreen() {
   }, [isAdmin, loadData, loadProducts]);
 
   const onRefresh = useCallback(async () => {
+    if (!isAppActive()) return;
+
     setRefreshing(true);
+    h.light();
     await Promise.all([loadProducts(), loadData()]);
     setRefreshing(false);
-  }, [loadProducts, loadData]);
+  }, [loadProducts, loadData, h, isAppActive]);
 
   const productsById = useMemo(() => {
     const map: Record<string, Product> = {};
@@ -622,7 +932,7 @@ export default function AdminProductionsReportScreen() {
     if (hasFilter) {
       const rows = [
         'date;abate;produced;meta;diff;cumprimento_%',
-        ...days.map((d) => {
+        ...(days || []).map((d) => {
           const cumprimento = d.meta > 0 ? (d.produced / d.meta) * 100 : 0;
           return `${d.date};${d.abate};${fmt(d.produced)};${fmt(d.meta)};${fmt(d.diff)};${Math.round(cumprimento)}`;
         }),
@@ -631,7 +941,7 @@ export default function AdminProductionsReportScreen() {
     }
     const rows = [
       'product;unit;produced;meta;diff;cumprimento_%',
-      ...totalsPerProduct.map((r) => {
+      ...(totalsPerProduct || []).map((r) => {
         const cumprimento = r.meta > 0 ? (r.produced / r.meta) * 100 : 0;
         return `${r.name};${r.unit};${fmt(r.produced)};${fmt(r.meta)};${fmt(r.diff)};${Math.round(cumprimento)}`;
       }),
@@ -646,7 +956,7 @@ export default function AdminProductionsReportScreen() {
         {
           filter_products: effectiveProductIds,
           unit_filter: unitFilter,
-          days: days.map((d) => ({
+          days: (days || []).map((d) => ({
             date: d.date,
             abate: d.abate,
             produced: d.produced,
@@ -660,7 +970,7 @@ export default function AdminProductionsReportScreen() {
     }
     return JSON.stringify(
       {
-        totals_per_product: totalsPerProduct.map((r) => ({
+        totals_per_product: (totalsPerProduct || []).map((r) => ({
           product_id: r.product_id,
           name: r.name,
           unit: r.unit,
@@ -688,7 +998,7 @@ export default function AdminProductionsReportScreen() {
         <table>
           <thead><tr><th>Data</th><th>Abate</th><th>Produzido</th><th>Meta</th><th>Dif.</th><th>Cumpr.%</th></tr></thead>
           <tbody>
-            ${days
+            ${(days || [])
               .map((d) => {
                 const perc = d.meta > 0 ? Math.round((d.produced / d.meta) * 100) : 0;
                 return `<tr>
@@ -707,7 +1017,7 @@ export default function AdminProductionsReportScreen() {
         <table>
           <thead><tr><th>Produto</th><th>Unid.</th><th>Produzido</th><th>Meta</th><th>Dif.</th><th>Cumpr.%</th></tr></thead>
           <tbody>
-            ${totalsPerProduct
+            ${(totalsPerProduct || [])
               .map((r) => {
                 const perc = r.meta > 0 ? Math.round((r.produced / r.meta) * 100) : 0;
                 return `<tr>
@@ -754,7 +1064,7 @@ export default function AdminProductionsReportScreen() {
         const html = buildPdfHtml();
         let Print: any = null;
         let Sharing: any = null;
-        
+
         try {
           Print = require('expo-print');
           Sharing = require('expo-sharing');
@@ -769,484 +1079,476 @@ export default function AdminProductionsReportScreen() {
         }
 
         if (Print?.printToFileAsync) {
-          const { uri } = await Print.printToFileAsync({ 
-            html, 
+          const { uri } = await Print.printToFileAsync({
+            html,
             format: Print.Orientation.portrait,
             margins: { left: 50, right: 50, top: 50, bottom: 50 }
           });
-          
+
           if (Sharing?.isAvailableAsync && (await Sharing.isAvailableAsync())) {
-            await Sharing.shareAsync(uri, { 
-              mimeType: 'application/pdf', 
-              dialogTitle: `${base}.pdf` 
+            await Sharing.shareAsync(uri, {
+              mimeType: 'application/pdf',
+              dialogTitle: `${base}.pdf`
             });
           } else {
-            await Share.share({ 
-              url: uri, 
-              title: `${base}.pdf`, 
-              message: 'Relatório de produção exportado' 
+            await Share.share({
+              url: uri,
+              title: `${base}.pdf`,
+              message: 'Relatório de produção exportado'
             });
           }
         } else {
           throw new Error('Falha ao gerar PDF');
         }
-        
+
         setExportOpen(false);
+        h.success();
         return;
       }
 
       const payload = exportFmt === 'csv' ? buildCsv() : buildJson();
       const fileSize = Math.round(payload.length / 1024);
-      
-      await Share.share({ 
-        title: `${base}.${exportFmt}`, 
-        message: `${payload}\n\n--- Arquivo ${fileSize}KB gerado em ${new Date().toLocaleString()} ---` 
+
+      await Share.share({
+        title: `${base}.${exportFmt}`,
+        message: `${payload}\n\n--- Arquivo ${fileSize}KB gerado em ${new Date().toLocaleString()} ---`
       });
-      
+
       setExportOpen(false);
+      h.success();
     } catch (e: any) {
-      const errorMessage = e?.message?.includes('PDF') 
+      h.error();
+      const errorMessage = e?.message?.includes('PDF')
         ? 'Falha ao gerar PDF. Tente outro formato.'
         : e?.message ?? 'Falha ao exportar dados. Verifique sua conexão.';
       Alert.alert('Erro ao exportar', errorMessage);
     }
-  }, [exportFmt, prodFilters.length, effectiveProductIds.length, buildCsv, buildJson, buildPdfHtml]);
+  }, [exportFmt, prodFilters.length, effectiveProductIds.length, buildCsv, buildJson, buildPdfHtml, h]);
 
-  /** ===================== Header ===================== */
+  /** ===================== Header melhorado ===================== */
   const ListHeader = useMemo(() => {
     return (
-      <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-        <View style={{ gap: spacing.lg }}>
-          {/* Enhanced Page Header */}
-          <View>
-            <View style={{ 
-              flexDirection: 'row', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: spacing.sm
-            }}>
-              <View>
-                <Text style={[typography.h1, { fontSize: 24 }]}>Relatórios</Text>
-                <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '600' }}>
-                  Análise de Performance
-                </Text>
-              </View>
-              <View style={{
-                backgroundColor: colors.accent + '20',
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 4,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: colors.accent + '30'
-              }}>
-                <Text style={{ 
-                  color: colors.accent, 
-                  fontSize: 11, 
-                  fontWeight: '700' 
-                }}>
-                  ANALYTICS
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Enhanced Period Selection */}
-          <Card 
-            style={{ 
-              gap: spacing.md,
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.line,
-              elevation: 2,
-              shadowColor: colors.shadow,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-            }} 
-            padding="lg" 
-            variant="filled"
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <MaterialCommunityIcons name="calendar-range" size={20} color={colors.primary} />
-              <Text style={[typography.h2, { fontSize: 18 }]}>Período de Análise</Text>
-            </View>
-            
-            <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <View style={{ flex: 1 }}>
-                <DateField label="Data Inicial" value={from} onChange={setFrom} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <DateField label="Data Final" value={to} onChange={setTo} />
-              </View>
-            </View>
-
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }}
+      >
+        {/* Header compacto similar ao Twitter */}
+        <View style={styles.headerSection}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: spacing.sm
+          }}>
             <View>
-              <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm }}>
-                Períodos Predefinidos
+              <Text style={[typography.h1, { fontSize: 22, fontWeight: '800', marginBottom: 2 }]}>
+                Relatórios
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: spacing.md }}>
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                  <Chip 
-                    label="📅 7 dias" 
-                    onPress={() => quickRange('7d')} 
-                  />
-                  <Chip 
-                    label="📊 30 dias" 
-                    onPress={() => quickRange('30d')} 
-                  />
-                  <Chip 
-                    label="🗓️ Este mês" 
-                    onPress={() => quickRange('month')} 
-                  />
+              <Text style={{
+                color: colors.muted,
+                fontSize: 13,
+                fontWeight: '500'
+              }}>
+                Performance e análises
+              </Text>
+            </View>
+
+            <Pressable
+              style={{
+                backgroundColor: colors.primary,
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onPress={() => setExportOpen(true)}
+            >
+              <MaterialCommunityIcons name="download" size={18} color={colors.primaryOn || '#FFFFFF'} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Period Selection - estilo mais compacto */}
+        <View style={styles.section}>
+          <View style={styles.compactCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm }}>
+              <MaterialCommunityIcons name="calendar-range" size={16} color={colors.primary} />
+              <Text style={[typography.h2, { fontSize: 15, fontWeight: '700' }]}>Período</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <DateField label="Início" value={from} onChange={setFrom} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <DateField label="Fim" value={to} onChange={setTo} />
+              </View>
+            </View>
+
+            <View style={{ marginTop: spacing.sm }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: spacing.md }}
+                style={{ flexGrow: 0 }}
+              >
+                <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                  <Chip label="7d" onPress={() => quickRange('7d')} />
+                  <Chip label="30d" onPress={() => quickRange('30d')} />
+                  <Chip label="Este mês" onPress={() => quickRange('month')} />
                 </View>
               </ScrollView>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <Button 
-                title="Aplicar Filtros" 
+            <View style={{ marginTop: spacing.sm }}>
+              <Button
+                title="Aplicar"
                 onPress={loadData}
-                leftIcon={<MaterialCommunityIcons name="filter" size={16} color={colors.primaryOn || '#FFFFFF'} />}
-                style={{ flex: 1 }}
-              />
-              <Button 
-                title="Exportar" 
-                variant="tonal" 
-                onPress={() => setExportOpen(true)}
-                leftIcon={<MaterialCommunityIcons name="download" size={16} color={colors.primary} />}
-                style={{ flex: 1 }}
+                variant="primary"
+                small
               />
             </View>
-          </Card>
+          </View>
+        </View>
 
-          {/* Enhanced Product Filters */}
-          <Card 
-            style={{ 
-              gap: spacing.md,
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.line,
-              elevation: 1,
-              shadowColor: colors.shadow,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 6,
-            }} 
-            padding="lg" 
-            variant="filled"
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <MaterialCommunityIcons name="package-variant-closed" size={18} color={colors.text} />
-                <Text style={[typography.h2, { fontSize: 16 }]}>Filtros de Produto</Text>
+        {/* Product Filters - layout mais compacto */}
+        <View style={styles.section}>
+          <View style={styles.compactCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                <MaterialCommunityIcons name="filter" size={16} color={colors.primary} />
+                <Text style={[typography.h2, { fontSize: 15, fontWeight: '700' }]}>Produtos</Text>
               </View>
               {prodFilters.length > 0 && (
                 <View style={{
-                  backgroundColor: colors.primary + '20',
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: 4,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: colors.primary + '30'
+                  backgroundColor: colors.primary + '15',
+                  paddingHorizontal: spacing.xs,
+                  paddingVertical: 1,
+                  borderRadius: 8
                 }}>
-                  <Text style={{ 
-                    color: colors.primary, 
-                    fontSize: 11, 
-                    fontWeight: '700' 
+                  <Text style={{
+                    color: colors.primary,
+                    fontSize: 10,
+                    fontWeight: '600'
                   }}>
-                    {prodFilters.length} SELECIONADOS
+                    {prodFilters.length}
                   </Text>
                 </View>
               )}
             </View>
-            
-            <View>
-              <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm }}>
-                Produtos para Análise
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                  <Chip
-                    label="🏭 Todos os Produtos"
-                    active={prodFilters.length === 0}
-                    onPress={() => {
-                      setProdFilters([]);
-                      setUnitFilter('ALL');
-                    }}
-                  />
-                  {(products || []).map((p) => {
-                    const active = prodFilters.includes(p.id);
-                    return (
-                      <Chip
-                        key={p.id}
-                        label={`${p.name} (${p.unit})`}
-                        active={active}
-                        onPress={() =>
-                          setProdFilters((curr) => (curr.includes(p.id) ? curr.filter((id) => id !== p.id) : [...curr, p.id]))
-                        }
-                      />
-                    );
-                  })}
-                </View>
-              </ScrollView>
-            </View>
 
-            {/* Enhanced Unit Filter */}
-            {prodFilters.length > 0 && unitsAvailable.length > 1 && (
-              <View>
-                <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm }}>
-                  Filtro por Unidade de Medida
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                    <Chip 
-                      label="🔧 Todas as Unidades" 
-                      active={unitFilter === 'ALL'} 
-                      onPress={() => setUnitFilter('ALL')} 
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: spacing.md }}
+              style={{ flexGrow: 0 }}
+            >
+              <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                <Chip
+                  label="Todos"
+                  active={prodFilters.length === 0}
+                  onPress={() => {
+                    setProdFilters([]);
+                    setUnitFilter('ALL');
+                  }}
+                />
+                {(products || []).map((p) => {
+                  const active = prodFilters.includes(p.id);
+                  return (
+                    <Chip
+                      key={p.id}
+                      label={p.name}
+                      active={active}
+                      onPress={() =>
+                        setProdFilters((curr) => (curr.includes(p.id) ? curr.filter((id) => id !== p.id) : [...curr, p.id]))
+                      }
                     />
-                    {unitsAvailable.map((u) => (
-                      <Chip 
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            {/* Unit Filter - mais compacto */}
+            {prodFilters.length > 0 && unitsAvailable.length > 1 && (
+              <View style={{ marginTop: spacing.sm }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingRight: spacing.md }}
+                  style={{ flexGrow: 0 }}
+                >
+                  <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                    <Chip
+                      label="Todas"
+                      active={unitFilter === 'ALL'}
+                      onPress={() => setUnitFilter('ALL')}
+                    />
+                    {(unitsAvailable || []).map((u) => (
+                      <Chip
                         key={u}
-                        label={`📏 ${String(u).toUpperCase()}`} 
-                        active={unitFilter === u} 
-                        onPress={() => setUnitFilter(u)} 
+                        label={String(u).toUpperCase()}
+                        active={unitFilter === u}
+                        onPress={() => setUnitFilter(u)}
                       />
                     ))}
                   </View>
                 </ScrollView>
               </View>
             )}
-          </Card>
+          </View>
+        </View>
 
-          {/* Enhanced KPI Dashboard */}
-          {totals ? (
-            <>
-              {/* KPI Section Header */}
-              <View style={{ 
-                flexDirection: 'row', 
-                alignItems: 'center', 
-                gap: spacing.sm,
-                marginBottom: spacing.sm 
-              }}>
-                <MaterialCommunityIcons 
-                  name="chart-box" 
-                  size={20} 
-                  color={colors.text} 
-                />
-                <Text style={[typography.h2, { fontSize: 18 }]}>
-                  Indicadores de Performance
-                </Text>
-              </View>
-              
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
-                <View style={{ width: tileW }}>
-                  <Card
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderLeftWidth: 4,
-                      borderLeftColor: colors.primary,
-                      elevation: 2,
-                      shadowColor: colors.shadow,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 4,
-                    }}
-                    padding="md"
-                    variant="filled"
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>ANIMAIS ABATIDOS</Text>
-                      <MaterialCommunityIcons name="cow" size={16} color={colors.muted} />
-                    </View>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, letterSpacing: -0.5 }}>
-                      {totals.abate.toLocaleString()}
-                    </Text>
-                  </Card>
-                </View>
-                
-                <View style={{ width: tileW }}>
-                  <Card
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderLeftWidth: 4,
-                      borderLeftColor: colors.success,
-                      elevation: 2,
-                      shadowColor: colors.shadow,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 4,
-                    }}
-                    padding="md"
-                    variant="filled"
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>PRODUÇÃO TOTAL</Text>
-                      <MaterialCommunityIcons name="factory" size={16} color={colors.muted} />
-                    </View>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.success, letterSpacing: -0.5 }}>
-                      {fmt(totals.produced)}
-                    </Text>
-                  </Card>
-                </View>
-                
-                <View style={{ width: tileW }}>
-                  <Card
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderLeftWidth: 4,
-                      borderLeftColor: colors.accent,
-                      elevation: 2,
-                      shadowColor: colors.shadow,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 4,
-                    }}
-                    padding="md"
-                    variant="filled"
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>META TOTAL</Text>
-                      <MaterialCommunityIcons name="target" size={16} color={colors.muted} />
-                    </View>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.accent, letterSpacing: -0.5 }}>
-                      {fmt(totals.meta)}
-                    </Text>
-                  </Card>
-                </View>
-                
-                <View style={{ width: tileW }}>
-                  <Card
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderLeftWidth: 4,
-                      borderLeftColor: totals.diff > 0 ? colors.danger : colors.success,
-                      elevation: 2,
-                      shadowColor: colors.shadow,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 4,
-                    }}
-                    padding="md"
-                    variant="filled"
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>
-                        {totals.diff > 0 ? 'PERDAS' : 'EXCEDENTE'}
-                      </Text>
-                      <MaterialCommunityIcons 
-                        name={totals.diff > 0 ? "trending-down" : "trending-up"} 
-                        size={16} 
-                        color={colors.muted} 
-                      />
-                    </View>
-                    <Text style={{ 
-                      fontSize: 24, 
-                      fontWeight: '900', 
-                      color: totals.diff > 0 ? colors.danger : colors.success,
-                      letterSpacing: -0.5 
-                    }}>
-                      {fmt(Math.abs(totals.diff))}
-                    </Text>
-                  </Card>
-                </View>
-                
-                <View style={{ width: '100%' }}>
-                  <Card
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderLeftWidth: 4,
-                      borderLeftColor: colors.primary,
-                      elevation: 2,
-                      shadowColor: colors.shadow,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 4,
-                    }}
-                    padding="md"
-                    variant="filled"
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                        <MaterialCommunityIcons name="chart-line" size={18} color={colors.text} />
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>EFICIÊNCIA GERAL</Text>
-                      </View>
-                      <Text style={{ 
-                        fontSize: 32, 
-                        fontWeight: '900', 
-                        color: colors.primary,
-                        letterSpacing: -1
-                      }}>
-                        {Math.round((totals.produced / Math.max(1, totals.meta)) * 100)}%
-                      </Text>
-                    </View>
-                    
-                    {/* Progress bar */}
-                    <View style={{ 
-                      height: 12, 
-                      backgroundColor: colors.surfaceAlt, 
-                      borderRadius: 6, 
-                      overflow: 'hidden',
-                      borderWidth: 1,
-                      borderColor: colors.line
-                    }}>
-                      <View style={{ 
-                        height: '100%', 
-                        width: `${Math.min(100, Math.round((totals.produced / Math.max(1, totals.meta)) * 100))}%`, 
-                        backgroundColor: colors.primary,
-                        borderRadius: 5
-                      }} />
-                    </View>
-                    
-                    <Text style={{ 
-                      color: colors.muted, 
-                      fontSize: 12, 
-                      textAlign: 'center',
-                      marginTop: spacing.xs,
-                      fontWeight: '500'
-                    }}>
-                      {totals.produced >= totals.meta ? 'Meta superada!' : 
-                       totals.produced >= totals.meta * 0.9 ? 'Próximo da meta' : 
-                       'Abaixo da meta planejada'}
-                    </Text>
-                  </Card>
-                </View>
-              </View>
+        {/* KPI Dashboard */}
+        {totals ? (
+          <View style={styles.section}>
+            {/* KPI Section Header */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
+              marginBottom: spacing.md
+            }}>
+              <MaterialCommunityIcons name="chart-box" size={20} color={colors.primary} />
+              <Text style={[typography.h2, { fontSize: 16, fontWeight: '700' }]}>
+                Indicadores de Performance
+              </Text>
+            </View>
 
-              {/* Enhanced Chart Section */}
-              <Card 
-                padding="lg" 
-                variant="filled" 
-                elevationLevel={2}
-                style={{
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  shadowColor: colors.shadow,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 8,
-                }}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                    <MaterialCommunityIcons name="chart-bar" size={20} color={colors.text} />
-                    <Text style={[typography.h2, { fontSize: 18 }]}>Evolução Diária</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+              <View style={{ width: tileW }}>
+                <Card
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderLeftWidth: 3,
+                    borderLeftColor: colors.primary,
+                    minHeight: 80,
+                    ...Platform.select({
+                      ios: {
+                        shadowColor: colors.shadow || '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 4,
+                      },
+                      android: {
+                        elevation: 2,
+                      },
+                    }),
+                  }}
+                  padding="md"
+                  variant="filled"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600', letterSpacing: 0.2 }}>ANIMAIS</Text>
+                    <MaterialCommunityIcons name="cow" size={16} color={colors.muted} />
                   </View>
-                  <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary, letterSpacing: -0.5 }}>
+                    {String(totals?.abate ?? 0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  </Text>
+                </Card>
+              </View>
+
+              <View style={{ width: tileW }}>
+                <Card
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderLeftWidth: 3,
+                    borderLeftColor: colors.success,
+                    minHeight: 80,
+                    ...Platform.select({
+                      ios: {
+                        shadowColor: colors.shadow || '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 4,
+                      },
+                      android: {
+                        elevation: 2,
+                      },
+                    }),
+                  }}
+                  padding="md"
+                  variant="filled"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600', letterSpacing: 0.2 }}>PRODUÇÃO</Text>
+                    <MaterialCommunityIcons name="factory" size={16} color={colors.muted} />
+                  </View>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: colors.success, letterSpacing: -0.5 }}>
+                    {fmt(totals.produced)}
+                  </Text>
+                </Card>
+              </View>
+
+              <View style={{ width: tileW }}>
+                <Card
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderLeftWidth: 3,
+                    borderLeftColor: colors.accent,
+                    minHeight: 80,
+                    ...Platform.select({
+                      ios: {
+                        shadowColor: colors.shadow || '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 4,
+                      },
+                      android: {
+                        elevation: 2,
+                      },
+                    }),
+                  }}
+                  padding="md"
+                  variant="filled"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600', letterSpacing: 0.2 }}>META</Text>
+                    <MaterialCommunityIcons name="target" size={16} color={colors.muted} />
+                  </View>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: colors.accent, letterSpacing: -0.5 }}>
+                    {fmt(totals.meta)}
+                  </Text>
+                </Card>
+              </View>
+
+              <View style={{ width: tileW }}>
+                <Card
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderLeftWidth: 3,
+                    borderLeftColor: totals.diff >= 0 ? colors.success : colors.danger,
+                    minHeight: 80,
+                    ...Platform.select({
+                      ios: {
+                        shadowColor: colors.shadow || '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 4,
+                      },
+                      android: {
+                        elevation: 2,
+                      },
+                    }),
+                  }}
+                  padding="md"
+                  variant="filled"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600', letterSpacing: 0.2 }}>
+                      {totals.diff >= 0 ? 'EXCEDENTE' : 'DÉFICIT'}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name={totals.diff >= 0 ? "trending-up" : "trending-down"}
+                      size={16}
+                      color={colors.muted}
+                    />
+                  </View>
+                  <Text style={{
+                    fontSize: 22,
+                    fontWeight: '700',
+                    color: totals.diff >= 0 ? colors.success : colors.danger,
+                    letterSpacing: -0.5
+                  }}>
+                    {fmt(Math.abs(totals.diff))}
+                  </Text>
+                </Card>
+              </View>
+
+              <View style={{ width: '100%' }}>
+                <Card
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderLeftWidth: 3,
+                    borderLeftColor: colors.primary,
+                    ...Platform.select({
+                      ios: {
+                        shadowColor: colors.shadow || '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 4,
+                      },
+                      android: {
+                        elevation: 2,
+                      },
+                    }),
+                  }}
+                  padding="lg"
+                  variant="filled"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                      <MaterialCommunityIcons name="chart-line" size={18} color={colors.primary} />
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', letterSpacing: 0.2 }}>EFICIÊNCIA GERAL</Text>
+                    </View>
+                    <Text style={{
+                      fontSize: 28,
+                      fontWeight: '800',
+                      color: colors.primary,
+                      letterSpacing: -1
+                    }}>
+                      {String(Math.round((totals?.produced ?? 0) / Math.max(1, totals?.meta ?? 1) * 100))}%
+                    </Text>
+                  </View>
+
+                  {/* Progress bar */}
+                  <View style={{
+                    height: 10,
+                    backgroundColor: colors.surfaceAlt,
+                    borderRadius: 5,
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    marginBottom: spacing.sm
+                  }}>
+                    <View style={{
+                      height: '100%',
+                      width: `${Math.min(100, Math.round((totals?.produced ?? 0) / Math.max(1, totals?.meta ?? 1) * 100))}%`,
+                      backgroundColor: colors.primary,
+                      borderRadius: 4
+                    }} />
+                  </View>
+
+                  <Text style={{
+                    color: colors.muted,
+                    fontSize: 12,
+                    textAlign: 'center',
+                    fontWeight: '500',
+                    letterSpacing: 0.1
+                  }}>
+                    {(totals?.produced ?? 0) >= (totals?.meta ?? 0) ? '🎉 Meta superada!' :
+                     (totals?.produced ?? 0) >= (totals?.meta ?? 0) * 0.9 ? '🔥 Muito próximo da meta' :
+                     '⚠️ Abaixo da meta'}
+                  </Text>
+                </Card>
+              </View>
+            </View>
+
+            {/* Chart Section - mais compacto */}
+            <View style={{ marginTop: spacing.md }}>
+              <View style={styles.compactCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                    <MaterialCommunityIcons name="chart-bar" size={16} color={colors.primary} />
+                    <Text style={[typography.h2, { fontSize: 15, fontWeight: '700' }]}>Evolução</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 2 }}>
                     {[7, 12, 30].map((n) => (
                       <Chip
                         key={n}
                         label={`${n}d`}
-                        active={barCount === (n as any)}
+                        active={barCount === n}
                         onPress={() => setBarCount(n as 7 | 12 | 30)}
                       />
                     ))}
                   </View>
                 </View>
                 {!items ? (
-                  <SkeletonList rows={2} />
+                  <SkeletonList rows={3} />
                 ) : chartSeries.length === 0 ? (
-                  <EmptyState title="Sem dados no período para os produtos selecionados" compact />
+                  <EmptyState title="Sem dados no período" compact />
                 ) : (
                   <BarsChart
                     data={chartSeries.map((d) => ({ label: d.label, produced: d.produced, meta: d.meta }))}
@@ -1254,84 +1556,79 @@ export default function AdminProductionsReportScreen() {
                     maxBars={barCount}
                   />
                 )}
-              </Card>
-            </>
-          ) : (
-            <View>
-              {/* Toolbar: título + ação Ordenar (abre sheet) */}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: spacing.sm,
-                }}
-              >
-                <Text style={typography.h2}>Totais por produto</Text>
-                <Button title="Ordenar" small variant="tonal" onPress={() => setSortOpen(true)} />
               </View>
-
-              {!items ? (
-                <Card><SkeletonList rows={1} /></Card>
-              ) : (totalsPerProduct?.length ?? 0) === 0 ? (
-                <EmptyState title="Sem dados no período" />
-              ) : (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                  {totalsPerProduct.map((r, idx) => (
-                    <View
-                      key={r.product_id}
-                      style={{
-                        width: tileW,
-                        marginRight: idx % 2 === 0 ? GAP : 0,
-                        marginBottom: GAP,
-                      }}
-                    >
-                      <ProductTotalTile
-                        name={r.name}
-                        unit={r.unit}
-                        produced={r.produced}
-                        meta={r.meta}
-                        diff={r.diff}
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
             </View>
-          )}
+          </View>
+        ) : (
+          <View style={styles.section}>
+            {/* Toolbar: título + ação Ordenar */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: spacing.md,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <MaterialCommunityIcons name="view-grid" size={20} color={colors.primary} />
+                <Text style={[typography.h2, { fontSize: 16, fontWeight: '700' }]}>Totais por Produto</Text>
+              </View>
+              <Button
+                title="Ordenar"
+                variant="tonal"
+                onPress={() => setSortOpen(true)}
+                leftIcon={<MaterialCommunityIcons name="sort" size={14} color={colors.primary} />}
+              />
+            </View>
 
-          {/* Daily Breakdown Section Header */}
-          <View style={{ 
-            flexDirection: 'row', 
-            alignItems: 'center', 
+            {!items ? (
+              <Card><SkeletonList rows={2} /></Card>
+            ) : (totalsPerProduct?.length ?? 0) === 0 ? (
+              <EmptyState title="Sem dados no período selecionado" />
+            ) : (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+                {(totalsPerProduct || []).map((r) => (
+                  <View key={r.product_id} style={{ width: tileW }}>
+                    <ProductTotalTile
+                      name={r.name}
+                      unit={r.unit}
+                      produced={r.produced}
+                      meta={r.meta}
+                      diff={r.diff}
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Daily Breakdown Section Header */}
+        <View style={styles.section}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
             gap: spacing.sm,
-            marginBottom: spacing.sm 
+            marginBottom: spacing.md
           }}>
-            <MaterialCommunityIcons 
-              name="calendar-multiselect" 
-              size={20} 
-              color={colors.text} 
-            />
-            <Text style={[typography.h2, { fontSize: 18 }]}>
+            <MaterialCommunityIcons name="calendar-multiselect" size={20} color={colors.primary} />
+            <Text style={[typography.h2, { fontSize: 16, fontWeight: '700' }]}>
               Detalhamento por Dia
             </Text>
           </View>
         </View>
-      </View>
+      </Animated.View>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    spacing, typography, colors,
-    from, to, loadData,
-    products, prodFilters, unitsAvailable.length, unitFilter,
-    totals, items, chartSeries, chartUnit, barCount,
-    totalsPerProduct, tileW, GAP,
+    spacing, typography, colors, radius, fadeAnim, slideAnim, styles,
+    from, to, loadData, products, prodFilters, unitsAvailable.length, unitFilter,
+    totals, items, chartSeries, chartUnit, barCount, totalsPerProduct, tileW, GAP,
   ]);
 
   /** ===================== Render list ===================== */
   const renderItem: ListRenderItem<DayTotals> = useCallback(
     ({ item }) => (
-      <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+      <View style={{ paddingHorizontal: CONTENT_PADDING, marginBottom: spacing.sm }}>
         <DayRow
           item={item}
           hasProductFilter={prodFilters.length > 0}
@@ -1341,131 +1638,191 @@ export default function AdminProductionsReportScreen() {
         />
       </View>
     ),
-    [prodFilters.length, colors, spacing, typography],
+    [prodFilters.length, colors, spacing, typography, CONTENT_PADDING],
   );
 
   const keyExtractor = useCallback((d: DayTotals) => d.date, []);
-  const ItemSeparator = useCallback(() => <View style={{ height: spacing.sm }} />, [spacing.sm]);
+  const ItemSeparator = useCallback(() => <View style={{ height: spacing.xs }} />, [spacing.xs]);
 
-  const perfProps: any = { estimatedItemSize: 136 };
+  const perfProps: any = { estimatedItemSize: 160 };
 
   if (!isAdmin) {
     return (
-      <Screen padded>
-        <Text style={{ color: colors.text }}>Acesso restrito.</Text>
+      <Screen padded edges={['top', 'left', 'right', 'bottom']}>
+        <LinearGradient
+          colors={[colors.background, colors.surface + '80', colors.background]}
+          style={styles.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: colors.text, textAlign: 'center', fontSize: 16, fontWeight: '600' }}>
+              Acesso restrito a administradores.
+            </Text>
+          </View>
+        </LinearGradient>
       </Screen>
     );
   }
 
   return (
-    <Screen padded={false} scroll={false}>
-      <FlashList
-        {...perfProps}
-        data={days}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        ItemSeparatorComponent={ItemSeparator}
-        ListHeaderComponent={ListHeader}
-        bounces
-        overScrollMode="always"
-        decelerationRate="fast"
-        removeClippedSubviews={Platform.OS === 'android'}
-        showsVerticalScrollIndicator={false}
-        // FLASHLIST: apenas padding/background aqui (sem gap, margin, etc.)
-        contentContainerStyle={{ paddingBottom: spacing.lg, backgroundColor: 'transparent' }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            progressBackgroundColor={colors.surface}
-            progressViewOffset={Platform.OS === 'android' ? 56 : 0}
-          />
-        }
-        ListEmptyComponent={
-          !productions || !items ? (
-            <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md }}>
-              <SkeletonList rows={3} />
-            </View>
-          ) : (
-            <EmptyState title="Sem dados no período" />
-          )
-        }
-      />
-
-      {/* Export */}
-      <Sheet
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        title="Exportar dados"
-        subtitle="Escolha o formato do arquivo"
+    <Screen padded={false} scroll={false} edges={['top', 'left', 'right', 'bottom']}>
+      <LinearGradient
+        colors={[colors.background, colors.surface + '80', colors.background]}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
-        <View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            <Chip label="CSV"  active={exportFmt === 'csv'}  onPress={() => setExportFmt('csv')}  />
-            <View style={{ width: spacing.xs }} />
-            <Chip label="JSON" active={exportFmt === 'json'} onPress={() => setExportFmt('json')} />
-            <View style={{ width: spacing.xs }} />
-            <Chip label="PDF"  active={exportFmt === 'pdf'}  onPress={() => setExportFmt('pdf')}  />
-          </View>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
 
-          <Text style={{ color: colors.muted, marginVertical: spacing.sm }}>
-            {prodFilters.length > 0
-              ? 'Exporta a série diária agregada dos produtos selecionados (produzido, meta, perdas).'
-              : 'Exporta totais por produto no período (produzido, meta, perdas).'}
-          </Text>
-
-          <View style={{ flexDirection: 'row' }}>
-            <View style={{ flex: 1, marginRight: spacing.sm }}>
-              <Button title="Cancelar" variant="text" onPress={() => setExportOpen(false)} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button title="Exportar" onPress={doExport} />
-            </View>
-          </View>
-        </View>
-      </Sheet>
-
-      {/* Ordenação (Sheet) */}
-      <Sheet
-        open={sortOpen}
-        onClose={() => setSortOpen(false)}
-        title="Ordenar totais por produto"
-      >
-        <View>
-          <Text style={{ color: colors.muted, marginBottom: spacing.sm }}>
-            Escolha como ordenar a grade de produtos:
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            <Chip
-              label="Produzido"
-              active={sortTotals === 'produced'}
-              onPress={() => setSortTotals('produced')}
+        <FlashList
+          {...perfProps}
+          data={days}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          ItemSeparatorComponent={ItemSeparator}
+          ListHeaderComponent={ListHeader}
+          bounces
+          overScrollMode="always"
+          decelerationRate="fast"
+          removeClippedSubviews={Platform.OS === 'android'}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              progressBackgroundColor={colors.surface}
+              progressViewOffset={Platform.OS === 'android' ? 56 : 0}
             />
-            <View style={{ width: spacing.xs }} />
-            <Chip
-              label="Cumprimento %"
-              active={sortTotals === 'compliance'}
-              onPress={() => setSortTotals('compliance')}
-            />
-            <View style={{ width: spacing.xs }} />
-            <Chip
-              label="Nome (A-Z)"
-              active={sortTotals === 'name'}
-              onPress={() => setSortTotals('name')}
-            />
-          </View>
+          }
+          ListEmptyComponent={
+            !productions || !items ? (
+              <View style={{ paddingHorizontal: CONTENT_PADDING, paddingTop: spacing.lg }}>
+                <SkeletonList rows={4} />
+              </View>
+            ) : (
+              <EmptyState title="Sem dados no período selecionado" />
+            )
+          }
+        />
 
-          <View style={{ marginTop: spacing.md, flexDirection: 'row' }}>
-            <View style={{ flex: 1, marginRight: spacing.sm }}>
-              <Button title="Fechar" variant="text" onPress={() => setSortOpen(false)} />
+        {/* Export */}
+        <Sheet
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          title="Exportar Relatório"
+          subtitle="Escolha o formato do arquivo"
+        >
+          <View style={{ gap: spacing.md }}>
+            <View>
+              <Text style={{
+                color: colors.muted,
+                fontSize: 12,
+                fontWeight: '600',
+                marginBottom: spacing.sm,
+                letterSpacing: 0.2
+              }}>
+                FORMATO DO ARQUIVO
+              </Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <Chip label="📊 CSV"  active={exportFmt === 'csv'}  onPress={() => setExportFmt('csv')}  />
+                <Chip label="📋 JSON" active={exportFmt === 'json'} onPress={() => setExportFmt('json')} />
+                <Chip label="📄 PDF"  active={exportFmt === 'pdf'}  onPress={() => setExportFmt('pdf')}  />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Button title="Aplicar" onPress={() => setSortOpen(false)} />
+
+            <View style={{
+              backgroundColor: colors.surfaceAlt,
+              padding: spacing.md,
+              borderRadius: radius.sm,
+              borderWidth: 1,
+              borderColor: colors.line
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs }}>
+                <MaterialCommunityIcons name="information-outline" size={16} color={colors.primary} />
+                <Text style={{ color: colors.text, fontWeight: '600', fontSize: 13 }}>Conteúdo do Relatório</Text>
+              </View>
+              <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 16 }}>
+                {prodFilters.length > 0
+                  ? 'Exporta a série diária agregada dos produtos selecionados.'
+                  : 'Exporta totais por produto no período selecionado.'}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <Button
+                title="Cancelar"
+                variant="text"
+                onPress={() => setExportOpen(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Exportar"
+                onPress={doExport}
+                leftIcon={<MaterialCommunityIcons name="download" size={16} color="#FFFFFF" />}
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
-        </View>
-      </Sheet>
+        </Sheet>
+
+        {/* Ordenação */}
+        <Sheet
+          open={sortOpen}
+          onClose={() => setSortOpen(false)}
+          title="Ordenar Produtos"
+          subtitle="Escolha o critério de ordenação"
+        >
+          <View style={{ gap: spacing.md }}>
+            <View>
+              <Text style={{
+                color: colors.muted,
+                fontSize: 12,
+                fontWeight: '600',
+                marginBottom: spacing.sm,
+                letterSpacing: 0.2
+              }}>
+                CRITÉRIO DE ORDENAÇÃO
+              </Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
+                <Chip
+                  label="📈 Maior Produção"
+                  active={sortTotals === 'produced'}
+                  onPress={() => setSortTotals('produced')}
+                />
+                <Chip
+                  label="🎯 Maior Eficiência"
+                  active={sortTotals === 'compliance'}
+                  onPress={() => setSortTotals('compliance')}
+                />
+                <Chip
+                  label="📝 Nome (A-Z)"
+                  active={sortTotals === 'name'}
+                  onPress={() => setSortTotals('name')}
+                />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <Button
+                title="Cancelar"
+                variant="text"
+                onPress={() => setSortOpen(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Aplicar"
+                onPress={() => setSortOpen(false)}
+                leftIcon={<MaterialCommunityIcons name="check" size={16} color="#FFFFFF" />}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </Sheet>
+      </LinearGradient>
     </Screen>
   );
 }
