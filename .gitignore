@@ -58,3 +58,6 @@ coverage/
 credentials.json
 .claude
 *.claude
+
+.credentials.json
+*.credentials.json

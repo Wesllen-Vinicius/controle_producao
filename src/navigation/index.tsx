@@ -1,23 +1,23 @@
-import React, { useMemo } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator, CardStyleInterpolators, TransitionPresets } from '@react-navigation/stack';
-import { Platform } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
+import { useMemo } from 'react';
+import { Platform } from 'react-native';
 
 // Main App Screens
-import ProducaoScreen from '../screens/ProducaoScreen';
-import EstoqueScreen from '../screens/EstoqueScreen';
+import EstoqueScreen from '../screens/Estoque'; // <-- CORREÇÃO AQUI
 import PerfilScreen from '../screens/PerfilScreen';
+import ProducaoScreen from '../screens/Producao'; // <-- CORREÇÃO AQUI
+import ProductionDetailsScreen from '../screens/ProductionDetailsScreen';
 import ProductsAdminScreen from '../screens/ProductsAdminScreen';
 import AdminProductionsReportScreen from '../screens/Relatorio';
-import ProductionDetailsScreen from '../screens/ProductionDetailsScreen';
 import TransactionDetailsScreen from '../screens/TransactionDetailsScreen';
 
 // Authentication Screens
-import LoginScreen from '../screens/LoginScreen';
-import SignupScreen from '../screens/SignupScreen';
+import LoginScreen from '../screens/Login';
 import PasswordResetScreen from '../screens/PasswordResetScreen';
+import SignupScreen from '../screens/SignupScreen';
 
 // Providers
 import { useAuth } from '../state/AuthProvider';
@@ -70,18 +70,18 @@ function AppTabs() {
     },
   }), [colors]);
 
-  const getTabBarIcon = useMemo(() => 
-    ({ route }: { route: any }) => 
+  const getTabBarIcon = useMemo(() =>
+    ({ route }: { route: any }) =>
       ({ color, size }: { color: string; size: number }) => {
         const iconName = TAB_ICONS[route.name as keyof typeof TAB_ICONS] || 'dots-horizontal';
         return (
-          <MaterialCommunityIcons 
-            name={iconName as any} 
-            color={color} 
-            size={size} 
+          <MaterialCommunityIcons
+            name={iconName as any}
+            color={color}
+            size={size}
           />
         );
-      }, 
+      },
     []
   );
 
@@ -95,24 +95,24 @@ function AppTabs() {
       })}
       sceneContainerStyle={{ backgroundColor: colors.background }}
     >
-      <Tab.Screen 
-        name="Produção" 
+      <Tab.Screen
+        name="Produção"
         component={ProducaoScreen}
         options={{
           tabBarTestID: 'tab-producao',
           tabBarAccessibilityLabel: 'Produção',
         }}
       />
-      <Tab.Screen 
-        name="Estoque" 
+      <Tab.Screen
+        name="Estoque"
         component={EstoqueScreen}
         options={{
           tabBarTestID: 'tab-estoque',
           tabBarAccessibilityLabel: 'Estoque',
         }}
       />
-      <Tab.Screen 
-        name="Perfil" 
+      <Tab.Screen
+        name="Perfil"
         component={PerfilScreen}
         options={{
           tabBarTestID: 'tab-perfil',
@@ -121,16 +121,16 @@ function AppTabs() {
       />
       {isAdmin && (
         <>
-          <Tab.Screen 
-            name="Admin" 
+          <Tab.Screen
+            name="Admin"
             component={ProductsAdminScreen}
             options={{
               tabBarTestID: 'tab-admin',
               tabBarAccessibilityLabel: 'Administração',
             }}
           />
-          <Tab.Screen 
-            name="Relatórios" 
+          <Tab.Screen
+            name="Relatórios"
             component={AdminProductionsReportScreen}
             options={{
               tabBarTestID: 'tab-relatorios',
@@ -145,10 +145,10 @@ function AppTabs() {
 
 // Authentication Stack with custom transitions
 function AuthNavigator() {
-  const { colors, typography } = useTheme();
+  const { colors } = useTheme();
 
   const screenOptions = useMemo(() => ({
-    headerStyle: { 
+    headerStyle: {
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.line,
@@ -159,8 +159,8 @@ function AuthNavigator() {
       shadowRadius: 4,
     },
     headerTintColor: colors.text,
-    headerTitleStyle: { 
-      color: colors.text, 
+    headerTitleStyle: {
+      color: colors.text,
       fontSize: 18,
       fontWeight: '600' as const,
     },
@@ -179,7 +179,7 @@ function AuthNavigator() {
       <AuthStack.Screen
         name="Login"
         component={LoginScreen}
-        options={{ 
+        options={{
           headerShown: false,
           animationTypeForReplace: 'pop',
         }}
@@ -187,7 +187,7 @@ function AuthNavigator() {
       <AuthStack.Screen
         name="Signup"
         component={SignupScreen}
-        options={{ 
+        options={{
           headerShown: false,
           presentation: 'modal',
           ...Platform.select({
@@ -199,7 +199,7 @@ function AuthNavigator() {
       <AuthStack.Screen
         name="PasswordReset"
         component={PasswordResetScreen}
-        options={{ 
+        options={{
           headerShown: false,
           presentation: 'modal',
           ...Platform.select({
@@ -217,7 +217,7 @@ function AppNavigator() {
   const { colors } = useTheme();
 
   const screenOptions = useMemo(() => ({
-    headerStyle: { 
+    headerStyle: {
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.line,
@@ -228,7 +228,7 @@ function AppNavigator() {
       shadowRadius: 4,
     },
     headerTintColor: colors.text,
-    headerTitleStyle: { 
+    headerTitleStyle: {
       color: colors.text,
       fontSize: 18,
       fontWeight: '600' as const,
@@ -253,7 +253,7 @@ function AppNavigator() {
       <Stack.Screen
         name="ProductionDetails"
         component={ProductionDetailsScreen}
-        options={{ 
+        options={{
           title: 'Detalhes da Produção',
           headerBackTitle: 'Voltar',
         }}
@@ -261,7 +261,7 @@ function AppNavigator() {
       <Stack.Screen
         name="TransactionDetails"
         component={TransactionDetailsScreen}
-        options={{ 
+        options={{
           title: 'Detalhes da Movimentação',
           headerBackTitle: 'Voltar',
         }}
@@ -276,7 +276,7 @@ export default function Navigator() {
   const { colors } = useTheme();
 
   const navigationTheme = useMemo(() => ({
-    dark: false,
+    dark: false, // O tema da navegação é sempre light, o nosso ThemeProvider cuida das cores
     colors: {
       primary: colors.primary,
       background: colors.background,
@@ -287,9 +287,9 @@ export default function Navigator() {
     },
   }), [colors]);
 
-  // Show loading state if auth is still loading
+  // Mostra um estado de carregamento se a sessão ainda estiver sendo verificada
   if (loading) {
-    return null; // You could return a splash screen component here
+    return null; // Ou um componente de splash screen
   }
 
   return (

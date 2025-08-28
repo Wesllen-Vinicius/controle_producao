@@ -3,18 +3,18 @@ import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Share,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View
+    Alert,
+    Animated,
+    Platform,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    Share,
+    StatusBar,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View
 } from 'react-native';
 
 import Screen from '../components/Screen';
@@ -24,7 +24,6 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Chip from '../components/ui/Chip';
 import EmptyState from '../components/ui/EmptyState';
-import KPI from '../components/ui/KPI';
 
 import { useHaptics } from '../hooks/useHaptics';
 import { usePerformanceOptimization } from '../hooks/usePerformanceOptimization';
@@ -147,7 +146,7 @@ function Bar({ prodH, metaH, colorProd, colorMeta }: {
   useEffect(() => {
     const prodHeight = Math.max(0, Math.min(200, prodH || 0));
     const metaHeight = Math.max(0, Math.min(200, metaH || 0));
-    
+
     Animated.stagger(60, [
       Animated.spring(a1, {
         toValue: prodHeight,
@@ -294,7 +293,7 @@ const Sheet = React.memo(function Sheet({
   open: boolean; onClose: () => void; title: string; subtitle?: string; children: React.ReactNode;
 }) {
   const { colors, spacing } = useTheme();
-  
+
   return (
     <BottomSheet open={open} onClose={onClose} title={title}>
       {subtitle && (
@@ -336,7 +335,7 @@ const DayRow = React.memo(function DayRow({
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    
+
     if (dateStr === today.toISOString().slice(0, 10)) return 'Hoje';
     if (dateStr === yesterday.toISOString().slice(0, 10)) return 'Ontem';
     return date.toLocaleDateString('pt-BR');
@@ -932,7 +931,7 @@ export default function AdminProductionsReportScreen() {
     const fmtCsv = (n: number | null | undefined, dec = 2) => {
       return String(Number(n ?? 0).toFixed(dec)).replace('.', ',');
     };
-    
+
     const hasFilter = prodFilters.length > 0;
     if (hasFilter) {
       const rows = [
