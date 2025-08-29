@@ -10,7 +10,10 @@ export class AnalyticsService {
 
   private constructor() {
     this.sessionId = this.generateSessionId();
-    this.initializeAnalytics();
+    // Defer initialization to avoid early execution
+    setTimeout(() => {
+      this.initializeAnalytics();
+    }, 0);
   }
 
   static getInstance(): AnalyticsService {
@@ -248,5 +251,6 @@ export class AnalyticsService {
   }
 }
 
-export const analyticsService = AnalyticsService.getInstance();
-export default analyticsService;
+// Lazy loading to avoid early execution
+export const getAnalyticsService = () => AnalyticsService.getInstance();
+export default getAnalyticsService;

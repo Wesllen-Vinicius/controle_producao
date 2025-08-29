@@ -23,7 +23,10 @@ export class LoggingService {
 
   private constructor() {
     this.sessionId = this.generateSessionId();
-    this.initializeLogging();
+    // Defer initialization to avoid early execution
+    setTimeout(() => {
+      this.initializeLogging();
+    }, 0);
   }
 
   static getInstance(): LoggingService {
@@ -301,5 +304,6 @@ export class LoggingService {
   }
 }
 
-export const loggingService = LoggingService.getInstance();
-export default loggingService;
+// Lazy loading to avoid early execution
+export const getLoggingService = () => LoggingService.getInstance();
+export default getLoggingService;

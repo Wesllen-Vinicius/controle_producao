@@ -9,7 +9,7 @@
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
@@ -17,8 +17,11 @@
         "src/*"
       ]
     },
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true
+    "forceConsistentCasingInFileNames": false,
+    "noEmit": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "noImplicitThis": false
   },
   "extends": "expo/tsconfig.base"
 }

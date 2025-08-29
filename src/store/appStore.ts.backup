@@ -1,0 +1,364 @@
+import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+// import { immer } from 'zustand/middleware/immer'; // Commented out as it may not be available
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist, createJSONStorage } from 'zustand/middleware';
+
+// Types
+export interface User {
+  id: string;
+  email: string;
+  role: 'user' | 'admin';
+  profile?: {
+    name?: string;
+    avatar?: string;
+  };
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  unit: string;
+  meta_por_animal?: number;
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message?: string;
+  timestamp: number;
+  read: boolean;
+  action?: {
+    label: string;
+    handler: () => void;
+  };
+}
+
+export interface AppPreferences {
+  theme: 'light' | 'dark' | 'system';
+  language: 'pt' | 'en';
+  hapticFeedback: boolean;
+  pushNotifications: boolean;
+  autoRefresh: boolean;
+  offlineMode: boolean;
+}
+
+export interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+export interface AppState {
+  // Auth
+  user: User | null;
+  isAuthenticated: boolean;
+  
+  // Data Cache
+  products: Product[];
+  productsLastUpdated: number;
+  
+  // UI State
+  notifications: AppNotification[];
+  loading: {
+    products: boolean;
+    transactions: boolean;
+    production: boolean;
+  };
+  
+  // App Preferences
+  preferences: AppPreferences;
+  
+  // Cache Management
+  cache: Map<string, CacheEntry<any>>;
+  
+  // Network State
+  isOnline: boolean;
+  lastSyncTimestamp: number;
+}
+
+export interface AppActions {
+  // Auth Actions
+  setUser: (user: User | null) => void;
+  logout: () => void;
+  
+  // Product Actions
+  setProducts: (products: Product[]) => void;
+  addProduct: (product: Product) => void;
+  updateProduct: (id: string, updates: Partial<Product>) => void;
+  removeProduct: (id: string) => void;
+  
+  // Notification Actions
+  addNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
+  markNotificationRead: (id: string) => void;
+  clearNotification: (id: string) => void;
+  clearAllNotifications: () => void;
+  
+  // Loading States
+  setLoading: (key: keyof AppState['loading'], loading: boolean) => void;
+  
+  // Preferences
+  updatePreferences: (updates: Partial<AppPreferences>) => void;
+  
+  // Cache Management
+  setCache: <T>(key: string, data: T, ttl?: number) => void;
+  getCache: <T>(key: string) => T | null;
+  clearCache: (pattern?: string) => void;
+  
+  // Network State
+  setOnlineStatus: (online: boolean) => void;
+  updateLastSync: () => void;
+  
+  // Utility Actions
+  reset: () => void;
+}
+
+const initialState: AppState = {
+  user: null,
+  isAuthenticated: false,
+  products: [],
+  productsLastUpdated: 0,
+  notifications: [],
+  loading: {
+    products: false,
+    transactions: false,
+    production: false,
+  },
+  preferences: {
+    theme: 'system',
+    language: 'pt',
+    hapticFeedback: true,
+    pushNotifications: true,
+    autoRefresh: true,
+    offlineMode: false,
+  },
+  cache: new Map(),
+  isOnline: true,
+  lastSyncTimestamp: 0,
+};
+
+export const useAppStore = create<AppState & AppActions>()(
+  subscribeWithSelector(
+    persist(
+      (set, get) => ({
+        ...initialState,
+
+        // Auth Actions
+        setUser: (user) =>
+          set((state) => ({
+            ...state,
+            user,
+            isAuthenticated: user !== null,
+          })),
+
+        logout: () =>
+          set((state) => {
+            const newCache = new Map();
+            return {
+              ...state,
+              user: null,
+              isAuthenticated: false,
+              products: [],
+              notifications: [],
+              cache: newCache,
+            };
+          }),
+
+        // Product Actions
+        setProducts: (products) =>
+          set((state) => ({
+            ...state,
+            products,
+            productsLastUpdated: Date.now(),
+          })),
+
+        addProduct: (product) =>
+          set((state) => ({
+            ...state,
+            products: [...state.products, product],
+            productsLastUpdated: Date.now(),
+          })),
+
+        updateProduct: (id, updates) =>
+          set((state) => ({
+            ...state,
+            products: state.products.map((p) => 
+              p.id === id ? { ...p, ...updates } : p
+            ),
+            productsLastUpdated: Date.now(),
+          })),
+
+        removeProduct: (id) =>
+          set((state) => ({
+            ...state,
+            products: state.products.filter((p) => p.id !== id),
+            productsLastUpdated: Date.now(),
+          })),
+
+        // Notification Actions
+        addNotification: (notification) =>
+          set((state) => {
+            const newNotification: AppNotification = {
+              ...notification,
+              id: Date.now().toString() + Math.random().toString(36),
+              timestamp: Date.now(),
+              read: false,
+            };
+            const updatedNotifications = [newNotification, ...state.notifications];
+            
+            return {
+              ...state,
+              notifications: updatedNotifications.length > 50 
+                ? updatedNotifications.slice(0, 50)
+                : updatedNotifications,
+            };
+          }),
+
+        markNotificationRead: (id) =>
+          set((state) => ({
+            ...state,
+            notifications: state.notifications.map((n) =>
+              n.id === id ? { ...n, read: true } : n
+            ),
+          })),
+
+        clearNotification: (id) =>
+          set((state) => ({
+            ...state,
+            notifications: state.notifications.filter((n) => n.id !== id),
+          })),
+
+        clearAllNotifications: () =>
+          set((state) => ({
+            ...state,
+            notifications: [],
+          })),
+
+        // Loading States
+        setLoading: (key, loading) =>
+          set((state) => ({
+            ...state,
+            loading: {
+              ...state.loading,
+              [key]: loading,
+            },
+          })),
+
+        // Preferences
+        updatePreferences: (updates) =>
+          set((state) => ({
+            ...state,
+            preferences: {
+              ...state.preferences,
+              ...updates,
+            },
+          })),
+
+        // Cache Management
+        setCache: (key, data, ttl = 300000) => {
+          const state = get();
+          const newCache = new Map(state.cache);
+          newCache.set(key, {
+            data,
+            timestamp: Date.now(),
+            ttl,
+          });
+          set({ ...state, cache: newCache });
+        },
+
+        getCache: (key) => {
+          const cache = get().cache;
+          const entry = cache.get(key);
+          
+          if (!entry) return null;
+          
+          if (Date.now() - entry.timestamp > entry.ttl) {
+            const state = get();
+            const newCache = new Map(cache);
+            newCache.delete(key);
+            set({ ...state, cache: newCache });
+            return null;
+          }
+          
+          return entry.data;
+        },
+
+        clearCache: (pattern) =>
+          set((state) => {
+            const newCache = new Map(state.cache);
+            if (!pattern) {
+              newCache.clear();
+            } else {
+              const keysToDelete: string[] = [];
+              for (const key of newCache.keys()) {
+                if (key.includes(pattern)) {
+                  keysToDelete.push(key);
+                }
+              }
+              keysToDelete.forEach((key) => newCache.delete(key));
+            }
+            return { ...state, cache: newCache };
+          }),
+
+        // Network State
+        setOnlineStatus: (online) =>
+          set((state) => ({
+            ...state,
+            isOnline: online,
+          })),
+
+        updateLastSync: () =>
+          set((state) => ({
+            ...state,
+            lastSyncTimestamp: Date.now(),
+          })),
+
+        // Utility Actions
+        reset: () =>
+          set(() => ({
+            ...initialState,
+            cache: new Map(),
+          })),
+      })),
+      {
+        name: 'app-store',
+        storage: createJSONStorage(() => AsyncStorage),
+        // Only persist certain parts of the state
+        partialize: (state) => ({
+          user: state.user,
+          isAuthenticated: state.isAuthenticated,
+          preferences: state.preferences,
+          products: state.products,
+          productsLastUpdated: state.productsLastUpdated,
+        }),
+      }
+    )
+  )
+);
+
+// Selectors for better performance
+export const useUser = () => useAppStore((state) => state.user);
+export const useIsAuthenticated = () => useAppStore((state) => state.isAuthenticated);
+export const useProducts = () => useAppStore((state) => state.products);
+export const useNotifications = () => useAppStore((state) => state.notifications);
+export const useUnreadNotifications = () => 
+  useAppStore((state) => state.notifications.filter(n => !n.read));
+export const usePreferences = () => useAppStore((state) => state.preferences);
+export const useLoading = () => useAppStore((state) => state.loading);
+export const useIsOnline = () => useAppStore((state) => state.isOnline);
+
+// Computed selectors
+export const useProductsById = () =>
+  useAppStore((state) => {
+    const map = new Map<string, Product>();
+    state.products.forEach((product) => {
+      map.set(product.id, product);
+    });
+    return map;
+  });
+
+export const useNotificationCount = () =>
+  useAppStore((state) => state.notifications.filter(n => !n.read).length);
+
+export default useAppStore;

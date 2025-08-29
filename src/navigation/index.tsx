@@ -12,7 +12,6 @@ import SignupScreen from '../screens/SignupScreen';
 
 // Telas Principais do App
 import EstoqueScreen from '../screens/Estoque';
-
 import ProducaoScreen from '../screens/Producao';
 import RelatorioScreen from '../screens/Relatorio';
 
