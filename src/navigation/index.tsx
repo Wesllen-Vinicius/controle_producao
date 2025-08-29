@@ -1,194 +1,152 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
-import { useMemo } from 'react';
-import { Platform } from 'react-native';
+import { DefaultTheme, NavigationContainer, RouteProp, Theme } from '@react-navigation/native';
+import { createStackNavigator, StackNavigationOptions, TransitionPresets } from '@react-navigation/stack';
+import React, { useCallback, useMemo } from 'react';
+import { Platform, useColorScheme } from 'react-native'; // <<< 1. IMPORTADO useColorScheme
 
-// Main App Screens
-import EstoqueScreen from '../screens/Estoque'; // <-- CORREÇÃO AQUI
-import PerfilScreen from '../screens/PerfilScreen';
-import ProducaoScreen from '../screens/Producao'; // <-- CORREÇÃO AQUI
-import ProductionDetailsScreen from '../screens/ProductionDetailsScreen';
-import ProductsAdminScreen from '../screens/ProductsAdminScreen';
-import AdminProductionsReportScreen from '../screens/Relatorio';
-import TransactionDetailsScreen from '../screens/TransactionDetailsScreen';
-
-// Authentication Screens
+// Telas de Autenticação
 import LoginScreen from '../screens/Login';
 import PasswordResetScreen from '../screens/PasswordResetScreen';
 import SignupScreen from '../screens/SignupScreen';
 
-// Providers
+// Telas Principais do App
+import EstoqueScreen from '../screens/Estoque';
+
+import ProducaoScreen from '../screens/Producao';
+import RelatorioScreen from '../screens/Relatorio';
+
+// Provedores e Hooks
+import PerfilScreen from '@/screens/Perfil';
+import ProdutosScreen from '@/screens/Produtos';
 import { useAuth } from '../state/AuthProvider';
-import { useTheme } from '../state/ThemeProvider';
+import { ThemeColors, useTheme } from '../state/ThemeProvider';
 
-const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
-const AuthStack = createStackNavigator();
 
-// Icon mapping for better performance
-const TAB_ICONS = {
-  'Produção': 'factory',
-  'Estoque': 'warehouse',
-  'Perfil': 'account-circle',
-  'Admin': 'cog-outline',
-  'Relatórios': 'chart-box-outline',
-} as const;
+// --- Definição de Tipos para Navegação Segura ---
+type AuthStackParamList = {
+  Login: undefined;
+  Signup: undefined;
+  PasswordReset: undefined;
+};
 
-// Enhanced tab bar component with optimized rendering
+type AppTabParamList = {
+  Produção: undefined;
+  Estoque: undefined;
+  Perfil: undefined;
+  Admin: undefined;
+  Relatórios: undefined;
+};
+
+type AppStackParamList = {
+  AppTabs: { screen?: keyof AppTabParamList };
+  // ProductionDetails: { id: string }; // Exemplo
+};
+
+// --- Criação dos Navegadores com Tipagem ---
+const AuthStack = createStackNavigator<AuthStackParamList>();
+const AppStack = createStackNavigator<AppStackParamList>();
+const Tab = createBottomTabNavigator<AppTabParamList>();
+
+// --- Constantes e Configurações Reutilizáveis ---
+const TAB_ICONS: Record<keyof AppTabParamList, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+  Produção: 'factory',
+  Estoque: 'warehouse',
+  Perfil: 'account-circle',
+  Admin: 'cog-outline',
+  Relatórios: 'chart-box-outline',
+};
+
+const createBaseStackOptions = (colors: ThemeColors): StackNavigationOptions => ({
+  headerStyle: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    elevation: 4,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  headerTintColor: colors.text,
+  headerTitleStyle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  headerBackTitleVisible: false,
+  ...TransitionPresets.SlideFromRightIOS,
+});
+
+// --- Componente de Navegação por Abas (Tabs) ---
 function AppTabs() {
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const isAdmin = profile?.role === 'admin';
 
-  const tabBarOptions = useMemo(() => ({
-    headerShown: false,
-    lazy: true,
-    tabBarHideOnKeyboard: Platform.OS === 'android',
-    tabBarStyle: {
-      backgroundColor: colors.surface,
-      borderTopColor: colors.line,
-      borderTopWidth: 1,
-      height: Platform.OS === 'ios' ? 88 : 60,
-      paddingBottom: Platform.OS === 'ios' ? 28 : 6,
-      paddingTop: 6,
-      elevation: 8,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-    },
-    tabBarActiveTintColor: colors.primary,
-    tabBarInactiveTintColor: colors.muted,
-    tabBarLabelStyle: {
-      fontSize: 12,
-      fontWeight: '600' as const,
-      marginTop: 2,
-    },
-    tabBarIconStyle: {
-      marginBottom: -2,
-    },
-  }), [colors]);
-
-  const getTabBarIcon = useMemo(() =>
-    ({ route }: { route: any }) =>
+  const renderTabBarIcon = useCallback(
+    (route: RouteProp<AppTabParamList, keyof AppTabParamList>) =>
       ({ color, size }: { color: string; size: number }) => {
-        const iconName = TAB_ICONS[route.name as keyof typeof TAB_ICONS] || 'dots-horizontal';
-        return (
-          <MaterialCommunityIcons
-            name={iconName as any}
-            color={color}
-            size={size}
-          />
-        );
+        const iconName = TAB_ICONS[route.name] || 'dots-horizontal';
+        return <MaterialCommunityIcons name={iconName} color={color} size={size} />;
       },
     []
   );
 
-  const isAdmin = profile?.role === 'admin';
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        ...tabBarOptions,
-        tabBarIcon: getTabBarIcon({ route }),
+        headerShown: false,
+        tabBarHideOnKeyboard: Platform.OS === 'android',
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.line,
+          borderTopWidth: 1,
+          height: Platform.OS === 'ios' ? 90 : 65,
+          paddingTop: 8,
+          paddingBottom: Platform.OS === 'ios' ? 30 : 8,
+          elevation: 8,
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        tabBarIcon: renderTabBarIcon(route),
       })}
       sceneContainerStyle={{ backgroundColor: colors.background }}
     >
-      <Tab.Screen
-        name="Produção"
-        component={ProducaoScreen}
-        options={{
-          tabBarTestID: 'tab-producao',
-          tabBarAccessibilityLabel: 'Produção',
-        }}
-      />
-      <Tab.Screen
-        name="Estoque"
-        component={EstoqueScreen}
-        options={{
-          tabBarTestID: 'tab-estoque',
-          tabBarAccessibilityLabel: 'Estoque',
-        }}
-      />
-      <Tab.Screen
-        name="Perfil"
-        component={PerfilScreen}
-        options={{
-          tabBarTestID: 'tab-perfil',
-          tabBarAccessibilityLabel: 'Perfil',
-        }}
-      />
+      <Tab.Screen name="Produção" component={ProducaoScreen} />
+      <Tab.Screen name="Estoque" component={EstoqueScreen} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} />
       {isAdmin && (
         <>
-          <Tab.Screen
-            name="Admin"
-            component={ProductsAdminScreen}
-            options={{
-              tabBarTestID: 'tab-admin',
-              tabBarAccessibilityLabel: 'Administração',
-            }}
-          />
-          <Tab.Screen
-            name="Relatórios"
-            component={AdminProductionsReportScreen}
-            options={{
-              tabBarTestID: 'tab-relatorios',
-              tabBarAccessibilityLabel: 'Relatórios',
-            }}
-          />
+          <Tab.Screen name="Admin" component={ProdutosScreen} />
+          <Tab.Screen name="Relatórios" component={RelatorioScreen} />
         </>
       )}
     </Tab.Navigator>
   );
 }
 
-// Authentication Stack with custom transitions
+// --- Componente de Navegação de Autenticação ---
 function AuthNavigator() {
   const { colors } = useTheme();
-
-  const screenOptions = useMemo(() => ({
-    headerStyle: {
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.line,
-      elevation: 4,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    },
-    headerTintColor: colors.text,
-    headerTitleStyle: {
-      color: colors.text,
-      fontSize: 18,
-      fontWeight: '600' as const,
-    },
-    headerBackTitleVisible: false,
-    headerLeftContainerStyle: { paddingLeft: 16 },
-    headerRightContainerStyle: { paddingRight: 16 },
-    // Enhanced transitions for auth flow
-    ...Platform.select({
-      ios: TransitionPresets.SlideFromRightIOS,
-      android: TransitionPresets.SlideFromRightIOS,
-    }),
-  }), [colors]);
+  const baseScreenOptions = useMemo(() => createBaseStackOptions(colors), [colors]);
 
   return (
-    <AuthStack.Navigator screenOptions={screenOptions}>
-      <AuthStack.Screen
-        name="Login"
-        component={LoginScreen}
-        options={{
-          headerShown: false,
-          animationTypeForReplace: 'pop',
-        }}
-      />
+    <AuthStack.Navigator screenOptions={baseScreenOptions}>
+      <AuthStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       <AuthStack.Screen
         name="Signup"
         component={SignupScreen}
         options={{
-          headerShown: false,
+          title: 'Criar Conta',
           presentation: 'modal',
           ...Platform.select({
             ios: TransitionPresets.ModalSlideFromBottomIOS,
@@ -200,7 +158,7 @@ function AuthNavigator() {
         name="PasswordReset"
         component={PasswordResetScreen}
         options={{
-          headerShown: false,
+          title: 'Recuperar Senha',
           presentation: 'modal',
           ...Platform.select({
             ios: TransitionPresets.ModalSlideFromBottomIOS,
@@ -212,84 +170,50 @@ function AuthNavigator() {
   );
 }
 
-// Main App Stack with optimized transitions
+// --- Componente de Navegação Principal do App (Pós-Login) ---
 function AppNavigator() {
   const { colors } = useTheme();
-
-  const screenOptions = useMemo(() => ({
-    headerStyle: {
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.line,
-      elevation: 4,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    },
-    headerTintColor: colors.text,
-    headerTitleStyle: {
-      color: colors.text,
-      fontSize: 18,
-      fontWeight: '600' as const,
-    },
-    headerBackTitleVisible: false,
-    headerLeftContainerStyle: { paddingLeft: 16 },
-    headerRightContainerStyle: { paddingRight: 16 },
-    // Smooth transitions for app screens
-    ...Platform.select({
-      ios: TransitionPresets.SlideFromRightIOS,
-      android: TransitionPresets.SlideFromRightIOS,
-    }),
-  }), [colors]);
+  const baseScreenOptions = useMemo(() => createBaseStackOptions(colors), [colors]);
 
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen
-        name="AppTabs"
-        component={AppTabs}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="ProductionDetails"
-        component={ProductionDetailsScreen}
-        options={{
-          title: 'Detalhes da Produção',
-          headerBackTitle: 'Voltar',
-        }}
-      />
-      <Stack.Screen
-        name="TransactionDetails"
-        component={TransactionDetailsScreen}
-        options={{
-          title: 'Detalhes da Movimentação',
-          headerBackTitle: 'Voltar',
-        }}
-      />
-    </Stack.Navigator>
+    <AppStack.Navigator screenOptions={baseScreenOptions}>
+      <AppStack.Screen name="AppTabs" component={AppTabs} options={{ headerShown: false }} />
+      {/*
+        <AppStack.Screen
+          name="ProductionDetails"
+          component={ProductionDetailsScreen}
+          options={{ title: 'Detalhes da Produção' }}
+        />
+      */}
+    </AppStack.Navigator>
   );
 }
 
-// Main Navigation Container
+// --- Componente Raiz da Navegação ---
 export default function Navigator() {
   const { session, loading } = useAuth();
-  const { colors } = useTheme();
+  const { colors } = useTheme(); // <<< 2. REMOVIDA a propriedade 'theme'
+  const colorScheme = useColorScheme(); // <<< 3. USADO o hook do React Native
 
-  const navigationTheme = useMemo(() => ({
-    dark: false, // O tema da navegação é sempre light, o nosso ThemeProvider cuida das cores
-    colors: {
-      primary: colors.primary,
-      background: colors.background,
-      card: colors.surface,
-      text: colors.text,
-      border: colors.line,
-      notification: colors.primary,
-    },
-  }), [colors]);
+  const navigationTheme: Theme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      dark: colorScheme === 'dark', // <<< 4. CONDIÇÃO agora usa o 'colorScheme'
+      colors: {
+        ...DefaultTheme.colors,
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.text,
+        border: colors.line,
+        notification: colors.primary,
+      },
+    }),
+    [colors, colorScheme] // <<< 5. ATUALIZADA a dependência do useMemo
+  );
 
-  // Mostra um estado de carregamento se a sessão ainda estiver sendo verificada
   if (loading) {
-    return null; // Ou um componente de splash screen
+    return null; // Idealmente, uma tela de Splash
   }
 
   return (

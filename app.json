@@ -42,20 +42,16 @@
     "extra": {
       "eas": {
         "developer": "Wesllen Lima",
-        "supportEmail": "wesllenvinicius09@gmail.com",
+        "supportEmail": "",
         "privacyUrl": "https://seu.site/politica",
         "termsUrl": "https://seu.site/termos",
         "rateUrl": "https://play.google.com/store/apps/details?id=seu.app",
-        "whatsappUrl": "https://wa.me/5569993645301",
+        "whatsappUrl": "https://wa.me/",
         "resetRedirectUrl": "https://seu.app/reset",
         "projectId": "feff1883-7930-4dcf-ab43-b599bc9e5bab"
       }
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "plugins": [
-      "expo-font"
-    ]
+    "assetBundlePatterns": ["**/*"],
+    "plugins": ["expo-font"]
   }
 }
