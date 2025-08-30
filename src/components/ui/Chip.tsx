@@ -60,7 +60,7 @@ export default function Chip({
   const palette = useMemo(() => {
     if (active) {
       return {
-        bg: colors.primaryDim,           // tonal do tema
+        bg: colors.primaryDim, // tonal do tema
         border: colors.primary,
         text: colors.primary,
       };
@@ -73,7 +73,11 @@ export default function Chip({
   }, [active, colors]);
 
   const pressedIn = () => {
-    Animated.timing(scale, { toValue: onPress ? 0.98 : 1, duration: 90, useNativeDriver: true }).start();
+    Animated.timing(scale, {
+      toValue: onPress ? 0.98 : 1,
+      duration: 90,
+      useNativeDriver: true,
+    }).start();
   };
   const pressedOut = () => {
     Animated.timing(scale, { toValue: 1, duration: 140, useNativeDriver: true }).start();
@@ -129,20 +133,20 @@ export default function Chip({
           },
         ]}
       >
-        {leftIcon ? <View style={{ width: dims.iconSize, alignItems: 'center' }}>{leftIcon}</View> : null}
+        {leftIcon ? (
+          <View style={{ width: dims.iconSize, alignItems: 'center' }}>{leftIcon}</View>
+        ) : null}
 
         <Text
-          style={[
-            styles.text,
-            { color: palette.text, fontSize: dims.textSize },
-            textStyle,
-          ]}
+          style={[styles.text, { color: palette.text, fontSize: dims.textSize }, textStyle]}
           numberOfLines={1}
         >
           {label}
         </Text>
 
-        {rightIcon ? <View style={{ width: dims.iconSize, alignItems: 'center' }}>{rightIcon}</View> : null}
+        {rightIcon ? (
+          <View style={{ width: dims.iconSize, alignItems: 'center' }}>{rightIcon}</View>
+        ) : null}
         <Remove />
       </Animated.View>
     </Pressable>

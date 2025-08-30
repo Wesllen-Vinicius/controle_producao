@@ -53,13 +53,11 @@ export default function Button({
 
   const intentPalette = useMemo(() => {
     const tone =
-      intent === 'danger' ? colors.danger :
-      intent === 'success' ? colors.success :
-      colors.primary;
+      intent === 'danger' ? colors.danger : intent === 'success' ? colors.success : colors.primary;
     return {
       tone,
       toneDim: `${tone}33`, // 20% alpha
-      onTone: '#FFFFFF',     // texto em contraste
+      onTone: '#FFFFFF', // texto em contraste
     };
   }, [intent, colors]);
 
@@ -147,18 +145,18 @@ export default function Button({
 
   const content = (
     <>
-      {leftIcon ? <View style={{ width: dims.iconSize, alignItems: 'center' }}>{leftIcon}</View> : null}
+      {leftIcon ? (
+        <View style={{ width: dims.iconSize, alignItems: 'center' }}>{leftIcon}</View>
+      ) : null}
       <Text
-        style={[
-          styles.text,
-          { color: palette.textColor, fontSize: dims.textSize },
-          textStyle,
-        ]}
+        style={[styles.text, { color: palette.textColor, fontSize: dims.textSize }, textStyle]}
         numberOfLines={1}
       >
         {title}
       </Text>
-      {rightIcon ? <View style={{ width: dims.iconSize, alignItems: 'center' }}>{rightIcon}</View> : null}
+      {rightIcon ? (
+        <View style={{ width: dims.iconSize, alignItems: 'center' }}>{rightIcon}</View>
+      ) : null}
       {loading ? (
         <View style={{ position: 'absolute', right: dims.padH / 1.5 }}>
           <ActivityIndicator size="small" color={palette.textColor} />
@@ -177,12 +175,14 @@ export default function Button({
       onPressOut={pressedOut}
       android_ripple={
         variant === 'text'
-          ? { color: `${(intentPalette.tone || '#000')}22`, borderless: false }
+          ? { color: `${intentPalette.tone || '#000'}22`, borderless: false }
           : { color: `${'#000'}14`, borderless: false }
       }
       style={({ pressed }) => [
         { opacity: pressed && variant !== 'text' ? 1 : 1 },
-        pressed && variant === 'text' ? { backgroundColor: `${intentPalette.tone}12`, borderRadius: radius.md } : null,
+        pressed && variant === 'text'
+          ? { backgroundColor: `${intentPalette.tone}12`, borderRadius: radius.md }
+          : null,
       ]}
       hitSlop={8}
       testID={testID}

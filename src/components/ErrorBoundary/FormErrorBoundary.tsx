@@ -11,16 +11,12 @@ interface FormErrorBoundaryProps {
 }
 
 export class FormErrorBoundary extends BaseErrorBoundary {
-  constructor(props: FormErrorBoundaryProps) {
-    super(props);
-  }
-
   render() {
     if (this.state.hasError && this.state.error) {
       const props = this.props as FormErrorBoundaryProps;
-      
+
       return (
-        <FormErrorFallback 
+        <FormErrorFallback
           error={this.state.error}
           formName={props.formName}
           onReset={() => {
@@ -35,34 +31,35 @@ export class FormErrorBoundary extends BaseErrorBoundary {
   }
 }
 
-function FormErrorFallback({ 
-  error, 
-  formName, 
-  onReset 
-}: { 
-  error: Error; 
-  formName?: string; 
-  onReset: () => void; 
+function FormErrorFallback({
+  error,
+  formName,
+  onReset,
+}: {
+  error: Error;
+  formName?: string;
+  onReset: () => void;
 }) {
   const { colors, spacing, typography } = useTheme();
 
-  const isValidationError = error.message.includes('validation') || 
-                           error.message.includes('required') ||
-                           error.message.includes('invalid');
+  const isValidationError =
+    error.message.includes('validation') ||
+    error.message.includes('required') ||
+    error.message.includes('invalid');
 
   return (
-    <View style={{
-      padding: spacing.lg,
-      backgroundColor: colors.dangerBackground,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.danger,
-    }}>
+    <View
+      style={{
+        padding: spacing.lg,
+        backgroundColor: colors.dangerBackground,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: colors.danger,
+      }}
+    >
       <View style={{ alignItems: 'center', gap: spacing.md }}>
-        <Text style={{ fontSize: 24 }}>
-          {isValidationError ? '⚠️' : '💔'}
-        </Text>
-        
+        <Text style={{ fontSize: 24 }}>{isValidationError ? '⚠️' : '💔'}</Text>
+
         <View style={{ alignItems: 'center', gap: spacing.xs }}>
           <Text style={[typography.h2, { color: colors.danger, textAlign: 'center' }]}>
             {isValidationError ? 'Erro de Validação' : 'Erro no Formulário'}
@@ -74,26 +71,24 @@ function FormErrorFallback({
           )}
         </View>
 
-        <Text style={[typography.body, { 
-          color: colors.text, 
-          textAlign: 'center',
-          backgroundColor: colors.surface,
-          padding: spacing.sm,
-          borderRadius: 4,
-        }]}>
-          {isValidationError 
+        <Text
+          style={[
+            typography.body,
+            {
+              color: colors.text,
+              textAlign: 'center',
+              backgroundColor: colors.surface,
+              padding: spacing.sm,
+              borderRadius: 4,
+            },
+          ]}
+        >
+          {isValidationError
             ? 'Verifique os campos e tente novamente.'
-            : 'Ocorreu um problema inesperado com o formulário.'
-          }
+            : 'Ocorreu um problema inesperado com o formulário.'}
         </Text>
 
-        <Button
-          title="Tentar Novamente"
-          onPress={onReset}
-          intent="danger"
-          variant="tonal"
-          small
-        />
+        <Button title="Tentar Novamente" onPress={onReset} intent="danger" variant="tonal" small />
       </View>
     </View>
   );

@@ -31,6 +31,7 @@ type Props = Omit<TextInputProps, 'onChange' | 'onChangeText' | 'style'> & {
   labelStyle?: StyleProp<TextStyle>;
   onValueNumber?: (num: number | null) => void;
   onChangeText?: (text: string) => void;
+  disabled?: boolean;
 };
 
 function normalizeInteger(text: string, allowNegative?: boolean) {
@@ -46,31 +47,31 @@ function normalizeInteger(text: string, allowNegative?: boolean) {
 function normalizeDecimal(text: string, decimals: number, allowNegative?: boolean) {
   // Primeiro, permitir tanto vírgula quanto ponto durante a digitação
   let t = text.replace(new RegExp(`[^0-9\\.,${allowNegative ? '-' : ''}]`, 'g'), '');
-  
+
   // Converter vírgulas para pontos para processamento interno
   t = t.replace(/,/g, '.');
-  
+
   // Remover pontos/vírgulas extras, mantendo apenas o primeiro
   const parts = t.split('.');
   if (parts.length > 2) t = parts[0] + '.' + parts.slice(1).join('');
-  
+
   // Tratar sinais negativos
-  if (!allowNegative) t = t.replace(/-/g, ''); 
+  if (!allowNegative) t = t.replace(/-/g, '');
   else t = t.replace(/(?!^)-/g, '');
-  
+
   // Limitar casas decimais
   const [intPart, decPart = ''] = t.split('.');
   const limited = decPart.slice(0, Math.max(0, decimals));
   t = limited.length ? `${intPart}.${limited}` : intPart;
-  
+
   // Normalizar zeros à esquerda
   if (t.startsWith('00')) t = t.replace(/^0+/, '0');
-  
+
   // Casos especiais
   if (t === '-') return t;
   if (t === '.') return '0.';
   if (t === '-.') return '-0.';
-  
+
   return t;
 }
 
@@ -137,9 +138,7 @@ const Input = forwardRef<TextInput, Props>(function Input(
   return (
     <View style={[full && { alignSelf: 'stretch' }, containerStyle]}>
       {label ? (
-        <Text style={[typography.label, { marginBottom: 6 }, labelStyle]}>
-          {label}
-        </Text>
+        <Text style={[typography.label, { marginBottom: 6 }, labelStyle]}>{label}</Text>
       ) : null}
 
       <Pressable
@@ -155,13 +154,15 @@ const Input = forwardRef<TextInput, Props>(function Input(
           },
         ]}
       >
-        {leftIcon ? <View style={[styles.icon, { marginLeft: spacing.md }]}>{leftIcon}</View> : null}
+        {leftIcon ? (
+          <View style={[styles.icon, { marginLeft: spacing.md }]}>{leftIcon}</View>
+        ) : null}
 
         <TextInput
-          ref={(node) => {
-            if (typeof ref === 'function') ref(node as any);
-            else if (ref) (ref as any).current = node;
-            (inputRef as any).current = node;
+          ref={node => {
+            if (typeof ref === 'function') ref(node as TextInput | null);
+            else if (ref) (ref as React.MutableRefObject<TextInput | null>).current = node;
+            inputRef.current = node;
           }}
           value={value}
           onChangeText={handleChange}

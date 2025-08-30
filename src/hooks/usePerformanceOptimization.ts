@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { InteractionManager, AppState } from 'react-native';
+import { InteractionManager, AppState, AppStateStatus } from 'react-native';
+import { getLoggingService } from '../services/loggingService';
 
 // Hook para otimização de performance avançada
 export function usePerformanceOptimization() {
@@ -12,7 +13,7 @@ export function usePerformanceOptimization() {
       interactionCompleteRef.current = true;
     });
 
-    const handleAppStateChange = (nextAppState: string) => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
       appStateRef.current = nextAppState;
     };
 
@@ -44,28 +45,30 @@ export function usePerformanceOptimization() {
 }
 
 // Hook para throttling de funções
-export function useThrottle<T extends (...args: any[]) => any>(
-  func: T,
-  delay: number
-): T {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+export function useThrottle<T extends (...args: unknown[]) => unknown>(func: T, delay: number): T {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRunRef = useRef<number>(0);
 
-  const throttledFunc = useCallback((...args: any[]) => {
-    const now = Date.now();
-    const timeSinceLastRun = now - lastRunRef.current;
+  const throttledFunc = useCallback(
+    (...args: unknown[]) => {
+      const now = Date.now();
+      const timeSinceLastRun = now - lastRunRef.current;
 
-    if (timeSinceLastRun >= delay) {
-      func(...args);
-      lastRunRef.current = now;
-    } else {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
+      if (timeSinceLastRun >= delay) {
         func(...args);
-        lastRunRef.current = Date.now();
-      }, delay - timeSinceLastRun);
-    }
-  }, [func, delay]) as T;
+        lastRunRef.current = now;
+      } else {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = setTimeout(() => {
+          func(...args);
+          lastRunRef.current = Date.now();
+        }, delay - timeSinceLastRun);
+      }
+    },
+    [func, delay]
+  ) as T;
 
   useEffect(() => {
     return () => {
@@ -79,33 +82,32 @@ export function useThrottle<T extends (...args: any[]) => any>(
 }
 
 // Hook para batching de updates
-export function useBatchedUpdates<T>(
-  initialValue: T,
-  batchDelay: number = 16
-) {
+export function useBatchedUpdates<T>(initialValue: T, batchDelay: number = 16) {
   const valueRef = useRef<T>(initialValue);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbacksRef = useRef<Set<(value: T) => void>>(new Set());
 
-  const setValue = useCallback((newValue: T | ((prev: T) => T)) => {
-    const value = typeof newValue === 'function' 
-      ? (newValue as (prev: T) => T)(valueRef.current)
-      : newValue;
-    
-    valueRef.current = value;
+  const setValue = useCallback(
+    (newValue: T | ((prev: T) => T)) => {
+      const value =
+        typeof newValue === 'function' ? (newValue as (prev: T) => T)(valueRef.current) : newValue;
 
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+      valueRef.current = value;
 
-    timeoutRef.current = setTimeout(() => {
-      callbacksRef.current.forEach(callback => callback(valueRef.current));
-    }, batchDelay);
-  }, [batchDelay]);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        callbacksRef.current.forEach(callback => callback(valueRef.current));
+      }, batchDelay);
+    },
+    [batchDelay]
+  );
 
   const subscribe = useCallback((callback: (value: T) => void) => {
     callbacksRef.current.add(callback);
-    
+
     return () => {
       callbacksRef.current.delete(callback);
     };
@@ -123,10 +125,7 @@ export function useBatchedUpdates<T>(
 }
 
 // Hook para lazy loading de componentes
-export function useLazyComponent<T>(
-  loader: () => Promise<T>,
-  deps: any[] = []
-) {
+export function useLazyComponent<T>(loader: () => Promise<T>, deps: unknown[] = []) {
   const componentRef = useRef<T | null>(null);
   const loadingRef = useRef<boolean>(false);
   const errorRef = useRef<Error | null>(null);
@@ -143,13 +142,14 @@ export function useLazyComponent<T>(
       const component = await loader();
       componentRef.current = component;
       return component;
-    } catch (error) {
-      errorRef.current = error as Error;
+    } catch (error: unknown) {
+      errorRef.current = error instanceof Error ? error : new Error('Unknown error');
       throw error;
     } finally {
       loadingRef.current = false;
     }
-  }, deps);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loader, ...deps]);
 
   return {
     component: componentRef.current,
@@ -165,7 +165,7 @@ export function useMemoryOptimization() {
 
   const addCleanupFunction = useCallback((cleanup: () => void) => {
     cleanupFunctionsRef.current.add(cleanup);
-    
+
     return () => {
       cleanupFunctionsRef.current.delete(cleanup);
     };
@@ -176,7 +176,7 @@ export function useMemoryOptimization() {
       try {
         cleanup();
       } catch (error) {
-        console.warn('Cleanup function failed:', error);
+        getLoggingService().warn('Cleanup function failed', 'usePerformanceOptimization', error);
       }
     });
     cleanupFunctionsRef.current.clear();
@@ -184,7 +184,10 @@ export function useMemoryOptimization() {
 
   useEffect(() => {
     const handleMemoryWarning = () => {
-      console.log('Memory warning received, running cleanup...');
+      getLoggingService().info(
+        'Memory warning received, running cleanup',
+        'usePerformanceOptimization'
+      );
       forceCleanup();
     };
 

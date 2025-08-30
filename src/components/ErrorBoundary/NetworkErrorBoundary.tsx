@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Alert } from 'react-native';
 import Button from '../ui/Button';
 import { useTheme } from '../../state/ThemeProvider';
-import { BaseErrorBoundary, ErrorBoundaryState } from './BaseErrorBoundary';
+import { BaseErrorBoundary } from './BaseErrorBoundary';
 
 interface NetworkErrorBoundaryProps {
   children: React.ReactNode;
@@ -20,16 +20,12 @@ export class NetworkErrorBoundary extends BaseErrorBoundary {
       'offline',
       'unreachable',
       'ENOTFOUND',
-      'ECONNREFUSED'
+      'ECONNREFUSED',
     ];
-    
-    return networkKeywords.some(keyword => 
+
+    return networkKeywords.some(keyword =>
       error.message.toLowerCase().includes(keyword.toLowerCase())
     );
-  }
-
-  constructor(props: NetworkErrorBoundaryProps) {
-    super(props);
   }
 
   render() {
@@ -40,7 +36,7 @@ export class NetworkErrorBoundary extends BaseErrorBoundary {
       }
 
       const props = this.props as NetworkErrorBoundaryProps;
-      
+
       if (props.fallbackComponent) {
         const FallbackComponent = props.fallbackComponent;
         return <FallbackComponent error={this.state.error} retry={this.handleRetry} />;
@@ -84,20 +80,24 @@ function DefaultNetworkErrorFallback({ error, onRetry }: { error: Error; onRetry
   };
 
   return (
-    <View style={{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: spacing.xl,
-      backgroundColor: colors.background,
-    }}>
-      <View style={{
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
-        maxWidth: 300,
-        gap: spacing.lg,
-      }}>
+        padding: spacing.xl,
+        backgroundColor: colors.background,
+      }}
+    >
+      <View
+        style={{
+          alignItems: 'center',
+          maxWidth: 300,
+          gap: spacing.lg,
+        }}
+      >
         <Text style={{ fontSize: 48 }}>🌐</Text>
-        
+
         <View style={{ alignItems: 'center', gap: spacing.sm }}>
           <Text style={[typography.h2, { textAlign: 'center', color: colors.text }]}>
             Problema de Conexão
@@ -108,18 +108,9 @@ function DefaultNetworkErrorFallback({ error, onRetry }: { error: Error; onRetry
         </View>
 
         <View style={{ gap: spacing.md, width: '100%' }}>
-          <Button
-            title="Tentar Novamente"
-            onPress={onRetry}
-            full
-          />
-          
-          <Button
-            title="Ver Detalhes"
-            variant="text"
-            onPress={showDiagnostics}
-            full
-          />
+          <Button title="Tentar Novamente" onPress={onRetry} full />
+
+          <Button title="Ver Detalhes" variant="text" onPress={showDiagnostics} full />
         </View>
       </View>
     </View>

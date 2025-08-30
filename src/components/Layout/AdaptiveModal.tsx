@@ -1,5 +1,12 @@
 import React from 'react';
-import { Modal, View, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  Modal,
+  View,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  DimensionValue,
+} from 'react-native';
 import { useResponsive } from '../../utils/responsive';
 import { useTheme } from '../../state/ThemeProvider';
 
@@ -36,23 +43,25 @@ export default function AdaptiveModal({
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={{
-            flex: 1,
-            backgroundColor: colors.background,
-          }}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: colors.background,
+            }}
+          >
             {title && (
-              <View style={{
-                paddingHorizontal: spacing.lg,
-                paddingVertical: spacing.md,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.line,
-              }}>
+              <View
+                style={{
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.md,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.line,
+                }}
+              >
                 {title}
               </View>
             )}
-            <View style={{ flex: 1 }}>
-              {children}
-            </View>
+            <View style={{ flex: 1 }}>{children}</View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -61,12 +70,7 @@ export default function AdaptiveModal({
 
   // Modal centrado para tablets
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      statusBarTranslucent
-    >
+    <Modal visible={visible} animationType="fade" transparent statusBarTranslucent>
       <Pressable
         style={{
           flex: 1,
@@ -79,8 +83,8 @@ export default function AdaptiveModal({
       >
         <Pressable
           style={{
-            width: modalWidth,
-            maxHeight: '90%',
+            width: modalWidth as DimensionValue,
+            maxHeight: '90%' as DimensionValue,
             backgroundColor: colors.surface,
             borderRadius: radius.lg,
             shadowColor: colors.shadow,
@@ -91,24 +95,26 @@ export default function AdaptiveModal({
           }}
           onPress={() => {}} // Prevent close on content tap
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             {title && (
-              <View style={{
-                paddingHorizontal: spacing.lg,
-                paddingVertical: spacing.md,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.line,
-                borderTopLeftRadius: radius.lg,
-                borderTopRightRadius: radius.lg,
-              }}>
+              <View
+                style={{
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.md,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.line,
+                  borderTopLeftRadius: radius.lg,
+                  borderTopRightRadius: radius.lg,
+                }}
+              >
                 {title}
               </View>
             )}
-            <View style={{
-              maxHeight: title ? '85%' : '100%',
-            }}>
+            <View
+              style={{
+                maxHeight: title ? '85%' : '100%',
+              }}
+            >
               {children}
             </View>
           </KeyboardAvoidingView>

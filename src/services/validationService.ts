@@ -1,4 +1,10 @@
-import { ValidationResult, TransactionFormData, ProductFormData, Unit, TransactionType } from '../types';
+import {
+  ProductFormData,
+  TransactionFormData,
+  TransactionType,
+  Unit,
+  ValidationResult,
+} from '../types';
 
 export class ValidationService {
   private static instance: ValidationService;
@@ -19,7 +25,7 @@ export class ValidationService {
   }
 
   isValidPassword(password: string): boolean {
-    return password && password.length >= 6 && password.length <= 128;
+    return !!(password && password.length >= 6 && password.length <= 128);
   }
 
   isValidString(value: string, minLength = 1, maxLength = 255): boolean {
@@ -68,7 +74,7 @@ export class ValidationService {
   // Validações de negócio
   validateProductName(name: string): ValidationResult {
     const errors: string[] = [];
-    
+
     if (!name?.trim()) {
       errors.push('Nome do produto é obrigatório');
     } else {
@@ -128,8 +134,9 @@ export class ValidationService {
 
   validateCustomerName(name: string): ValidationResult {
     const errors: string[] = [];
-    
-    if (name && name.trim()) {
+
+    // CORRIGIDO: 'name && name.trim()' substituído por 'name?.trim()'
+    if (name?.trim()) {
       const trimmed = name.trim();
       if (trimmed.length > 100) {
         errors.push('Nome do cliente não pode ter mais de 100 caracteres');
@@ -144,11 +151,11 @@ export class ValidationService {
 
   validateDateRange(dateFrom: string, dateTo: string): ValidationResult {
     const errors: string[] = [];
-    
+
     if (!this.isValidDate(dateFrom)) {
       errors.push('Data inicial inválida');
     }
-    
+
     if (!this.isValidDate(dateTo)) {
       errors.push('Data final inválida');
     }
@@ -156,19 +163,18 @@ export class ValidationService {
     if (errors.length === 0) {
       const from = new Date(dateFrom);
       const to = new Date(dateTo);
-      
+
       if (from > to) {
         errors.push('Data inicial deve ser anterior à data final');
       }
-      
+
       const today = new Date();
       today.setHours(23, 59, 59, 999);
-      
+
       if (to > today) {
         errors.push('Data final não pode ser futura');
       }
 
-      // Verificar se o período não é muito longo (> 1 ano)
       const oneYear = 365 * 24 * 60 * 60 * 1000;
       if (to.getTime() - from.getTime() > oneYear) {
         errors.push('Período muito longo (máximo: 1 ano)');
@@ -226,12 +232,18 @@ export class ValidationService {
   }
 
   // Validação de saldo negativo
-  validateNegativeStock(currentStock: number, requestedQuantity: number, allowNegative = false): ValidationResult {
+  validateNegativeStock(
+    currentStock: number,
+    requestedQuantity: number,
+    allowNegative = false
+  ): ValidationResult {
     const errors: string[] = [];
     const resultingStock = currentStock - requestedQuantity;
 
     if (!allowNegative && resultingStock < 0) {
-      errors.push(`Saldo insuficiente. Saldo atual: ${currentStock.toFixed(3)}, Solicitado: ${requestedQuantity.toFixed(3)}`);
+      errors.push(
+        `Saldo insuficiente. Saldo atual: ${currentStock.toFixed(3)}, Solicitado: ${requestedQuantity.toFixed(3)}`
+      );
     }
 
     return { isValid: errors.length === 0, errors };
@@ -240,10 +252,9 @@ export class ValidationService {
   // Validações de segurança
   validateUserInput(input: string, allowedChars?: RegExp): ValidationResult {
     const errors: string[] = [];
-    
+
     if (!input) return { isValid: true, errors };
 
-    // Verificar caracteres maliciosos
     const dangerousPatterns = [
       /<script/i,
       /javascript:/i,
@@ -251,7 +262,7 @@ export class ValidationService {
       /<iframe/i,
       /eval\(/i,
       /document\./i,
-      /window\./i
+      /window\./i,
     ];
 
     const hasDangerousContent = dangerousPatterns.some(pattern => pattern.test(input));
@@ -267,9 +278,9 @@ export class ValidationService {
   }
 
   // Utilitário para validar múltiplos campos
-  validateFields(validations: Array<() => ValidationResult>): ValidationResult {
+  validateFields(validations: (() => ValidationResult)[]): ValidationResult {
     const allErrors: string[] = [];
-    
+
     for (const validation of validations) {
       const result = validation();
       if (!result.isValid) {

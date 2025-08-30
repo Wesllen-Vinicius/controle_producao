@@ -8,7 +8,9 @@ import Button from '@/components/ui/Button';
 import Card from '../../../components/ui/Card';
 import Chip from '../../../components/ui/Chip';
 import Input, { InputNumber } from '../../../components/ui/Input';
+import ErrorFeedback from '../../../components/ErrorFeedback';
 import { useTheme } from '../../../state/ThemeProvider';
+import { UserProfile } from '../../../types/api';
 import { Balance, Product, Transaction, TransactionType } from '../types';
 import { formatQuantity, isUnitType } from '../utils';
 
@@ -21,7 +23,10 @@ interface FormState {
 }
 
 const INITIAL_FORM_STATE: FormState = {
-  qty: '', customer: '', observation: '', justification: '',
+  qty: '',
+  customer: '',
+  observation: '',
+  justification: '',
 };
 
 // --- Tipos para as Props dos Subcomponentes ---
@@ -61,6 +66,7 @@ const Section = memo(({ title, children }: { title: string; children: React.Reac
     </View>
   );
 });
+Section.displayName = 'Section';
 
 // --- Subcomponentes Memoizados e Tipados ---
 const ProductSelector = memo(({ products, selectedId, onSelect }: ProductSelectorProps) => (
@@ -71,131 +77,237 @@ const ProductSelector = memo(({ products, selectedId, onSelect }: ProductSelecto
     showsHorizontalScrollIndicator={false}
     contentContainerStyle={styles.chipContainer}
     renderItem={({ item }) => (
-      <Chip label={`${item.name} (${item.unit})`} active={selectedId === item.id} onPress={() => onSelect(item.id)} />
+      <Chip
+        label={`${item.name} (${item.unit})`}
+        active={selectedId === item.id}
+        onPress={() => onSelect(item.id)}
+      />
     )}
   />
 ));
+ProductSelector.displayName = 'ProductSelector';
 
-const TransactionTypeSelector = memo(({ options, selectedType, onSelect }: TransactionTypeSelectorProps) => {
-  const { colors, typography, radius } = useTheme();
-  return (
-    <View style={styles.txTypeContainer}>
-      {options.map((option: TxTypeOption) => {
-        const isActive = selectedType === option.id;
-        return (
-          <Pressable
-            key={option.id}
-            onPress={() => onSelect(option.id)}
-            style={[styles.txTypeButton, {
-              borderColor: isActive ? option.color : colors.line,
-              backgroundColor: isActive ? colors.surfaceAlt : colors.surface,
-            }]}
-          >
-            <View style={styles.txTypeButtonContent}>
-              <MaterialCommunityIcons name={option.icon} size={20} color={isActive ? option.color : colors.muted} />
-              <View style={styles.txTypeInfo}>
-                <Text style={{ ...typography.body, fontWeight: '600', color: isActive ? option.color : colors.text }}>{option.label}</Text>
-                <Text style={[typography.body, styles.txTypeDescription, { color: colors.muted }]}>{option.description}</Text>
+const TransactionTypeSelector = memo(
+  ({ options, selectedType, onSelect }: TransactionTypeSelectorProps) => {
+    const { colors, typography } = useTheme();
+    return (
+      <View style={styles.txTypeContainer}>
+        {options.map((option: TxTypeOption) => {
+          const isActive = selectedType === option.id;
+          return (
+            <Pressable
+              key={option.id}
+              onPress={() => onSelect(option.id)}
+              style={[
+                styles.txTypeButton,
+                {
+                  borderColor: isActive ? option.color : colors.line,
+                  backgroundColor: isActive ? colors.surfaceAlt : colors.surface,
+                },
+              ]}
+            >
+              <View style={styles.txTypeButtonContent}>
+                <MaterialCommunityIcons
+                  name={option.icon}
+                  size={20}
+                  color={isActive ? option.color : colors.muted}
+                />
+                <View style={styles.txTypeInfo}>
+                  <Text
+                    style={{
+                      ...typography.body,
+                      fontWeight: '600',
+                      color: isActive ? option.color : colors.text,
+                    }}
+                  >
+                    {option.label}
+                  </Text>
+                  <Text
+                    style={[typography.body, styles.txTypeDescription, { color: colors.muted }]}
+                  >
+                    {option.description}
+                  </Text>
+                </View>
               </View>
-            </View>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-});
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
+);
+TransactionTypeSelector.displayName = 'TransactionTypeSelector';
 
 const BalancePreview = memo(({ product, current, projected }: BalancePreviewProps) => {
   const { colors, typography } = useTheme();
   const hasNegativeProjection = projected < 0;
   return (
-    <Card style={{
-      backgroundColor: colors.surfaceAlt,
-      borderColor: hasNegativeProjection ? colors.danger : colors.success,
-      borderWidth: 1
-    }}>
-      <Text style={[typography.label, styles.balanceTitle, { color: colors.text }]}>Previsão de Saldo</Text>
+    <Card
+      style={{
+        backgroundColor: colors.surfaceAlt,
+        borderColor: hasNegativeProjection ? colors.danger : colors.success,
+        borderWidth: 1,
+      }}
+    >
+      <Text style={[typography.label, styles.balanceTitle, { color: colors.text }]}>
+        Previsão de Saldo
+      </Text>
       <View style={styles.balanceRow}>
         <View style={styles.balanceItem}>
-          <Text style={[typography.label, styles.balanceLabel, { color: colors.muted }]}>ATUAL</Text>
-          <Text style={[typography.h2, styles.balanceValue, { color: current < 0 ? colors.danger : colors.text }]}>{formatQuantity(product?.unit, current)}</Text>
+          <Text style={[typography.label, styles.balanceLabel, { color: colors.muted }]}>
+            ATUAL
+          </Text>
+          <Text
+            style={[
+              typography.h2,
+              styles.balanceValue,
+              { color: current < 0 ? colors.danger : colors.text },
+            ]}
+          >
+            {formatQuantity(product?.unit, current)}
+          </Text>
         </View>
         <MaterialCommunityIcons name="arrow-right" size={20} color={colors.muted} />
         <View style={styles.balanceItem}>
-          <Text style={[typography.label, styles.balanceLabel, { color: colors.muted }]}>PREVISTO</Text>
-          <Text style={[typography.h2, styles.balanceValue, { color: hasNegativeProjection ? colors.danger : colors.success }]}>{formatQuantity(product?.unit, projected)}</Text>
+          <Text style={[typography.label, styles.balanceLabel, { color: colors.muted }]}>
+            PREVISTO
+          </Text>
+          <Text
+            style={[
+              typography.h2,
+              styles.balanceValue,
+              { color: hasNegativeProjection ? colors.danger : colors.success },
+            ]}
+          >
+            {formatQuantity(product?.unit, projected)}
+          </Text>
         </View>
       </View>
     </Card>
   );
 });
+BalancePreview.displayName = 'BalancePreview';
 
 interface MovePanelProps {
   products: Product[] | null;
   balances: Balance[] | null;
-  profile: any;
+  profile: UserProfile | null;
   onAddTransaction: (tx: Omit<Transaction, 'id' | 'created_at' | 'user_id'>) => void;
   isSubmitting: boolean;
+  errors?: Record<string, string>;
 }
 
 // --- Componente Principal (Agora 100% Tipado) ---
-const MovePanel = memo(({ products, balances, profile, onAddTransaction, isSubmitting }: MovePanelProps) => {
-  const { colors } = useTheme();
+const MovePanel = memo(
+  ({
+    products,
+    balances,
+    profile,
+    onAddTransaction,
+    isSubmitting,
+    errors = {},
+  }: MovePanelProps) => {
+    const { colors } = useTheme();
 
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [txType, setTxType] = useState<TransactionType>('entrada');
-  const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
+    const [selectedProductId, setSelectedProductId] = useState<string | null>(
+      products && products.length > 0 ? products[0].id : null
+    );
+    const [txType, setTxType] = useState<TransactionType>('entrada');
+    const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
 
-  const updateField = useCallback((field: keyof FormState, value: string) => {
-    setForm(prevState => ({ ...prevState, [field]: value }));
-  }, []);
+    const updateField = useCallback((field: keyof FormState, value: string) => {
+      setForm(prevState => ({ ...prevState, [field]: value }));
+    }, []);
 
-  const prodsById = useMemo(() => new Map((products || []).map(p => [p.id, p])), [products]);
-  // CORREÇÃO 1: Adicionado `|| null` para garantir que o tipo seja `Product | null` e não `Product | null | undefined`.
-  const selectedProduct = useMemo(() => selectedProductId ? (prodsById.get(selectedProductId) || null) : null, [selectedProductId, prodsById]);
-  const isInteger = useMemo(() => isUnitType(selectedProduct?.unit), [selectedProduct]);
+    const prodsById = useMemo(() => new Map((products ?? []).map(p => [p.id, p])), [products]);
+    // CORREÇÃO 1: Adicionado `|| null` para garantir que o tipo seja `Product | null` e não `Product | null | undefined`.
+    const selectedProduct = useMemo(
+      () => (selectedProductId ? (prodsById.get(selectedProductId) ?? null) : null),
+      [selectedProductId, prodsById]
+    );
+    const isInteger = useMemo(() => isUnitType(selectedProduct?.unit), [selectedProduct]);
 
-  const currentBalance = useMemo(() => {
-    if (!selectedProductId || !balances) return 0;
-    return balances.find(b => b.product_id === selectedProductId)?.saldo ?? 0;
-  }, [selectedProductId, balances]);
+    const currentBalance = useMemo(() => {
+      if (!selectedProductId || !balances) return 0;
+      return balances.find(b => b.product_id === selectedProductId)?.saldo ?? 0;
+    }, [selectedProductId, balances]);
 
-  const projectedBalance = useMemo(() => {
-    const qtyValue = parseFloat((form.qty || '0').replace(',', '.')) || 0;
-    if (qtyValue === 0) return currentBalance;
-    switch (txType) {
-      case 'entrada': return currentBalance + qtyValue;
-      case 'saida': case 'venda': return currentBalance - qtyValue;
-      case 'ajuste': return qtyValue;
-      default: return currentBalance;
-    }
-  }, [form.qty, txType, currentBalance]);
+    const projectedBalance = useMemo(() => {
+      const qtyValue = parseFloat((form.qty || '0').replace(',', '.')) || 0;
+      if (qtyValue === 0) return currentBalance;
+      switch (txType) {
+        case 'entrada':
+          return currentBalance + qtyValue;
+        case 'saida':
+        case 'venda':
+          return currentBalance - qtyValue;
+        case 'ajuste':
+          return qtyValue;
+        default:
+          return currentBalance;
+      }
+    }, [form.qty, txType, currentBalance]);
 
-  const isFormValid = useMemo(() => {
-    const qtyValue = parseFloat((form.qty || '0').replace(',', '.')) || 0;
-    if (!selectedProductId || qtyValue <= 0) return false;
-    if (txType === 'ajuste' && !form.observation.trim()) return false;
-    if (txType === 'saida' && !form.justification.trim()) return false;
-    return true;
-  }, [selectedProductId, form, txType]);
+    const isFormValid = useMemo(() => {
+      const qtyValue = parseFloat((form.qty || '0').replace(',', '.')) || 0;
+      if (!selectedProductId || qtyValue <= 0) return false;
+      if (txType === 'ajuste' && !form.observation.trim()) return false;
+      if (txType === 'saida' && !form.justification.trim()) return false;
+      return true;
+    }, [selectedProductId, form, txType]);
 
-  const isAdmin = profile?.role === 'admin';
-  // CORREÇÃO 2: Adicionamos o tipo explícito `TxTypeOption[]` para ajudar o TypeScript.
-  const txTypeOptions: TxTypeOption[] = useMemo(() => [
-    { id: 'entrada', label: 'Entrada', icon: 'plus-circle', color: colors.success, description: 'Adicionar ao estoque' },
-    { id: 'saida', label: 'Saída', icon: 'minus-circle', color: colors.danger, description: 'Retirar do estoque' },
-    ...(isAdmin ? [{ id: 'ajuste' as TransactionType, label: 'Ajuste', icon: 'tune-variant' as const, color: colors.accent, description: 'Correção de saldo (Admin)' }] : []),
-    { id: 'venda', label: 'Venda', icon: 'cash-register', color: colors.accent, description: 'Venda para cliente' }
-  ], [isAdmin, colors]);
+    const isAdmin = profile?.role === 'admin';
+    // CORREÇÃO 2: Adicionamos o tipo explícito `TxTypeOption[]` para ajudar o TypeScript.
+    const txTypeOptions: TxTypeOption[] = useMemo(
+      () => [
+        {
+          id: 'entrada',
+          label: 'Entrada',
+          icon: 'plus-circle',
+          color: colors.success,
+          description: 'Adicionar ao estoque',
+        },
+        {
+          id: 'saida',
+          label: 'Saída',
+          icon: 'minus-circle',
+          color: colors.danger,
+          description: 'Retirar do estoque',
+        },
+        ...(isAdmin
+          ? [
+              {
+                id: 'ajuste' as TransactionType,
+                label: 'Ajuste',
+                icon: 'tune-variant' as const,
+                color: colors.accent,
+                description: 'Correção de saldo (Admin)',
+              },
+            ]
+          : []),
+        {
+          id: 'venda',
+          label: 'Venda',
+          icon: 'cash-register',
+          color: colors.accent,
+          description: 'Venda para cliente',
+        },
+      ],
+      [isAdmin, colors]
+    );
 
-  const resetForm = useCallback(() => {
-    setForm(INITIAL_FORM_STATE);
-  }, []);
+    const resetForm = useCallback(() => {
+      setForm(INITIAL_FORM_STATE);
+      setTxType('entrada');
+      if (products && products.length > 0) {
+        setSelectedProductId(products[0].id);
+      }
+    }, [products]);
 
-  const handleSubmit = useCallback(() => {
-    if (!isFormValid || !selectedProduct) return;
-    const qtyValue = parseFloat((form.qty || '0').replace(',', '.')) || 0;
-    onAddTransaction({
+    const handleSubmit = useCallback(() => {
+      if (!isFormValid || !selectedProduct) return;
+      const qtyValue = parseFloat((form.qty || '0').replace(',', '.')) || 0;
+      onAddTransaction({
         product_id: selectedProduct.id,
         tx_type: txType,
         quantity: Math.abs(qtyValue),
@@ -205,40 +317,120 @@ const MovePanel = memo(({ products, balances, profile, onAddTransaction, isSubmi
         customer: txType === 'venda' ? form.customer.trim() : null,
         observation: txType === 'ajuste' ? form.observation.trim() : null,
         justification: txType === 'saida' ? form.justification.trim() : null,
-    });
-  }, [isFormValid, selectedProduct, form, txType, projectedBalance, currentBalance, onAddTransaction]);
+      });
+    }, [
+      isFormValid,
+      selectedProduct,
+      form,
+      txType,
+      projectedBalance,
+      currentBalance,
+      onAddTransaction,
+    ]);
 
-  return (
-    <View style={styles.panelContainer}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Section title="1. Selecione o Produto">
-          <ProductSelector products={products} selectedId={selectedProductId} onSelect={setSelectedProductId} />
-        </Section>
+    return (
+      <View style={styles.panelContainer}>
+        {errors.general && (
+          <ErrorFeedback error={errors.general} style={{ margin: 16, marginBottom: 0 }} />
+        )}
 
-        <Section title="2. Escolha a Movimentação">
-          <TransactionTypeSelector options={txTypeOptions} selectedType={txType} onSelect={setTxType} />
-        </Section>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Section title="1. Selecione o Produto">
+            <ProductSelector
+              products={products}
+              selectedId={selectedProductId}
+              onSelect={setSelectedProductId}
+            />
+            {errors.product && <ErrorFeedback error={errors.product} />}
+          </Section>
 
-        <Section title="3. Preencha os Detalhes">
-          <Card style={styles.detailsCard}>
-            {txType === 'venda' && <Input label="Cliente (opcional)" value={form.customer} onChangeText={v => updateField('customer', v)} placeholder="Ex: João Silva" />}
-            {txType === 'ajuste' && <Input label="Observação *" value={form.observation} onChangeText={v => updateField('observation', v)} placeholder="Ex: Correção de inventário" multiline />}
-            {txType === 'saida' && <Input label="Justificativa *" value={form.justification} onChangeText={v => updateField('justification', v)} placeholder="Ex: Produto defeituoso" multiline />}
+          <Section title="2. Escolha a Movimentação">
+            <TransactionTypeSelector
+              options={txTypeOptions}
+              selectedType={txType}
+              onSelect={setTxType}
+            />
+            {errors.type && <ErrorFeedback error={errors.type} />}
+          </Section>
 
-            <InputNumber label="Quantidade" mode={isInteger ? 'integer' : 'decimal'} decimals={isInteger ? 0 : 3} value={form.qty} onChangeText={v => updateField('qty', v)} placeholder="0" suffix={selectedProduct?.unit ?? undefined} />
-          </Card>
-        </Section>
+          <Section title="3. Preencha os Detalhes">
+            <Card style={styles.detailsCard}>
+              {txType === 'venda' && (
+                <Input
+                  label="Cliente (opcional)"
+                  value={form.customer}
+                  onChangeText={v => updateField('customer', v)}
+                  placeholder="Ex: João Silva"
+                />
+              )}
+              {txType === 'ajuste' && (
+                <>
+                  <Input
+                    label="Observação *"
+                    value={form.observation}
+                    onChangeText={v => updateField('observation', v)}
+                    placeholder="Ex: Correção de inventário"
+                    multiline
+                  />
+                  {errors.observation && <ErrorFeedback error={errors.observation} />}
+                </>
+              )}
+              {txType === 'saida' && (
+                <>
+                  <Input
+                    label="Justificativa *"
+                    value={form.justification}
+                    onChangeText={v => updateField('justification', v)}
+                    placeholder="Ex: Produto defeituoso"
+                    multiline
+                  />
+                  {errors.justification && <ErrorFeedback error={errors.justification} />}
+                </>
+              )}
 
-        {selectedProductId && <BalancePreview product={selectedProduct} current={currentBalance} projected={projectedBalance} />}
-      </ScrollView>
+              <InputNumber
+                label="Quantidade"
+                mode={isInteger ? 'integer' : 'decimal'}
+                decimals={isInteger ? 0 : 3}
+                value={form.qty}
+                onChangeText={v => updateField('qty', v)}
+                placeholder="0"
+                suffix={selectedProduct?.unit ?? undefined}
+              />
+              {errors.quantity && <ErrorFeedback error={errors.quantity} />}
+            </Card>
+          </Section>
 
-      <View style={[styles.actionsContainer, { borderTopColor: colors.line }]}>
-        <Button title="Registrar Movimentação" onPress={handleSubmit} loading={isSubmitting} disabled={isSubmitting} full />
-        <Button title="Limpar Campos" variant="text" onPress={resetForm} disabled={isSubmitting} full />
+          {selectedProductId && (
+            <BalancePreview
+              product={selectedProduct}
+              current={currentBalance}
+              projected={projectedBalance}
+            />
+          )}
+        </ScrollView>
+
+        <View style={[styles.actionsContainer, { borderTopColor: colors.line }]}>
+          <Button
+            title="Registrar Movimentação"
+            onPress={handleSubmit}
+            loading={isSubmitting}
+            disabled={isSubmitting}
+            full
+          />
+          <Button
+            title="Limpar Campos"
+            variant="text"
+            onPress={resetForm}
+            disabled={isSubmitting}
+            full
+          />
+        </View>
       </View>
-    </View>
-  );
-});
+    );
+  }
+);
+MovePanel.displayName = 'MovePanel';
 
 const styles = StyleSheet.create({
   panelContainer: { flex: 1 },

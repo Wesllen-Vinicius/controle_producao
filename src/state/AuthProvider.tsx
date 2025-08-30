@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../services/supabase';
 
 export type Session = import('@supabase/supabase-js').Session | null;
@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // acompanha sessão
+  // Acompanha sessão
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -37,21 +37,31 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // carrega perfil
+  // Carrega perfil
   useEffect(() => {
-    if (!session) { setProfile(null); return; }
-    supabase.from('profiles').select('id,username,role').eq('id', session.user.id).single()
-      .then(({ data }) => setProfile(data as any));
-  }, [session?.user?.id]);
+    if (!session) {
+      setProfile(null);
+      return;
+    }
+    supabase
+      .from('profiles')
+      .select('id,username,role')
+      .eq('id', session.user.id)
+      .single()
+      .then(({ data }) => setProfile(data as Profile | null));
+    // Corrigido: a dependência deve ser o objeto 'session' inteiro.
+  }, [session]);
 
-  // login
-  const signIn = async (email: string, password: string) => {
+  // Login
+  // Corrigido: Envolvido em useCallback para manter a referência da função estável.
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
-  };
+  }, []);
 
-  // cadastro (sem verificação; verifique no painel do Supabase se está desativada)
-  const signUp = async (email: string, password: string, username?: string) => {
+  // Cadastro
+  // Corrigido: Envolvido em useCallback.
+  const signUp = useCallback(async (email: string, password: string, username?: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       if (error.message.includes('registered')) throw new Error('E-mail já está em uso.');
@@ -60,15 +70,23 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     if (data.user) {
       await supabase.from('profiles').insert({
         id: data.user.id,
-        username: username || email.split('@')[0],
+        // Corrigido: || -> ??
+        username: username ?? email.split('@')[0],
         role: 'user',
       });
     }
-  };
+  }, []);
 
-  const signOut = async () => { await supabase.auth.signOut(); };
+  // Logout
+  // Corrigido: Envolvido em useCallback.
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
 
-  const value = useMemo(() => ({ session, profile, loading, signIn, signUp, signOut }), [session, profile, loading]);
+  const value = useMemo(
+    () => ({ session, profile, loading, signIn, signUp, signOut }),
+    [session, profile, loading, signIn, signUp, signOut]
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
 

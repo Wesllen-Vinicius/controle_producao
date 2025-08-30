@@ -12,7 +12,12 @@ interface DateFieldProps {
   placeholder?: string;
 }
 
-export function DateField({ label, value, onChange, placeholder = 'Selecione uma data' }: DateFieldProps) {
+export function DateField({
+  label,
+  value,
+  onChange,
+  placeholder = 'Selecione uma data',
+}: DateFieldProps) {
   const { colors, radius, spacing, typography } = useTheme();
   const [showPicker, setShowPicker] = useState(false);
 
@@ -23,23 +28,38 @@ export function DateField({ label, value, onChange, placeholder = 'Selecione uma
     }
   };
 
-  const displayValue = value ? parseISODate(value).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '';
+  const displayValue = value
+    ? parseISODate(value).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+    : '';
 
   return (
     <View style={styles.container}>
-      {!!label && <Text style={[typography.label, styles.label, { color: colors.text }]}>{label}</Text>}
+      {!!label && (
+        <Text style={[typography.label, styles.label, { color: colors.text }]}>{label}</Text>
+      )}
 
       <Pressable
         onPress={() => setShowPicker(true)}
         style={({ pressed }) => [
           styles.pressable,
-          { backgroundColor: colors.surface, borderColor: pressed ? colors.primary : colors.line, borderRadius: radius.md, shadowColor: colors.shadow },
+          {
+            backgroundColor: colors.surface,
+            borderColor: pressed ? colors.primary : colors.line,
+            borderRadius: radius.md,
+            shadowColor: colors.shadow,
+          },
         ]}
-        accessibilityLabel={label || 'Campo de data'}
-        accessibilityValue={{ text: displayValue || 'Nenhuma data selecionada' }}
+        // CORRIGIDO: O operador '||' foi trocado por '??'
+        accessibilityLabel={label ?? 'Campo de data'}
+        accessibilityValue={{ text: displayValue ?? 'Nenhuma data selecionada' }}
       >
         <MaterialCommunityIcons name="calendar-blank" size={20} color={colors.primary} />
-        <Text style={[styles.text, { color: value ? colors.text : colors.muted, marginLeft: spacing.sm }]}>
+        <Text
+          style={[
+            styles.text,
+            { color: value ? colors.text : colors.muted, marginLeft: spacing.sm },
+          ]}
+        >
           {displayValue || placeholder}
         </Text>
       </Pressable>
@@ -59,7 +79,13 @@ export function DateField({ label, value, onChange, placeholder = 'Selecione uma
 
 const styles = StyleSheet.create({
   container: { width: '100%' },
-  label: { fontWeight: '600', fontSize: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: {
+    fontWeight: '600',
+    fontSize: 12,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   pressable: {
     borderWidth: 1,
     height: 48,

@@ -17,15 +17,14 @@ import { supabase } from '../../services/supabase';
 import { useTheme } from '../../state/ThemeProvider';
 
 export default function PasswordResetScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const theme = useTheme();
   const [step, setStep] = useState<'email' | 'password'>('email');
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userFound, setUserFound] = useState(false);
-  
+
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   };
@@ -56,11 +55,10 @@ export default function PasswordResetScreen() {
         password: 'temp_password_to_check_if_email_exists',
       });
 
-      if (error && error.message.includes('Invalid login credentials')) {
+      if (error?.message.includes('Invalid login credentials')) {
         // Email existe, mas senha está errada - isso é o que queremos
-        setUserFound(true);
         setStep('password');
-      } else if (error && error.message.includes('Email not confirmed')) {
+      } else if (error?.message.includes('Email not confirmed')) {
         // Email existe mas não está confirmado
         Alert.alert(
           'Email não confirmado',
@@ -75,10 +73,9 @@ export default function PasswordResetScreen() {
       } else {
         // Login realizado com sucesso (não deveria acontecer com senha temporária)
         await supabase.auth.signOut();
-        setUserFound(true);
         setStep('password');
       }
-    } catch (error: any) {
+    } catch {
       Alert.alert('Erro', 'Erro de conexão. Tente novamente.');
     } finally {
       setLoading(false);
@@ -107,11 +104,13 @@ export default function PasswordResetScreen() {
     try {
       // Primeiro, tentar fazer login com as credenciais administrativas ou uma senha padrão
       // Em um ambiente real, você precisaria de um endpoint administrativo para isso
-      
+
       Alert.alert(
         'Funcionalidade Indisponível',
         'Para redefinir sua senha, entre em contato com o administrador do sistema. ' +
-        'Informe o email: ' + email + ' e solicite uma nova senha.',
+          'Informe o email: ' +
+          email +
+          ' e solicite uma nova senha.',
         [
           {
             text: 'OK',
@@ -119,9 +118,11 @@ export default function PasswordResetScreen() {
           },
         ]
       );
-      
-    } catch (error: any) {
-      Alert.alert('Erro', 'Não foi possível alterar a senha. Entre em contato com o administrador.');
+    } catch {
+      Alert.alert(
+        'Erro',
+        'Não foi possível alterar a senha. Entre em contato com o administrador.'
+      );
     } finally {
       setLoading(false);
     }
@@ -152,10 +153,7 @@ export default function PasswordResetScreen() {
       </View>
 
       <TouchableOpacity
-        style={[
-          styles(theme).button,
-          (!email.trim() || loading) && styles(theme).buttonDisabled,
-        ]}
+        style={[styles(theme).button, (!email.trim() || loading) && styles(theme).buttonDisabled]}
         onPress={handleEmailCheck}
         disabled={!email.trim() || loading}
       >
@@ -181,7 +179,8 @@ export default function PasswordResetScreen() {
       <Text style={styles(theme).emoji}>🔒</Text>
       <Text style={styles(theme).title}>Redefinir Senha</Text>
       <Text style={styles(theme).subtitle}>
-        E-mail confirmado: <Text style={styles(theme).boldText}>{email}</Text>{'\n'}
+        E-mail confirmado: <Text style={styles(theme).boldText}>{email}</Text>
+        {'\n'}
         Digite sua nova senha abaixo.
       </Text>
 
@@ -220,7 +219,12 @@ export default function PasswordResetScreen() {
           <Text style={[styles(theme).hint, newPassword.length >= 6 && styles(theme).hintValid]}>
             ✓ Pelo menos 6 caracteres
           </Text>
-          <Text style={[styles(theme).hint, newPassword === confirmPassword && confirmPassword && styles(theme).hintValid]}>
+          <Text
+            style={[
+              styles(theme).hint,
+              newPassword === confirmPassword && confirmPassword && styles(theme).hintValid,
+            ]}
+          >
             ✓ Senhas conferem
           </Text>
         </View>
@@ -229,7 +233,8 @@ export default function PasswordResetScreen() {
       <TouchableOpacity
         style={[
           styles(theme).button,
-          (!newPassword.trim() || !confirmPassword.trim() || loading) && styles(theme).buttonDisabled,
+          (!newPassword.trim() || !confirmPassword.trim() || loading) &&
+            styles(theme).buttonDisabled,
         ]}
         onPress={handlePasswordReset}
         disabled={!newPassword.trim() || !confirmPassword.trim() || loading}
@@ -267,91 +272,92 @@ export default function PasswordResetScreen() {
   );
 }
 
-const styles = (theme: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.xl,
-  },
-  content: {
-    alignItems: 'center',
-    gap: theme.spacing.lg,
-  },
-  emoji: {
-    fontSize: 48,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: theme.colors.muted,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  boldText: {
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  inputContainer: {
-    width: '100%',
-    gap: theme.spacing.sm,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.line,
-    borderRadius: theme.radius.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm + 4,
-    fontSize: 16,
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.text,
-  },
-  passwordHints: {
-    width: '100%',
-    gap: theme.spacing.xs,
-  },
-  hint: {
-    fontSize: 14,
-    color: theme.colors.muted,
-  },
-  hintValid: {
-    color: theme.colors.success,
-  },
-  button: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm + 4,
-    borderRadius: theme.radius.sm,
-    width: '100%',
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: theme.colors.disabled,
-  },
-  buttonText: {
-    color: theme.colors.primaryOn,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  backButton: {
-    paddingVertical: theme.spacing.sm,
-  },
-  backButtonText: {
-    color: theme.colors.primary,
-    fontSize: 16,
-  },
-});
+const styles = (theme: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollContainer: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.xl,
+    },
+    content: {
+      alignItems: 'center',
+      gap: theme.spacing.lg,
+    },
+    emoji: {
+      fontSize: 48,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: 16,
+      color: theme.colors.muted,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+    boldText: {
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    inputContainer: {
+      width: '100%',
+      gap: theme.spacing.sm,
+    },
+    label: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.line,
+      borderRadius: theme.radius.sm,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm + 4,
+      fontSize: 16,
+      backgroundColor: theme.colors.surface,
+      color: theme.colors.text,
+    },
+    passwordHints: {
+      width: '100%',
+      gap: theme.spacing.xs,
+    },
+    hint: {
+      fontSize: 14,
+      color: theme.colors.muted,
+    },
+    hintValid: {
+      color: theme.colors.success,
+    },
+    button: {
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm + 4,
+      borderRadius: theme.radius.sm,
+      width: '100%',
+      alignItems: 'center',
+    },
+    buttonDisabled: {
+      backgroundColor: theme.colors.disabled,
+    },
+    buttonText: {
+      color: theme.colors.primaryOn,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    backButton: {
+      paddingVertical: theme.spacing.sm,
+    },
+    backButtonText: {
+      color: theme.colors.primary,
+      fontSize: 16,
+    },
+  });

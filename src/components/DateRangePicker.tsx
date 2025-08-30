@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Chip, Input } from './ui';
 import { useTheme } from '../state/ThemeProvider';
@@ -29,7 +29,7 @@ export default function DateRangePicker({ from, to, onFrom, onTo, onQuick }: Pro
   const toInvalid = !!to && !isISODate(to);
 
   // iOS oferece teclado com hífen; no Android ficamos no default para facilitar digitação
-  const dateKeyboard = Platform.select<"default" | "numbers-and-punctuation">({
+  const dateKeyboard = Platform.select<'default' | 'numbers-and-punctuation'>({
     ios: 'numbers-and-punctuation',
     android: 'default',
     default: 'default',

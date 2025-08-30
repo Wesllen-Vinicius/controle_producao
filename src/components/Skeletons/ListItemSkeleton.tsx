@@ -19,30 +19,24 @@ export default function ListItemSkeleton({
   const { spacing } = useTheme();
 
   return (
-    <View style={{
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.sm,
-      gap: spacing.md,
-    }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.sm,
+        gap: spacing.md,
+      }}
+    >
       {showAvatar && (
-        <CardSkeleton 
-          width={avatarSize} 
-          height={avatarSize} 
-          borderRadius={avatarSize / 2} 
-        />
+        <CardSkeleton width={avatarSize} height={avatarSize} borderRadius={avatarSize / 2} />
       )}
-      
+
       <View style={{ flex: 1, gap: spacing.xs }}>
         <CardSkeleton width="70%" height={16} />
-        {showSubtitle && (
-          <CardSkeleton width="45%" height={12} />
-        )}
+        {showSubtitle && <CardSkeleton width="45%" height={12} />}
       </View>
 
-      {showRightElement && (
-        <CardSkeleton width={60} height={20} />
-      )}
+      {showRightElement && <CardSkeleton width={60} height={20} />}
     </View>
   );
 }

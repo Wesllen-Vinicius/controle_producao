@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../state/ThemeProvider';
 
@@ -22,31 +30,50 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const timer = useRef<NodeJS.Timeout | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
 
   const hide = useCallback(() => {
-    Animated.timing(anim, { toValue: 0, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true })
-      .start(() => setCurrent(null));
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: 160,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => setCurrent(null));
   }, [anim]);
 
-  const showToast = useCallback((t: Omit<Toast, 'id'>) => {
-    if (timer.current) clearTimeout(timer.current);
-    const toast: Toast = { id: String(Date.now()), duration: 2800, type: 'info', ...t };
-    setCurrent(toast);
-    Animated.timing(anim, { toValue: 1, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-    timer.current = setTimeout(() => hide(), toast.duration);
-  }, [anim, hide]);
+  const showToast = useCallback(
+    (t: Omit<Toast, 'id'>) => {
+      if (timer.current) clearTimeout(timer.current);
+      const toast: Toast = { id: String(Date.now()), duration: 2800, type: 'info', ...t };
+      setCurrent(toast);
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
+      timer.current = setTimeout(() => hide(), toast.duration);
+    },
+    [anim, hide]
+  );
 
   const value = useMemo(() => ({ showToast }), [showToast]);
 
   const bg =
-    current?.type === 'success' ? colors.success :
-    current?.type === 'error'   ? colors.danger  :
-    colors.surface;
+    current?.type === 'success'
+      ? colors.success
+      : current?.type === 'error'
+        ? colors.danger
+        : colors.surface;
 
   const textColor = current?.type ? '#fff' : colors.text;
-  const actionBg  = current?.type ? '#ffffff26' : colors.primaryDim;
-  const actionFg  = current?.type ? '#fff' : colors.text;
+  const actionBg = current?.type ? '#ffffff26' : colors.primaryDim;
+  const actionFg = current?.type ? '#fff' : colors.text;
 
   return (
     <Ctx.Provider value={value}>
@@ -59,7 +86,9 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
             styles.wrap,
             {
               opacity: anim,
-              transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
+              transform: [
+                { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) },
+              ],
             },
           ]}
         >
@@ -67,7 +96,10 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
             <Text style={[styles.txt, { color: textColor }]}>{current.message}</Text>
             {current.actionLabel ? (
               <Pressable
-                onPress={() => { hide(); current.onAction?.(); }}
+                onPress={() => {
+                  hide();
+                  current.onAction?.();
+                }}
                 style={[styles.action, { backgroundColor: actionBg }]}
               >
                 <Text style={[styles.actionTxt, { color: actionFg }]}>{current.actionLabel}</Text>
@@ -82,7 +114,15 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 16, right: 16, bottom: 24 },
-  toast: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  toast: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   txt: { flex: 1, fontWeight: '700' },
   action: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   actionTxt: { fontWeight: '800' },

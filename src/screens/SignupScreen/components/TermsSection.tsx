@@ -12,12 +12,17 @@ export default function TermsSection({ onTermsPress, onPrivacyPress }: TermsSect
 
   return (
     <View style={{ alignItems: 'center', marginTop: spacing.lg }}>
-      <Text style={[typography.body, { 
-        color: colors.muted, 
-        textAlign: 'center',
-        fontSize: 14,
-        lineHeight: 20
-      }]}>
+      <Text
+        style={[
+          typography.body,
+          {
+            color: colors.muted,
+            textAlign: 'center',
+            fontSize: 14,
+            lineHeight: 20,
+          },
+        ]}
+      >
         Ao criar uma conta, você concorda com nossos{' '}
         {onTermsPress ? (
           <Pressable onPress={onTermsPress}>
@@ -27,8 +32,8 @@ export default function TermsSection({ onTermsPress, onPrivacyPress }: TermsSect
           </Pressable>
         ) : (
           <Text style={{ color: colors.primary }}>Termos de Uso</Text>
-        )}
-        {' '}e{' '}
+        )}{' '}
+        e{' '}
         {onPrivacyPress ? (
           <Pressable onPress={onPrivacyPress}>
             <Text style={{ color: colors.primary, textDecorationLine: 'underline' }}>

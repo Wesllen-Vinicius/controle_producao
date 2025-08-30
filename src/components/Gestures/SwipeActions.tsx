@@ -1,12 +1,16 @@
 import React, { useRef } from 'react';
 import { View, Animated, Pressable, Text } from 'react-native';
-import { PanGestureHandler, PanGestureHandlerGestureEvent, State } from 'react-native-gesture-handler';
+import {
+  PanGestureHandler,
+  PanGestureHandlerGestureEvent,
+  State,
+} from 'react-native-gesture-handler';
 import { useTheme } from '../../state/ThemeProvider';
-import { AppIcon } from '../../utils/iconOptimizer';
+import { AppIcon, AppIconName } from '../../utils/iconOptimizer';
 import { useHaptics } from '../../hooks/useHaptics';
 
 export interface SwipeAction {
-  icon: string;
+  icon: AppIconName;
   label: string;
   onPress: () => void;
   backgroundColor?: string;
@@ -29,7 +33,7 @@ export default function SwipeActions({
 }: SwipeActionsProps) {
   const { colors, spacing, typography } = useTheme();
   const { medium: impactHaptic, tap: selectionHaptic } = useHaptics();
-  
+
   const translateX = useRef(new Animated.Value(0)).current;
   const actionTriggered = useRef(false);
 
@@ -43,7 +47,7 @@ export default function SwipeActions({
       // Limit swipe distance
       const maxSwipe = Math.min(Math.abs(translationX), 120);
       const limitedTranslation = translationX > 0 ? maxSwipe : -maxSwipe;
-      
+
       translateX.setValue(limitedTranslation);
 
       // Trigger haptic feedback when reaching threshold
@@ -55,10 +59,10 @@ export default function SwipeActions({
       }
     } else if (state === State.END) {
       const shouldTrigger = Math.abs(translationX) > threshold;
-      
+
       if (shouldTrigger) {
         selectionHaptic();
-        
+
         // Determine which action to trigger
         if (translationX > 0 && leftActions.length > 0) {
           leftActions[0].onPress();
@@ -74,7 +78,7 @@ export default function SwipeActions({
         tension: 100,
         friction: 8,
       }).start();
-      
+
       actionTriggered.current = false;
     }
   };
@@ -105,22 +109,18 @@ export default function SwipeActions({
             style={{
               width: 80,
               height: '100%',
-              backgroundColor: action.backgroundColor || colors.primary,
+              backgroundColor: action.backgroundColor ?? colors.primary,
               alignItems: 'center',
               justifyContent: 'center',
               gap: spacing.xs,
             }}
           >
-            <AppIcon
-              name={action.icon as any}
-              size={20}
-              color={action.color || 'white'}
-            />
+            <AppIcon name={action.icon} size={20} color={action.color ?? 'white'} />
             <Text
               style={[
                 typography.body,
                 {
-                  color: action.color || 'white',
+                  color: action.color ?? 'white',
                   fontSize: 12,
                   fontWeight: '600',
                   textAlign: 'center',
@@ -140,7 +140,7 @@ export default function SwipeActions({
     <View style={{ overflow: 'hidden' }}>
       {renderActions(leftActions, 'left')}
       {renderActions(rightActions, 'right')}
-      
+
       <PanGestureHandler
         onGestureEvent={handleGesture}
         activeOffsetX={[-10, 10]}

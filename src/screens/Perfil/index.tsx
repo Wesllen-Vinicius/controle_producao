@@ -1,9 +1,10 @@
 // src/screens/Perfil/index.tsx
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, RefreshControl, ScrollView, StatusBar, StyleSheet, View } from 'react-native';
+import { Animated, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import Screen from '../../components/Screen';
+import { PerfilSkeleton } from '../../components/Skeletons';
 import ThemeToggle from '../../components/ThemeToggle';
 import EmptyState from '../../components/ui/EmptyState';
 
@@ -20,39 +21,39 @@ import { Section } from './components/Section';
 import { SupportLinks } from './components/SupportLinks';
 import { useProfileActions } from './hooks/useProfileActions';
 
-// Criamos um tipo que representa o retorno do hook useTheme,
-// e adicionamos a propriedade 'theme' que estava faltando na tipagem original.
-type AppThemeContext = ReturnType<typeof useTheme> & {
-  theme: 'light' | 'dark';
-};
-
 export default function PerfilScreen() {
   const auth = useAuth();
-  // Usamos 'as AppThemeContext' para dizer ao TypeScript para usar nosso tipo corrigido.
-  const { colors, theme } = useTheme() as AppThemeContext;
+  // CORRIGIDO: Removida a variável 'theme' que não estava sendo utilizada.
+  const { colors } = useTheme();
   const h = useHaptics();
   const { session, signOut } = auth;
   const { copyHandler, openLink, reportBug, requestAccountDeletion } = useProfileActions(session);
 
   const [refreshing, setRefreshing] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const avatarScale = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
+    // Simulate loading time for smoother experience
+    const loadingTimer = setTimeout(() => setLoading(false), 800);
+
     Animated.stagger(100, [
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 50, friction: 8 }),
       Animated.spring(avatarScale, { toValue: 1, useNativeDriver: true, tension: 50, friction: 5 }),
     ]).start();
+
+    return () => clearTimeout(loadingTimer);
   }, [fadeAnim, slideAnim, avatarScale]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     h.light();
-    await new Promise((r) => setTimeout(r, 700)); // Simula recarregamento
+    await new Promise(r => setTimeout(r, 700)); // Simula recarregamento
     setRefreshing(false);
   }, [h]);
 
@@ -62,21 +63,41 @@ export default function PerfilScreen() {
   }, [signOut, h]);
 
   if (!session) {
-    return <Screen><EmptyState title="Sessão não encontrada" subtitle="Faça login para acessar seu perfil." /></Screen>;
+    return (
+      <Screen>
+        <EmptyState title="Sessão não encontrada" subtitle="Faça login para acessar seu perfil." />
+      </Screen>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Screen padded={false} scroll={false} edges={['top']}>
+        <PerfilSkeleton />
+      </Screen>
+    );
   }
 
   return (
     <Screen padded={false} scroll={false} edges={['top']}>
       <LinearGradient colors={[colors.background, colors.surface + '20']} style={styles.gradient}>
-        <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
         >
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <ProfileHeader auth={auth} onCopy={copyHandler} scaleAnim={avatarScale} />
-            <ActionButtons onChangePassword={() => setPasswordModalOpen(true)} onSignOut={handleSignOut} />
+            <ActionButtons
+              onChangePassword={() => setPasswordModalOpen(true)}
+              onSignOut={handleSignOut}
+            />
 
             <View style={styles.sectionsContainer}>
               <Section title="Aparência" icon="palette-outline">

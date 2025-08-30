@@ -5,12 +5,11 @@ import { useTheme } from '../state/ThemeProvider';
 // import { NetworkErrorBoundary } from './ErrorBoundary/NetworkErrorBoundary';
 
 interface LazyScreenProps {
-  loader: () => Promise<{ default: ComponentType<any> }>;
+  loader: () => Promise<{ default: ComponentType<Record<string, unknown>> }>;
   fallback?: React.ComponentType;
-  name?: string;
 }
 
-export function LazyScreen({ loader, fallback: CustomFallback, name }: LazyScreenProps) {
+export function LazyScreen({ loader, fallback: CustomFallback }: LazyScreenProps) {
   const LazyComponent = lazy(loader);
 
   const DefaultFallback = () => {
@@ -22,7 +21,7 @@ export function LazyScreen({ loader, fallback: CustomFallback, name }: LazyScree
     );
   };
 
-  const Fallback = CustomFallback || DefaultFallback;
+  const Fallback = CustomFallback ?? DefaultFallback;
 
   return (
     <Suspense fallback={<Fallback />}>
@@ -33,8 +32,9 @@ export function LazyScreen({ loader, fallback: CustomFallback, name }: LazyScree
 
 // Helper function to create lazy screens with error boundaries
 export function createLazyScreen(
-  loader: () => Promise<{ default: ComponentType<any> }>,
-  name?: string
+  loader: () => Promise<{ default: ComponentType<Record<string, unknown>> }>
 ) {
-  return () => <LazyScreen loader={loader} name={name} />;
+  const LazyScreenWrapper = () => <LazyScreen loader={loader} />;
+  LazyScreenWrapper.displayName = 'LazyScreenWrapper';
+  return LazyScreenWrapper;
 }

@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '../state/ThemeProvider';
 import { Skeleton } from './ui';

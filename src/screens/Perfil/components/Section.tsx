@@ -12,19 +12,45 @@ interface SectionProps {
 }
 
 export function Section({ title, icon, children, isDanger = false }: SectionProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing } = useTheme();
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: isDanger ? colors.danger + '20' : colors.line, shadowColor: colors.shadow }]}>
-      <View style={[styles.header, { backgroundColor: isDanger ? colors.danger + '08' : colors.surfaceAlt, borderBottomColor: isDanger ? colors.danger + '20' : colors.line }]}>
-        <View style={[styles.iconContainer, { backgroundColor: isDanger ? colors.danger + '15' : colors.primary + '15' }]}>
-          <MaterialCommunityIcons name={icon} size={18} color={isDanger ? colors.danger : colors.primary} />
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: isDanger ? colors.danger + '20' : colors.line,
+          shadowColor: colors.shadow,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: isDanger ? colors.danger + '08' : colors.surfaceAlt,
+            borderBottomColor: isDanger ? colors.danger + '20' : colors.line,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: isDanger ? colors.danger + '15' : colors.primary + '15' },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={icon}
+            size={18}
+            color={isDanger ? colors.danger : colors.primary}
+          />
         </View>
-        <Text style={[styles.title, { color: isDanger ? colors.danger : colors.text }]}>{title}</Text>
+        <Text style={[styles.title, { color: isDanger ? colors.danger : colors.text }]}>
+          {title}
+        </Text>
       </View>
-      <View style={{ padding: spacing.sm }}>
-        {children}
-      </View>
+      <View style={{ padding: spacing.sm }}>{children}</View>
     </View>
   );
 }

@@ -1,21 +1,21 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleProp, ViewStyle } from 'react-native';
+import { Animated, StyleProp, ViewStyle, DimensionValue } from 'react-native';
 import { useTheme } from '../../state/ThemeProvider';
 
 interface CardSkeletonProps {
-  width?: number | string;
+  width?: DimensionValue;
   height?: number;
   borderRadius?: number;
   style?: StyleProp<ViewStyle>;
   animated?: boolean;
 }
 
-export default function CardSkeleton({ 
-  width = '100%', 
-  height = 120, 
+export default function CardSkeleton({
+  width = '100%',
+  height = 120,
   borderRadius,
   style,
-  animated = true 
+  animated = true,
 }: CardSkeletonProps) {
   const { colors, radius } = useTheme();
   const opacity = useRef(new Animated.Value(0.3)).current;

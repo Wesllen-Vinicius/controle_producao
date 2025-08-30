@@ -31,7 +31,12 @@ export default function SignupHeader({ width }: SignupHeaderProps) {
           <Text style={[typography.h1, { color: 'white', textAlign: 'center' }]}>
             Criar Nova Conta
           </Text>
-          <Text style={[typography.body, { color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginTop: spacing.xs }]}>
+          <Text
+            style={[
+              typography.body,
+              { color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginTop: spacing.xs },
+            ]}
+          >
             Junte-se ao nosso sistema de controle
           </Text>
         </View>

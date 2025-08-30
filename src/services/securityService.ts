@@ -1,5 +1,11 @@
-import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
+
+// Adicionada uma interface para tipar os dados de tentativa de login
+interface LoginAttemptData {
+  attempts: number;
+  lockoutEndsAt?: number;
+}
 
 export class SecurityService {
   private static instance: SecurityService;
@@ -17,15 +23,19 @@ export class SecurityService {
   }
 
   // Rate limiting para login
-  async checkLoginAttempts(email: string): Promise<{ allowed: boolean; remainingAttempts: number; lockoutEndsAt?: number }> {
+  async checkLoginAttempts(
+    email: string
+  ): Promise<{ allowed: boolean; remainingAttempts: number; lockoutEndsAt?: number }> {
     const key = `login_attempts_${email}`;
     const data = await AsyncStorage.getItem(key);
-    
+
     if (!data) {
       return { allowed: true, remainingAttempts: this.MAX_LOGIN_ATTEMPTS };
     }
 
-    const { attempts, lastAttempt, lockoutEndsAt } = JSON.parse(data);
+    // Corrigido: 'lastAttempt' não era usada e foi removida.
+    // Tipagem explícita com a interface LoginAttemptData.
+    const { attempts, lockoutEndsAt }: LoginAttemptData = JSON.parse(data);
     const now = Date.now();
 
     // Se ainda está em lockout
@@ -45,7 +55,7 @@ export class SecurityService {
 
   async recordLoginAttempt(email: string, success: boolean): Promise<void> {
     const key = `login_attempts_${email}`;
-    
+
     if (success) {
       // Remove tentativas em caso de sucesso
       await AsyncStorage.removeItem(key);
@@ -54,50 +64,59 @@ export class SecurityService {
 
     const data = await AsyncStorage.getItem(key);
     const now = Date.now();
-    
+
     if (!data) {
-      await AsyncStorage.setItem(key, JSON.stringify({
-        attempts: 1,
-        lastAttempt: now
-      }));
+      await AsyncStorage.setItem(
+        key,
+        JSON.stringify({
+          attempts: 1,
+          lastAttempt: now,
+        })
+      );
       return;
     }
 
-    const { attempts } = JSON.parse(data);
+    const { attempts }: LoginAttemptData = JSON.parse(data);
     const newAttempts = attempts + 1;
 
     if (newAttempts >= this.MAX_LOGIN_ATTEMPTS) {
       // Implementar lockout
-      await AsyncStorage.setItem(key, JSON.stringify({
-        attempts: newAttempts,
-        lastAttempt: now,
-        lockoutEndsAt: now + this.LOCKOUT_DURATION
-      }));
+      await AsyncStorage.setItem(
+        key,
+        JSON.stringify({
+          attempts: newAttempts,
+          lastAttempt: now,
+          lockoutEndsAt: now + this.LOCKOUT_DURATION,
+        })
+      );
     } else {
-      await AsyncStorage.setItem(key, JSON.stringify({
-        attempts: newAttempts,
-        lastAttempt: now
-      }));
+      await AsyncStorage.setItem(
+        key,
+        JSON.stringify({
+          attempts: newAttempts,
+          lastAttempt: now,
+        })
+      );
     }
   }
 
   // Validação avançada de entrada
   sanitizeInput(input: string, allowedChars?: RegExp): string {
     if (!input) return '';
-    
+
     // Remove caracteres de controle
     let sanitized = input.replace(/[\x00-\x1F\x7F]/g, '');
-    
+
     // Remove scripts maliciosos
     sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     sanitized = sanitized.replace(/javascript:/gi, '');
     sanitized = sanitized.replace(/on\w+=/gi, '');
-    
+
     // Aplica filtro personalizado se fornecido
     if (allowedChars && !allowedChars.test(sanitized)) {
       sanitized = sanitized.replace(new RegExp(`[^${allowedChars.source}]`, 'g'), '');
     }
-    
+
     return sanitized.trim();
   }
 
@@ -145,6 +164,7 @@ export class SecurityService {
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Encryption error:', error);
       throw new Error('Falha na criptografia dos dados');
     }
@@ -153,13 +173,16 @@ export class SecurityService {
   // Validação de sessão
   async validateSession(): Promise<boolean> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) return false;
 
       const now = Date.now();
-      const sessionStart = new Date(session.user.created_at || '').getTime();
-      
+      // Melhoria: Usar ?? para garantir que não haja erro com 'null' ou 'undefined'
+      const sessionStart = new Date(session.user.created_at ?? '').getTime();
+
       // Verifica se a sessão não expirou
       if (now - sessionStart > this.SESSION_TIMEOUT) {
         await supabase.auth.signOut();
@@ -168,63 +191,73 @@ export class SecurityService {
 
       return true;
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Session validation error:', error);
       return false;
     }
   }
 
   // Log de atividades de segurança
-  async logSecurityEvent(event: string, details?: any): Promise<void> {
+  // Corrigido: details?: any -> details?: unknown
+  async logSecurityEvent(event: string, details?: unknown): Promise<void> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const logEntry = {
         event,
         details,
-        user_id: session?.user?.id || 'anonymous',
+        // Corrigido: || -> ??
+        user_id: session?.user?.id ?? 'anonymous',
         timestamp: new Date().toISOString(),
         user_agent: 'React Native App',
-        ip_address: 'mobile_app'
+        ip_address: 'mobile_app',
       };
 
       // Em produção, enviar para serviço de log seguro
+      // eslint-disable-next-line no-console
       console.log('[SECURITY LOG]', logEntry);
-      
+
       // Armazenar localmente para auditoria
-      const existingLogs = await AsyncStorage.getItem('security_logs') || '[]';
+      // Corrigido: || -> ??
+      const existingLogs = (await AsyncStorage.getItem('security_logs')) ?? '[]';
       const logs = JSON.parse(existingLogs);
       logs.push(logEntry);
-      
+
       // Manter apenas os últimos 100 logs
       if (logs.length > 100) {
         logs.splice(0, logs.length - 100);
       }
-      
+
       await AsyncStorage.setItem('security_logs', JSON.stringify(logs));
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to log security event:', error);
     }
   }
 
   // Detecção de comportamento suspeito
-  async detectSuspiciousActivity(action: string, metadata?: any): Promise<boolean> {
+  // Corrigido: metadata?: any -> metadata?: unknown
+  async detectSuspiciousActivity(action: string, metadata?: unknown): Promise<boolean> {
     const suspiciousPatterns = [
       'rapid_requests',
       'unusual_hours',
       'multiple_failed_attempts',
-      'data_exfiltration_attempt'
+      'data_exfiltration_attempt',
     ];
 
     // Implementar lógica de detecção baseada em padrões
-    const isSuspicious = suspiciousPatterns.some(pattern => 
-      action.includes(pattern) || JSON.stringify(metadata || {}).includes(pattern)
+    const isSuspicious = suspiciousPatterns.some(
+      // Corrigido: || -> ??
+      pattern => action.includes(pattern) || JSON.stringify(metadata ?? {}).includes(pattern)
     );
 
     if (isSuspicious) {
       await this.logSecurityEvent('suspicious_activity_detected', {
         action,
         metadata,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
 
@@ -233,15 +266,9 @@ export class SecurityService {
 
   // Limpeza de dados sensíveis
   async clearSensitiveData(): Promise<void> {
-    const keysToRemove = [
-      'savedPassword',
-      'security_logs',
-      'biometric_data'
-    ];
+    const keysToRemove = ['savedPassword', 'security_logs', 'biometric_data'];
 
-    await Promise.all(
-      keysToRemove.map(key => AsyncStorage.removeItem(key))
-    );
+    await Promise.all(keysToRemove.map(key => AsyncStorage.removeItem(key)));
   }
 }
 

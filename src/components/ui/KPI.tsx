@@ -1,13 +1,5 @@
 import React, { ReactNode, useMemo, useRef } from 'react';
-import {
-  Animated,
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  Text,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Animated, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useTheme } from '../../state/ThemeProvider';
 
 type Status = 'default' | 'success' | 'warning' | 'danger';
@@ -69,20 +61,23 @@ export default function KPI({
       default: colors.primary,
       success: colors.success,
       warning: '#E6A700', // amarelo consistente
-      danger:  colors.danger,
+      danger: colors.danger,
     } as const;
     return map[status];
   }, [status, colors]);
 
-  const dims = useMemo(() => ({
-    pad: compact ? spacing.sm : spacing.md,
-    valueSize: compact ? 18 : 22,
-    labelSize: compact ? 11 : 12,
-    hintSize: compact ? 11 : 12,
-    gap: compact ? spacing.xs : spacing.sm,
-    barH: compact ? 4 : 6,
-    iconW: compact ? 18 : 22,
-  }), [compact, spacing]);
+  const dims = useMemo(
+    () => ({
+      pad: compact ? spacing.sm : spacing.md,
+      valueSize: compact ? 18 : 22,
+      labelSize: compact ? 11 : 12,
+      hintSize: compact ? 11 : 12,
+      gap: compact ? spacing.xs : spacing.sm,
+      barH: compact ? 4 : 6,
+      iconW: compact ? 18 : 22,
+    }),
+    [compact, spacing]
+  );
 
   const formatted = useMemo(() => {
     if (format) return format(value);
@@ -103,12 +98,18 @@ export default function KPI({
   }, [delta, colors]);
 
   const alignStyle =
-    align === 'center' ? { alignItems: 'center' as const }
-    : align === 'right' ? { alignItems: 'flex-end' as const }
-    : { alignItems: 'flex-start' as const };
+    align === 'center'
+      ? { alignItems: 'center' as const }
+      : align === 'right'
+        ? { alignItems: 'flex-end' as const }
+        : { alignItems: 'flex-start' as const };
 
   const pressedIn = () => {
-    Animated.timing(scale, { toValue: onPress ? 0.99 : 1, duration: 90, useNativeDriver: true }).start();
+    Animated.timing(scale, {
+      toValue: onPress ? 0.99 : 1,
+      duration: 90,
+      useNativeDriver: true,
+    }).start();
   };
   const pressedOut = () => {
     Animated.timing(scale, { toValue: 1, duration: 140, useNativeDriver: true }).start();
@@ -119,13 +120,23 @@ export default function KPI({
       style={[
         styles.container,
         elevation.e1,
-        { padding: dims.pad, borderRadius: radius.lg, transform: [{ scale }], opacity: disabled ? opacity.disabled : 1 },
+        {
+          padding: dims.pad,
+          borderRadius: radius.lg,
+          transform: [{ scale }],
+          opacity: disabled ? opacity.disabled : 1,
+        },
         style,
       ]}
     >
       <View style={[styles.header, { marginBottom: dims.gap }]}>
-        {icon ? <View style={{ width: dims.iconW, alignItems: 'center', marginRight: 6 }}>{icon}</View> : null}
-        <Text style={{ fontSize: dims.labelSize, fontWeight: '700', color: colors.muted }} numberOfLines={1}>
+        {icon ? (
+          <View style={{ width: dims.iconW, alignItems: 'center', marginRight: 6 }}>{icon}</View>
+        ) : null}
+        <Text
+          style={{ fontSize: dims.labelSize, fontWeight: '700', color: colors.muted }}
+          numberOfLines={1}
+        >
           {label}
         </Text>
       </View>
@@ -139,7 +150,10 @@ export default function KPI({
           {loading ? '···' : formatted}
         </Text>
         {deltaInfo ? (
-          <Text style={{ fontSize: 12, fontWeight: '800', color: deltaInfo.color }} numberOfLines={1}>
+          <Text
+            style={{ fontSize: 12, fontWeight: '800', color: deltaInfo.color }}
+            numberOfLines={1}
+          >
             {deltaInfo.text}
           </Text>
         ) : null}
@@ -169,7 +183,15 @@ export default function KPI({
 
       {/* Hint */}
       {hint ? (
-        <Text style={{ marginTop: dims.gap, fontSize: dims.hintSize, fontWeight: '600', color: colors.muted }} numberOfLines={2}>
+        <Text
+          style={{
+            marginTop: dims.gap,
+            fontSize: dims.hintSize,
+            fontWeight: '600',
+            color: colors.muted,
+          }}
+          numberOfLines={2}
+        >
           {hint}
         </Text>
       ) : null}

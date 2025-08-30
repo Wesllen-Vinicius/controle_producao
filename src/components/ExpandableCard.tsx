@@ -50,13 +50,17 @@ export default function ExpandableCard({
 
   useEffect(() => {
     Animated.timing(rot, { toValue: open ? 1 : 0, duration: 180, useNativeDriver: true }).start();
-    Animated.timing(progress, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: false }).start();
+    Animated.timing(progress, {
+      toValue: open ? 1 : 0,
+      duration: 220,
+      useNativeDriver: false,
+    }).start();
   }, [open, progress, rot]);
 
   // recalcula altura quando os filhos mudam (mesmo fechado)
   useEffect(() => {
     // força re-medida assíncrona
-    requestAnimationFrame(() => setMeasuredH((h) => h)); // no-op que dispara onLayout do measurer
+    requestAnimationFrame(() => setMeasuredH(h => h)); // no-op que dispara onLayout do measurer
   }, [children]);
 
   const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
@@ -65,7 +69,7 @@ export default function ExpandableCard({
 
   const onToggle = () => {
     h.light();
-    setOpen((v) => !v);
+    setOpen(v => !v);
   };
 
   const onMeasureLayout = (e: LayoutChangeEvent) => {
@@ -83,7 +87,7 @@ export default function ExpandableCard({
           alignItems: 'center',
           gap: spacing.sm,
         },
-        title: { ...(typography.h2 as any), fontSize: 16 },
+        title: { ...typography.h2, fontSize: 16 },
         subtitle: { color: colors.muted, marginTop: 2, fontSize: 12, fontWeight: '600' as const },
         contentWrap: { overflow: 'hidden' },
         contentInner: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
@@ -93,12 +97,7 @@ export default function ExpandableCard({
     [colors.muted, spacing, typography.h2]
   );
 
-  const visibleContainerStyle =
-    measuredH > 0
-      ? { height }
-      : open
-      ? {}
-      : { height: 0 };
+  const visibleContainerStyle = measuredH > 0 ? { height } : open ? {} : { height: 0 };
 
   return (
     <Card padding="none" variant={variant} elevationLevel={elevationLevel} style={style}>

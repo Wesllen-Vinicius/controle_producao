@@ -27,12 +27,12 @@ export function ExportSheet({ open, onClose, hasProductFilter, data }: ExportShe
     <BottomSheet open={open} onClose={onClose} title="Exportar Relatório">
       <View style={[styles.content, { gap: spacing.lg }]}>
         <View style={{ gap: spacing.sm }}>
-            <Text style={[styles.label, { color: colors.muted }]}>Formato do Arquivo</Text>
-            <View style={styles.chipContainer}>
-                <Chip label="📊 CSV" active={format === 'csv'} onPress={() => setFormat('csv')} />
-                <Chip label="📋 JSON" active={format === 'json'} onPress={() => setFormat('json')} />
-                <Chip label="📄 PDF" active={format === 'pdf'} onPress={() => setFormat('pdf')} />
-            </View>
+          <Text style={[styles.label, { color: colors.muted }]}>Formato do Arquivo</Text>
+          <View style={styles.chipContainer}>
+            <Chip label="📊 CSV" active={format === 'csv'} onPress={() => setFormat('csv')} />
+            <Chip label="📋 JSON" active={format === 'json'} onPress={() => setFormat('json')} />
+            <Chip label="📄 PDF" active={format === 'pdf'} onPress={() => setFormat('pdf')} />
+          </View>
         </View>
 
         <Text style={[styles.infoText, { color: colors.muted }]}>
@@ -47,8 +47,8 @@ export function ExportSheet({ open, onClose, hasProductFilter, data }: ExportShe
 }
 
 const styles = StyleSheet.create({
-    content: { padding: 16 },
-    label: { fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-    chipContainer: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-    infoText: { fontSize: 13, lineHeight: 18, textAlign: 'center' },
+  content: { padding: 16 },
+  label: { fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  chipContainer: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  infoText: { fontSize: 13, lineHeight: 18, textAlign: 'center' },
 });

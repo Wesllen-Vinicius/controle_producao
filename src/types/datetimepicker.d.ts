@@ -4,7 +4,9 @@ declare module '@react-native-community/datetimepicker' {
   type AndroidDisplay = 'default' | 'spinner' | 'calendar' | 'clock';
   type IOSDisplay = 'default' | 'spinner' | 'compact' | 'inline';
 
-  export interface DateTimePickerEvent { type: string; }
+  export interface DateTimePickerEvent {
+    type: string;
+  }
   export interface DateTimePickerProps {
     value: Date;
     mode?: Mode;

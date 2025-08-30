@@ -32,15 +32,17 @@ export default function ResetForm({
   if (resetSent) {
     return (
       <View style={{ gap: spacing.lg, alignItems: 'center' }}>
-        <View style={{ 
-          alignItems: 'center', 
-          gap: spacing.md,
-          padding: spacing.xl,
-          backgroundColor: colors.successBackground,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: colors.success,
-        }}>
+        <View
+          style={{
+            alignItems: 'center',
+            gap: spacing.md,
+            padding: spacing.xl,
+            backgroundColor: colors.successBackground,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colors.success,
+          }}
+        >
           <Text style={{ fontSize: 48 }}>✅</Text>
           <Text style={[typography.h2, { color: colors.success, textAlign: 'center' }]}>
             E-mail Enviado!
@@ -49,13 +51,19 @@ export default function ResetForm({
             Verifique sua caixa de entrada em{'\n'}
             <Text style={{ fontWeight: '600' }}>{email}</Text>
           </Text>
-          <Text style={[typography.body, { 
-            color: colors.muted, 
-            textAlign: 'center',
-            fontSize: 14,
-            marginTop: spacing.sm 
-          }]}>
-            Se não receber o e-mail em alguns minutos, verifique sua pasta de spam ou tente novamente.
+          <Text
+            style={[
+              typography.body,
+              {
+                color: colors.muted,
+                textAlign: 'center',
+                fontSize: 14,
+                marginTop: spacing.sm,
+              },
+            ]}
+          >
+            Se não receber o e-mail em alguns minutos, verifique sua pasta de spam ou tente
+            novamente.
           </Text>
         </View>
       </View>
@@ -99,16 +107,16 @@ export default function ResetForm({
       />
 
       {error && (
-        <View style={{
-          padding: spacing.md,
-          backgroundColor: colors.dangerBackground,
-          borderRadius: 8,
-          borderWidth: 1,
-          borderColor: colors.danger,
-        }}>
-          <Text style={{ color: colors.danger, textAlign: 'center' }}>
-            {error}
-          </Text>
+        <View
+          style={{
+            padding: spacing.md,
+            backgroundColor: colors.dangerBackground,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.danger,
+          }}
+        >
+          <Text style={{ color: colors.danger, textAlign: 'center' }}>{error}</Text>
         </View>
       )}
     </View>

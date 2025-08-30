@@ -34,11 +34,7 @@ export default function EmptyState({
   return (
     <View
       // nada de ScrollView aqui, só container “inerte”
-      style={[
-        styles.container,
-        { paddingVertical: padV, paddingHorizontal: spacing.md },
-        style,
-      ]}
+      style={[styles.container, { paddingVertical: padV, paddingHorizontal: spacing.md }, style]}
       // 'summary' não é um role válido no RN — removido
       testID={testID}
       pointerEvents="box-none"

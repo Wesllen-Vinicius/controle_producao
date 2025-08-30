@@ -1,5 +1,5 @@
 // Tipos para API responses e requests
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   error?: ApiError;
   count?: number;
@@ -50,7 +50,7 @@ export interface UserAppMetadata {
 }
 
 export interface UserMetadata {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface AuthSession {
@@ -78,7 +78,7 @@ export interface CreateTransactionRequest {
   quantity: number;
   unit: string;
   tx_type: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateProductionRequest {
@@ -94,7 +94,7 @@ export interface CreateProductionItemRequest {
 
 // Tipos para filtros de API
 export interface ApiFilters {
-  [key: string]: any;
+  [key: string]: unknown;
   page?: number;
   limit?: number;
   order?: string;

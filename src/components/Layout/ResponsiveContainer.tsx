@@ -26,9 +26,10 @@ export default function ResponsiveContainer({
           width: '100%',
           alignSelf: centered ? 'center' : 'stretch',
         },
-        maxWidth && typeof maxContentWidth === 'number' && {
-          maxWidth: maxContentWidth,
-        },
+        maxWidth &&
+          typeof maxContentWidth === 'number' && {
+            maxWidth: maxContentWidth,
+          },
         padding && {
           paddingHorizontal: screenPadding,
         },

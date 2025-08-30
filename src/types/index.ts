@@ -11,7 +11,7 @@ export type Maybe<T> = T | null | undefined;
 
 // Status types used across the app
 export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
-export type AsyncState<T = any> = {
+export type AsyncState<T = unknown> = {
   state: LoadingState;
   data?: T;
   error?: string;
@@ -50,12 +50,12 @@ export interface ThemeRadius {
 }
 
 export interface ThemeTypography {
-  h1: any;
-  h2: any;
-  h3: any;
-  body: any;
-  label: any;
-  caption: any;
+  h1: Record<string, unknown>;
+  h2: Record<string, unknown>;
+  h3: Record<string, unknown>;
+  body: Record<string, unknown>;
+  label: Record<string, unknown>;
+  caption: Record<string, unknown>;
 }
 
 export interface Theme {
@@ -101,12 +101,12 @@ export type EventHandler<T = void> = (data: T) => void | Promise<void>;
 export type AsyncEventHandler<T = void> = (data: T) => Promise<void>;
 
 // Validation types
-export interface ValidationRule<T = any> {
+export interface ValidationRule<T = unknown> {
   validate: (value: T) => boolean | Promise<boolean>;
   message: string;
 }
 
-export type FormValidation<T = Record<string, any>> = {
+export type FormValidation<T = Record<string, unknown>> = {
   [K in keyof T]?: ValidationRule<T[K]>[];
 };
 
@@ -114,12 +114,12 @@ export type FormValidation<T = Record<string, any>> = {
 export interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
-  errorInfo?: any;
+  errorInfo?: React.ErrorInfo;
 }
 
 // Analytics types
 export interface AnalyticsEvent {
   name: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
   timestamp: number;
 }

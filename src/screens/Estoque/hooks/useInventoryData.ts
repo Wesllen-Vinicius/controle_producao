@@ -1,10 +1,12 @@
 // src/screens/Estoque/hooks/useInventoryData.ts
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert } from "react-native";
-import { useHaptics } from "../../../hooks/useHaptics";
-import { useAuth } from "../../../state/AuthProvider";
-import { useToast } from "../../../state/ToastProvider";
-import * as InventoryService from "../services";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert } from 'react-native';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
+import { useHaptics } from '../../../hooks/useHaptics';
+import { notificationService } from '../../../services/notificationService';
+import { useAuth } from '../../../state/AuthProvider';
+import { useToast } from '../../../state/ToastProvider';
+import * as InventoryService from '../services';
 import {
   Balance,
   InventoryFilters,
@@ -12,14 +14,9 @@ import {
   Product,
   Renderable,
   Transaction,
-} from "../types";
-import {
-  formatQuantity,
-  isUnitType,
-  labelForYMD,
-  toISODate,
-  todayStr,
-} from "../utils";
+  TransactionType,
+} from '../types';
+import { formatQuantity, isUnitType, labelForYMD, toISODate, todayStr } from '../utils';
 
 const ONE_DAY_MS = 86400000;
 
@@ -48,23 +45,26 @@ export function useInventoryData() {
     toDate: todayStr(),
   });
 
+  // Debounced filters para evitar re-fetches excessivos
+  const debouncedFilters = useDebouncedValue(filters, 500);
+
   // Form States
   const [formOpen, setFormOpen] = useState(false);
   const [mvProd, setMvProd] = useState<string | null>(null);
-  const [mvType, setMvType] = useState<Transaction["tx_type"]>("saida");
-  const [mvQty, setMvQty] = useState("");
-  const [mvCustomer, setMvCustomer] = useState("");
-  const [mvObservation, setMvObservation] = useState("");
-  const [mvJustification, setMvJustification] = useState("");
+  const [mvType, setMvType] = useState<TransactionType>('saida');
+  const [mvQty, setMvQty] = useState('');
+  const [mvCustomer, setMvCustomer] = useState('');
+  const [mvObservation, setMvObservation] = useState('');
+  const [mvJustification, setMvJustification] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Error States for inline feedback
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   // Derived data for performance
-  const productsById = useMemo(
-    () => new Map((products || []).map((p) => [p.id, p])),
-    [products]
-  );
+  const productsById = useMemo(() => new Map((products ?? []).map(p => [p.id, p])), [products]);
   const balanceById = useMemo(
-    () => new Map((balances || []).map((b) => [b.product_id, b.saldo])),
+    () => new Map((balances ?? []).map(b => [b.product_id, b.saldo])),
     [balances]
   );
 
@@ -76,34 +76,33 @@ export function useInventoryData() {
       if (fetchedProducts.length > 0 && !mvProd) {
         setMvProd(fetchedProducts[0].id);
       }
-      const fetchedBalances = await InventoryService.fetchBalances(
-        fetchedProducts
-      );
+      const fetchedBalances = await InventoryService.fetchBalances(fetchedProducts);
       setBalances(fetchedBalances);
-    } catch (error: any) {
-      Alert.alert("Erro ao carregar dados", error.message);
+    } catch (error: unknown) {
+      Alert.alert('Erro ao carregar dados', (error as Error).message);
     }
   }, [mvProd]);
 
   const fetchTxPage = useCallback(
-    async (reset = false) => {
-      if (loadingPage || (!reset && !hasMore)) return;
+    async (_info?: { distanceFromEnd: number }) => {
+      if (loadingPage || !hasMore) return;
       setLoadingPage(true);
-      const nextCursor = reset ? 0 : cursor;
 
       try {
-        const { page, hasMore: newHasMore } =
-          await InventoryService.fetchTransactionsPage(filters, nextCursor);
-        setTransactions((prev) => (reset ? page : [...(prev || []), ...page]));
-        setCursor(nextCursor + page.length);
+        const { page, hasMore: newHasMore } = await InventoryService.fetchTransactionsPage(
+          debouncedFilters,
+          cursor
+        );
+        setTransactions(prev => [...(prev ?? []), ...page]);
+        setCursor(cursor + page.length);
         setHasMore(newHasMore);
-      } catch (error: any) {
-        Alert.alert("Erro ao carregar histórico", error.message);
+      } catch (error: unknown) {
+        Alert.alert('Erro ao carregar histórico', (error as Error).message);
       } finally {
         setLoadingPage(false);
       }
     },
-    [loadingPage, hasMore, cursor, filters]
+    [loadingPage, hasMore, cursor, debouncedFilters]
   );
 
   useEffect(() => {
@@ -111,45 +110,121 @@ export function useInventoryData() {
     loadPrimaryData().finally(() => setLoading(false));
   }, [loadPrimaryData]);
 
+  const lastAppliedFiltersRef = useRef<InventoryFilters | null>(null);
+  const resetAndFetchRef = useRef<((filters: InventoryFilters) => Promise<void>) | null>(null);
+
+  resetAndFetchRef.current = async (newFilters: InventoryFilters) => {
+    if (
+      lastAppliedFiltersRef.current &&
+      JSON.stringify(lastAppliedFiltersRef.current) === JSON.stringify(newFilters)
+    ) {
+      return;
+    }
+
+    lastAppliedFiltersRef.current = newFilters;
+    setCursor(0);
+    setHasMore(true);
+    setTransactions(null);
+
+    if (loadingPage) return;
+    setLoadingPage(true);
+
+    try {
+      const { page, hasMore: newHasMore } = await InventoryService.fetchTransactionsPage(
+        newFilters,
+        0
+      );
+      setTransactions(page);
+      setCursor(page.length);
+      setHasMore(newHasMore);
+    } catch (error: unknown) {
+      Alert.alert('Erro ao carregar histórico', (error as Error).message);
+    } finally {
+      setLoadingPage(false);
+    }
+  };
+
   useEffect(() => {
-    fetchTxPage(true);
-  }, [filters]); // Re-fetch when filters change
+    if (debouncedFilters && resetAndFetchRef.current) {
+      resetAndFetchRef.current(debouncedFilters);
+    }
+  }, [debouncedFilters]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadPrimaryData(), fetchTxPage(true)]);
+    lastAppliedFiltersRef.current = null; // Force refresh
+    await loadPrimaryData();
+    if (resetAndFetchRef.current) {
+      await resetAndFetchRef.current(filters);
+    }
     setRefreshing(false);
-  }, [loadPrimaryData, fetchTxPage]);
+  }, [loadPrimaryData, filters]);
+
+  // Validação em tempo real
+  const validateForm = useCallback(() => {
+    const newErrors: Record<string, string> = {};
+
+    if (!mvProd) {
+      newErrors.product = 'Selecione um produto';
+    }
+
+    if (mvType === 'ajuste' && profile?.role !== 'admin') {
+      newErrors.type = 'Apenas administradores podem fazer ajustes';
+    }
+
+    const mvQtyNum = parseFloat((mvQty || '0').replace(',', '.')) || 0;
+    if (mvQtyNum <= 0) {
+      newErrors.quantity = 'Informe uma quantidade válida';
+    } else if (mvQtyNum > 999999) {
+      newErrors.quantity = 'Quantidade muito alta (máximo 999.999)';
+    }
+
+    if (mvType === 'ajuste' && !mvObservation.trim()) {
+      newErrors.observation = 'Informe o motivo do ajuste';
+    }
+
+    if (mvType === 'saida' && !mvJustification.trim()) {
+      newErrors.justification = 'Informe a justificativa da saída';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [mvProd, mvType, mvQty, mvObservation, mvJustification, profile?.role]);
+
+  useEffect(() => {
+    if (formOpen) {
+      validateForm();
+    }
+  }, [formOpen, validateForm]);
 
   const addTx = useCallback(async () => {
-    if (!session?.user?.id)
-      return Alert.alert("Acesso negado", "É necessário estar logado.");
-    if (!mvProd) return Alert.alert("Atenção", "Selecione um produto.");
-    if (mvType === "ajuste" && profile?.role !== "admin")
-      return Alert.alert(
-        "Acesso negado",
-        "Apenas administradores podem fazer ajustes."
-      );
+    const mvQtyNum = parseFloat((mvQty || '0').replace(',', '.')) || 0;
 
-    const mvQtyNum = parseFloat((mvQty || "0").replace(",", ".")) || 0;
-    if (mvQtyNum <= 0)
-      return Alert.alert("Atenção", "Informe uma quantidade válida.");
-    if (mvQtyNum > 999999)
-      return Alert.alert("Atenção", "Quantidade muito alta.");
+    if (!session?.user?.id) {
+      setErrors({ general: 'É necessário estar logado para registrar movimentações' });
+      return;
+    }
 
-    if (mvType === "ajuste" && !mvObservation.trim())
-      return Alert.alert("Atenção", "Informe o motivo do ajuste.");
-    if (mvType === "saida" && !mvJustification.trim())
-      return Alert.alert("Atenção", "Informe a justificativa da saída.");
+    if (!validateForm()) {
+      return;
+    }
+
+    if (!mvProd) {
+      setErrors({ general: 'Produto inválido ou não selecionado.' });
+      return;
+    }
 
     const product = productsById.get(mvProd);
-    if (!product) return Alert.alert("Erro", "Produto não encontrado.");
+    if (!product) {
+      setErrors({ general: 'Produto não encontrado' });
+      return;
+    }
 
     const proceedWithTx = async () => {
       setSaving(true);
       try {
         let actualQuantity = mvQtyNum;
-        if (mvType === "ajuste") {
+        if (mvType === 'ajuste') {
           const currentBalance = balanceById.get(mvProd) ?? 0;
           actualQuantity = mvQtyNum - currentBalance;
         }
@@ -161,57 +236,94 @@ export function useInventoryData() {
           tx_type: mvType,
           created_by: session.user.id,
           metadata:
-            mvType === "venda" && mvCustomer.trim()
+            mvType === 'venda' && mvCustomer.trim()
               ? { customer: mvCustomer.trim().substring(0, 100) }
-              : mvType === "ajuste" && mvObservation.trim()
-              ? { observation: mvObservation.trim().substring(0, 200) }
-              : mvType === "saida" && mvJustification.trim()
-              ? { justification: mvJustification.trim().substring(0, 200) }
-              : null,
+              : mvType === 'ajuste' && mvObservation.trim()
+                ? { observation: mvObservation.trim().substring(0, 200) }
+                : mvType === 'saida' && mvJustification.trim()
+                  ? { justification: mvJustification.trim().substring(0, 200) }
+                  : null,
         });
 
-        await Promise.all([loadPrimaryData(), fetchTxPage(true)]);
+        lastAppliedFiltersRef.current = null;
+        await loadPrimaryData();
+        if (resetAndFetchRef.current) {
+          await resetAndFetchRef.current(filters);
+        }
+
+        if (mvType !== 'transferencia') {
+          await notificationService.notifyInventoryMovement({
+            type: mvType,
+            product: product.name,
+            quantity: actualQuantity,
+            unit: product.unit,
+          });
+        }
+
+        const newBalance = balanceById.get(mvProd) ?? 0;
+        const updatedBalance =
+          newBalance +
+          (mvType === 'entrada'
+            ? actualQuantity
+            : mvType === 'ajuste'
+              ? actualQuantity - newBalance
+              : -actualQuantity);
+
+        if (updatedBalance < 0) {
+          await notificationService.notifyNegativeStock({
+            product: product.name,
+            currentStock: updatedBalance,
+            unit: product.unit,
+          });
+        } else if (updatedBalance <= 10 && updatedBalance > 0) {
+          await notificationService.notifyLowStock({
+            product: product.name,
+            currentStock: updatedBalance,
+            unit: product.unit,
+            threshold: 10,
+          });
+        }
+
         h.success();
         showToast({
-          type: "success",
-          message: `${
-            mvType.charAt(0).toUpperCase() + mvType.slice(1)
-          } registrada!`,
+          type: 'success',
+          message: `${mvType.charAt(0).toUpperCase() + mvType.slice(1)} registrada!`,
         });
         setFormOpen(false);
-        setMvQty("");
-        setMvCustomer("");
-        setMvObservation("");
-        setMvJustification("");
-      } catch (e: any) {
+        setMvQty('');
+        setMvCustomer('');
+        setMvObservation('');
+        setMvJustification('');
+        setErrors({});
+      } catch (e: unknown) {
         h.error();
-        Alert.alert("Erro", e.message);
+        Alert.alert('Erro', (e as Error).message);
       } finally {
         setSaving(false);
       }
     };
 
-    if (mvType === "saida" || mvType === "venda") {
+    if (mvType === 'saida' || mvType === 'venda') {
       const saldoAtual = balanceById.get(mvProd) ?? 0;
       if (saldoAtual < mvQtyNum) {
         Alert.alert(
-          "Saldo insuficiente",
-          `Saldo atual: ${formatQuantity(
+          'Saldo insuficiente',
+          `Saldo atual: ${formatQuantity(product.unit, saldoAtual)}\nQuantidade solicitada: ${formatQuantity(
             product.unit,
-            saldoAtual
-          )}\nQuantidade solicitada: ${formatQuantity(product.unit, mvQtyNum)}`,
+            mvQtyNum
+          )}`,
           [
-            { text: "Cancelar", style: "cancel" },
-            { text: "Continuar", onPress: proceedWithTx },
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Continuar', onPress: proceedWithTx },
           ]
         );
         return;
       }
     }
     await proceedWithTx();
+    // CORREÇÃO: 'profile' removido das dependências pois já é uma dependência indireta de 'validateForm'.
   }, [
     session,
-    profile,
     mvProd,
     mvQty,
     mvType,
@@ -223,54 +335,49 @@ export function useInventoryData() {
     h,
     showToast,
     loadPrimaryData,
-    fetchTxPage,
+    filters,
+    validateForm,
   ]);
 
-  // UI Derived Data
   const inventoryStats = useMemo((): InventoryStats => {
-    const totalProducts = balances?.length || 0;
-    const negativeStock = balances?.filter((b) => b.saldo < 0).length || 0;
-    const maxSaldo = Math.max(
-      1,
-      ...(balances || []).map((b) => Math.abs(b.saldo))
-    );
+    const balancesData = balances ?? [];
+    const totalProducts = balancesData.length;
+    const negativeStock = balancesData.filter(b => b.saldo < 0).length;
+    const maxSaldo = Math.max(0, ...balancesData.map(b => Math.abs(b.saldo)));
     const lowStock =
-      balances?.filter((b) => {
+      balancesData.filter(b => {
         if (b.saldo <= 0) return false;
-        const lowThreshold = isUnitType(b.unit)
-          ? 10
-          : Math.max(2, maxSaldo * 0.05);
+        const lowThreshold = isUnitType(b.unit) ? 10 : Math.max(2, maxSaldo * 0.05);
         return b.saldo <= lowThreshold;
-      }).length || 0;
+      }).length ?? 0;
     return { totalProducts, negativeStock, lowStock };
   }, [balances]);
 
   const renderables = useMemo((): Renderable[] => {
     if (!transactions) return [];
     const groups = new Map<string, Transaction[]>();
-    transactions.forEach((t) => {
+    transactions.forEach(t => {
       const ymd = t.created_at.slice(0, 10);
       if (!groups.has(ymd)) groups.set(ymd, []);
-      groups.get(ymd)!.push(t);
+      const group = groups.get(ymd);
+      if (group) {
+        group.push(t);
+      }
     });
     const out: Renderable[] = [];
     Array.from(groups.entries())
       .sort(([a], [b]) => (a < b ? 1 : -1))
       .forEach(([ymd, items]) => {
         out.push({
-          type: "hdr",
+          type: 'hdr',
           id: `hdr-${ymd}`,
           title: labelForYMD(ymd),
           subtitle: new Date(ymd).toLocaleDateString(),
         });
         items
-          .sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          )
-          .forEach((tx) => {
-            out.push({ type: "tx", id: tx.id, tx });
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .forEach(tx => {
+            out.push({ type: 'tx', id: tx.id, tx });
           });
       });
     return out;
@@ -311,5 +418,8 @@ export function useInventoryData() {
     setMvJustification,
     saving,
     addTx,
+    errors,
+    validateForm,
+    setErrors,
   };
 }

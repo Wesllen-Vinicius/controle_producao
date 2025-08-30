@@ -1,5 +1,5 @@
 // components/ThemeToggle.tsx
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '../state/ThemeProvider';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -28,7 +28,9 @@ export default function ThemeToggle() {
       }}
       style={({ pressed }) => [styles.wrap, { opacity: pressed ? 0.9 : 1 }]}
     >
-      <View style={[styles.track, { backgroundColor: colors.surfaceAlt, borderColor: colors.line }]}>
+      <View
+        style={[styles.track, { backgroundColor: colors.surfaceAlt, borderColor: colors.line }]}
+      >
         <Animated.View
           style={[
             styles.knob,

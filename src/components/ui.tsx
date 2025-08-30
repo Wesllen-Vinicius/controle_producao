@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Animated,
   Platform,
   Pressable,
   StyleProp,
-  StyleSheet,
   Text,
   TextInput,
   TextInputProps,
   View,
   ViewStyle,
+  DimensionValue,
 } from 'react-native';
 import { useTheme } from '../state/ThemeProvider';
 
@@ -22,7 +22,12 @@ function elevation(i: 0 | 1 | 2 | 3 | 4): ViewStyle {
   const r = 8 + i * 2;
   const h = 4 + i * 2;
   const op = 0.08 + i * 0.04;
-  return { shadowColor: '#000', shadowOpacity: op, shadowRadius: r, shadowOffset: { width: 0, height: h } };
+  return {
+    shadowColor: '#000',
+    shadowOpacity: op,
+    shadowRadius: r,
+    shadowOffset: { width: 0, height: h },
+  };
 }
 
 const padMap = { none: 0, sm: 10, md: 14, lg: 18 } as const;
@@ -47,14 +52,10 @@ export const Card: React.FC<CardProps> = ({
   const { colors, radius } = useTheme();
 
   const bg =
-    variant === 'filled' ? colors.surface :
-    variant === 'tonal' ? colors.surfaceAlt :
-    'transparent';
+    variant === 'filled' ? colors.surface : variant === 'tonal' ? colors.surfaceAlt : 'transparent';
   const borderW = variant === 'outlined' ? 1 : 1;
   const borderC =
-    variant === 'outlined' ? colors.line :
-    variant === 'plain' ? 'transparent' :
-    colors.line;
+    variant === 'outlined' ? colors.line : variant === 'plain' ? 'transparent' : colors.line;
 
   return (
     <View
@@ -115,7 +116,7 @@ export const Input = React.forwardRef<TextInput, FancyInputProps>(
                 borderWidth: 1,
                 paddingRight: rightIcon ? spacing.lg * 2 : spacing.md,
               },
-              style as any,
+              style,
             ]}
           />
           {rightIcon ? (
@@ -169,18 +170,12 @@ export const Button: React.FC<{
   const active = !loading && !disabled;
 
   const intentBg =
-    intent === 'danger' ? colors.danger :
-    intent === 'success' ? colors.success :
-    colors.primary;
+    intent === 'danger' ? colors.danger : intent === 'success' ? colors.success : colors.primary;
 
   const bg =
-    variant === 'primary' ? intentBg :
-    variant === 'tonal' ? colors.primaryDim :
-    'transparent';
+    variant === 'primary' ? intentBg : variant === 'tonal' ? colors.primaryDim : 'transparent';
 
-  const textColor =
-    variant === 'text' ? colors.accent :
-    '#fff';
+  const textColor = variant === 'text' ? colors.accent : '#fff';
 
   const ripple = variant === 'text' ? '#00000022' : colors.primaryDim;
 
@@ -233,7 +228,9 @@ export const Chip: React.FC<{ label: string; active?: boolean; onPress?: () => v
         active && { backgroundColor: colors.primary, borderColor: 'transparent' },
       ]}
     >
-      <Text style={[{ color: '#CFD6DC', fontWeight: '700' }, active && { color: '#fff' }]}>{label}</Text>
+      <Text style={[{ color: '#CFD6DC', fontWeight: '700' }, active && { color: '#fff' }]}>
+        {label}
+      </Text>
     </Pressable>
   );
 };
@@ -253,10 +250,13 @@ export const KPI: React.FC<{
   const { colors, radius, spacing } = useTheme();
 
   const statusColor =
-    status === 'success' ? colors.success :
-    status === 'danger' ? colors.danger :
-    status === 'warning' ? colors.accent :
-    colors.text;
+    status === 'success'
+      ? colors.success
+      : status === 'danger'
+        ? colors.danger
+        : status === 'warning'
+          ? colors.accent
+          : colors.text;
 
   const bar = typeof progress === 'number' ? Math.max(0, Math.min(1, progress)) : undefined;
 
@@ -280,8 +280,23 @@ export const KPI: React.FC<{
         <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>{hint}</Text>
       ) : null}
       {bar !== undefined ? (
-        <View style={{ height: 6, alignSelf: 'stretch', backgroundColor: colors.line, borderRadius: 6, marginTop: 6 }}>
-          <View style={{ height: 6, width: `${Math.round(bar * 100)}%`, backgroundColor: statusColor, borderRadius: 6 }} />
+        <View
+          style={{
+            height: 6,
+            alignSelf: 'stretch',
+            backgroundColor: colors.line,
+            borderRadius: 6,
+            marginTop: 6,
+          }}
+        >
+          <View
+            style={{
+              height: 6,
+              width: `${Math.round(bar * 100)}%`,
+              backgroundColor: statusColor,
+              borderRadius: 6,
+            }}
+          />
         </View>
       ) : null}
     </View>
@@ -290,15 +305,12 @@ export const KPI: React.FC<{
 
 /* ------------------------------- Skeleton ------------------------------- */
 
-// Tipagem correta para width em Animated.View
-type RNWidth = number | `${number}%` | 'auto';
-
 export const Skeleton: React.FC<{
   height?: number;
   radius?: number;
-  width?: RNWidth;
+  width?: DimensionValue;
   style?: StyleProp<ViewStyle>;
-}> = ({ height = 16, radius = 14, width = '100%' as RNWidth, style }) => {
+}> = ({ height = 16, radius = 14, width = '100%', style }) => {
   const { colors } = useTheme();
   const anim = useRef(new Animated.Value(0.4)).current;
 
@@ -313,19 +325,14 @@ export const Skeleton: React.FC<{
     return () => loop.stop();
   }, [anim]);
 
-  // Ajuda o TS a entender o width corretamente
-  const baseStyle: ViewStyle & { width: RNWidth } = {
+  const baseStyle: ViewStyle = {
     height,
     width,
     borderRadius: radius,
     backgroundColor: colors.surfaceAlt,
   };
 
-  return (
-    <Animated.View
-      style={[baseStyle, { opacity: anim }, style]}
-    />
-  );
+  return <Animated.View style={[baseStyle, { opacity: anim }, style]} />;
 };
 
 /* ------------------------------- EmptyState ----------------------------- */
@@ -344,7 +351,9 @@ export const EmptyState: React.FC<{
   return (
     <View style={{ alignItems: 'center', paddingVertical: padV }}>
       <Text style={{ color: colors.muted, fontWeight: '800' }}>{title}</Text>
-      {!!subtitle && <Text style={{ color: colors.muted, marginTop: 6, textAlign: 'center' }}>{subtitle}</Text>}
+      {!!subtitle && (
+        <Text style={{ color: colors.muted, marginTop: 6, textAlign: 'center' }}>{subtitle}</Text>
+      )}
       {actionLabel && onAction ? (
         <View style={{ marginTop: gap, alignSelf: 'stretch' }}>
           <Button title={actionLabel} variant="tonal" onPress={onAction} />

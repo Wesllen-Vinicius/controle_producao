@@ -47,7 +47,7 @@ export default function SignupForm({
   confirmPasswordError,
 }: SignupFormProps) {
   const { spacing, colors } = useTheme();
-  
+
   // Validações para cores dos ícones
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const isPasswordValid = pass.length >= 6;
@@ -69,9 +69,9 @@ export default function SignupForm({
         error={emailTouched ? emailError : undefined}
         disabled={busy}
         leftIcon={
-          <MaterialCommunityIcons 
-            name="email-outline" 
-            size={20} 
+          <MaterialCommunityIcons
+            name="email-outline"
+            size={20}
             color={!email ? colors.muted : isEmailValid ? colors.success : colors.danger}
           />
         }
@@ -89,16 +89,16 @@ export default function SignupForm({
         error={passwordTouched ? passwordError : undefined}
         disabled={busy}
         leftIcon={
-          <MaterialCommunityIcons 
-            name="lock-outline" 
-            size={20} 
+          <MaterialCommunityIcons
+            name="lock-outline"
+            size={20}
             color={!pass ? colors.muted : isPasswordValid ? colors.success : colors.danger}
           />
         }
         rightIcon={
-          <MaterialCommunityIcons 
-            name={showPass ? 'eye-off-outline' : 'eye-outline'} 
-            size={20} 
+          <MaterialCommunityIcons
+            name={showPass ? 'eye-off-outline' : 'eye-outline'}
+            size={20}
             color={colors.muted}
           />
         }
@@ -116,9 +116,9 @@ export default function SignupForm({
         error={confirmPasswordError}
         disabled={busy}
         leftIcon={
-          <MaterialCommunityIcons 
-            name="lock-check-outline" 
-            size={20} 
+          <MaterialCommunityIcons
+            name="lock-check-outline"
+            size={20}
             color={!pass2 ? colors.muted : isConfirmPasswordValid ? colors.success : colors.danger}
           />
         }
@@ -133,26 +133,26 @@ export default function SignupForm({
         full
         leftIcon={
           busy ? (
-            <ActivityIndicator size="small" color={isFormValid ? "white" : "#666"} />
+            <ActivityIndicator size="small" color={isFormValid ? 'white' : '#666'} />
           ) : (
-            <MaterialCommunityIcons 
-              name="account-plus" 
-              size={18} 
-              color={isFormValid ? "white" : "#666"} 
+            <MaterialCommunityIcons
+              name="account-plus"
+              size={18}
+              color={isFormValid ? 'white' : '#666'}
             />
           )
         }
       />
-      
+
       {error && (
-        <View style={{ 
-          padding: spacing.md, 
-          backgroundColor: 'rgba(224, 49, 49, 0.1)', 
-          borderRadius: 8 
-        }}>
-          <Text style={{ color: '#E03131', textAlign: 'center' }}>
-            {error}
-          </Text>
+        <View
+          style={{
+            padding: spacing.md,
+            backgroundColor: 'rgba(224, 49, 49, 0.1)',
+            borderRadius: 8,
+          }}
+        >
+          <Text style={{ color: '#E03131', textAlign: 'center' }}>{error}</Text>
         </View>
       )}
     </View>

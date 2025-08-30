@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { usePerformanceOptimization } from "../../../hooks/usePerformanceOptimization";
-import { fetchProducts, fetchReportData } from "../services/reportService";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePerformanceOptimization } from '../../../hooks/usePerformanceOptimization';
+import { fetchProducts, fetchReportData } from '../services/reportService';
 import {
   ChartSeriesData,
   DayTotals,
@@ -11,8 +11,8 @@ import {
   SortOption,
   Totals,
   Unit,
-} from "../types";
-import { getTodayStr, ONE_DAY_MS, toISODate } from "../utils";
+} from '../types';
+import { getTodayStr, ONE_DAY_MS, toISODate } from '../utils';
 
 export const useReportData = () => {
   const { isAppActive } = usePerformanceOptimization();
@@ -23,18 +23,16 @@ export const useReportData = () => {
   const [productions, setProductions] = useState<Production[]>([]);
   const [items, setItems] = useState<ProductionItem[]>([]);
 
-  const [dateRange, setDateRange] = useState<{ from: string; to: string }>(
-    () => {
-      const now = Date.now();
-      return {
-        from: toISODate(new Date(now - 30 * ONE_DAY_MS)),
-        to: getTodayStr(),
-      };
-    }
-  );
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>(() => {
+    const now = Date.now();
+    return {
+      from: toISODate(new Date(now - 30 * ONE_DAY_MS)),
+      to: getTodayStr(),
+    };
+  });
   const [productFilters, setProductFilters] = useState<string[]>([]);
-  const [unitFilter, setUnitFilter] = useState<Unit | "ALL">("ALL");
-  const [sortTotalsBy, setSortTotalsBy] = useState<SortOption>("produced");
+  const [unitFilter, setUnitFilter] = useState<Unit | 'ALL'>('ALL');
+  const [sortTotalsBy, setSortTotalsBy] = useState<SortOption>('produced');
 
   const loadData = useCallback(async () => {
     if (!isAppActive()) return;
@@ -48,8 +46,10 @@ export const useReportData = () => {
       setProductions(report.productions);
       setItems(report.items);
       setProducts(prods);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -59,21 +59,18 @@ export const useReportData = () => {
     loadData();
   }, [loadData]);
 
-  const productsById = useMemo(
-    () => Object.fromEntries(products.map((p) => [p.id, p])),
-    [products]
-  );
+  const productsById = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), [products]);
   const hasProductFilter = productFilters.length > 0;
 
   const effectiveProductIds = useMemo(() => {
-    if (!hasProductFilter || unitFilter === "ALL") return productFilters;
-    return productFilters.filter((id) => productsById[id]?.unit === unitFilter);
+    if (!hasProductFilter || unitFilter === 'ALL') return productFilters;
+    return productFilters.filter(id => productsById[id]?.unit === unitFilter);
   }, [hasProductFilter, productFilters, unitFilter, productsById]);
 
   const dailyTotals: DayTotals[] = useMemo(() => {
     if (!productions.length) return [];
     const map = new Map<string, DayTotals>();
-    productions.forEach((p) =>
+    productions.forEach(p =>
       map.set(p.prod_date, {
         date: p.prod_date,
         abate: p.abate,
@@ -85,9 +82,9 @@ export const useReportData = () => {
 
     if (hasProductFilter) {
       const picked = new Set(effectiveProductIds);
-      items.forEach((it) => {
+      items.forEach(it => {
         if (picked.has(it.product_id)) {
-          const prod = productions.find((p) => p.id === it.production_id);
+          const prod = productions.find(p => p.id === it.production_id);
           if (prod) {
             const day = map.get(prod.prod_date);
             if (day) {
@@ -99,9 +96,7 @@ export const useReportData = () => {
         }
       });
     }
-    return Array.from(map.values()).sort((a, b) =>
-      b.date.localeCompare(a.date)
-    );
+    return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
   }, [productions, items, hasProductFilter, effectiveProductIds]);
 
   const totals: Totals | null = useMemo(() => {
@@ -120,7 +115,7 @@ export const useReportData = () => {
   const productTotals: ProductTotals[] = useMemo(() => {
     if (!items.length) return [];
     const map = new Map<string, ProductTotals>();
-    items.forEach((it) => {
+    items.forEach(it => {
       const p = productsById[it.product_id];
       if (!p) return;
       let entry = map.get(it.product_id);
@@ -140,31 +135,28 @@ export const useReportData = () => {
       entry.diff += it.diff;
     });
     const unsorted = Array.from(map.values());
-    if (sortTotalsBy === "name")
-      return unsorted.sort((a, b) => a.name.localeCompare(b.name));
-    if (sortTotalsBy === "produced")
-      return unsorted.sort((a, b) => b.produced - a.produced);
-    if (sortTotalsBy === "compliance") {
-      const getCompliance = (p: ProductTotals) =>
-        p.meta > 0 ? p.produced / p.meta : 0;
+    if (sortTotalsBy === 'name') return unsorted.sort((a, b) => a.name.localeCompare(b.name));
+    if (sortTotalsBy === 'produced') return unsorted.sort((a, b) => b.produced - a.produced);
+    if (sortTotalsBy === 'compliance') {
+      const getCompliance = (p: ProductTotals) => (p.meta > 0 ? p.produced / p.meta : 0);
       return unsorted.sort((a, b) => getCompliance(b) - getCompliance(a));
     }
     return unsorted;
   }, [items, productsById, sortTotalsBy]);
 
   // --- CORREÇÃO: LÓGICA DO GRÁFICO ADICIONADA ---
-  const chartUnit: Unit | "Misto" = useMemo(() => {
-    if (!hasProductFilter) return "UN";
+  const chartUnit: Unit | 'Misto' = useMemo(() => {
+    if (!hasProductFilter) return 'UN';
     const uniqueUnits = new Set(
-      effectiveProductIds.map((id) => productsById[id]?.unit).filter(Boolean)
+      effectiveProductIds.map(id => productsById[id]?.unit).filter(Boolean)
     );
-    return uniqueUnits.size === 1 ? Array.from(uniqueUnits)[0] : "Misto";
+    return uniqueUnits.size === 1 ? Array.from(uniqueUnits)[0] : 'Misto';
   }, [hasProductFilter, effectiveProductIds, productsById]);
 
   const chartSeries: ChartSeriesData[] = useMemo(() => {
     if (!hasProductFilter || !dailyTotals.length) return [];
     return dailyTotals
-      .map((day) => ({
+      .map(day => ({
         label: day.date,
         produced: day.produced,
         meta: day.meta,

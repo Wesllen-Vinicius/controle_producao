@@ -22,7 +22,7 @@ export async function copyText(text: string): Promise<void> {
   // 2) Expo Clipboard
   try {
     // require dinâmico evita erro de tipos quando o pacote não está instalado
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const expoClip = require('expo-clipboard');
     if (expoClip?.setStringAsync && typeof expoClip.setStringAsync === 'function') {
       await expoClip.setStringAsync(text);
@@ -34,7 +34,7 @@ export async function copyText(text: string): Promise<void> {
 
   // 3) RN community Clipboard
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const rnClipModule = require('@react-native-clipboard/clipboard');
     const rnClip = rnClipModule?.default ?? rnClipModule;
     if (rnClip?.setString && typeof rnClip.setString === 'function') {

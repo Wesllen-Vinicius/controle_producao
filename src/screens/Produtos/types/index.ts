@@ -1,6 +1,6 @@
 // Produtos/types/index.ts
 
-export type Unit = "UN" | "KG" | "L" | "CX" | "PC" | string;
+export type Unit = 'UN' | 'KG' | 'L' | 'CX' | 'PC' | string;
 
 export interface Product {
   id: string;

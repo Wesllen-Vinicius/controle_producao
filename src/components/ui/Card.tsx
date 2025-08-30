@@ -1,13 +1,5 @@
 import React, { ReactNode, useMemo, useRef } from 'react';
-import {
-  Animated,
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  Text,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Animated, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useTheme } from '../../state/ThemeProvider';
 
 type Variant = 'filled' | 'tonal' | 'outlined' | 'plain';
@@ -56,29 +48,41 @@ export default function Card({
 
   const pad = useMemo(() => {
     switch (padding) {
-      case 'none': return 0;
-      case 'sm': return spacing.sm;
-      case 'lg': return spacing.lg;
+      case 'none':
+        return 0;
+      case 'sm':
+        return spacing.sm;
+      case 'lg':
+        return spacing.lg;
       case 'md':
-      default: return spacing.md;
+      default:
+        return spacing.md;
     }
   }, [padding, spacing]);
 
   const containerBase: ViewStyle = useMemo(() => {
     const bg =
-      variant === 'filled' ? colors.surface :
-      variant === 'tonal'  ? colors.surfaceAlt :
-      variant === 'plain'  ? 'transparent' : colors.surface;
+      variant === 'filled'
+        ? colors.surface
+        : variant === 'tonal'
+          ? colors.surfaceAlt
+          : variant === 'plain'
+            ? 'transparent'
+            : colors.surface;
 
     // Em Android, elevation + border gera artefatos. Se outlined, removemos elevação.
     const useElevation = variant !== 'outlined';
-    const elev =
-      !useElevation ? elevation.e0 :
-      elevationLevel === 0 ? elevation.e0
-      : elevationLevel === 1 ? elevation.e1
-      : elevationLevel === 2 ? elevation.e2
-      : elevationLevel === 3 ? elevation.e3
-      : elevation.e4;
+    const elev = !useElevation
+      ? elevation.e0
+      : elevationLevel === 0
+        ? elevation.e0
+        : elevationLevel === 1
+          ? elevation.e1
+          : elevationLevel === 2
+            ? elevation.e2
+            : elevationLevel === 3
+              ? elevation.e3
+              : elevation.e4;
 
     const border: ViewStyle =
       variant === 'outlined'
@@ -110,12 +114,16 @@ export default function Card({
 
   const Content = (
     <>
-      {(title || subtitle || leading || trailing) && (
+      {(title ?? subtitle ?? leading ?? trailing) && (
         <View style={[styles.header, { padding: pad, paddingBottom: children ? spacing.sm : pad }]}>
           <View style={styles.headerLeft}>
             {leading ? <View style={styles.leading}>{leading}</View> : null}
             <View style={{ flex: 1 }}>
-              {title ? <Text style={typography.h2} numberOfLines={1}>{title}</Text> : null}
+              {title ? (
+                <Text style={typography.h2} numberOfLines={1}>
+                  {title}
+                </Text>
+              ) : null}
               {subtitle ? (
                 <Text style={[typography.label, { marginTop: 2 }]} numberOfLines={1}>
                   {subtitle}
@@ -128,20 +136,13 @@ export default function Card({
       )}
 
       {children ? (
-        <View
-          style={[
-            { padding: pad, paddingTop: (title || subtitle) ? 0 : pad },
-            contentStyle,
-          ]}
-        >
+        <View style={[{ padding: pad, paddingTop: (title ?? subtitle) ? 0 : pad }, contentStyle]}>
           {children}
         </View>
       ) : null}
 
       {footer ? (
-        <View style={{ padding: pad, paddingTop: children ? spacing.sm : pad }}>
-          {footer}
-        </View>
+        <View style={{ padding: pad, paddingTop: children ? spacing.sm : pad }}>{footer}</View>
       ) : null}
     </>
   );

@@ -11,18 +11,16 @@ export class InputSanitizationService {
   /**
    * Sanitiza strings removendo caracteres perigosos
    */
-  sanitizeString(input: string, options: {
-    allowHtml?: boolean;
-    allowSpecialChars?: boolean;
-    maxLength?: number;
-    trim?: boolean;
-  } = {}): string {
-    const {
-      allowHtml = false,
-      allowSpecialChars = true,
-      maxLength = 1000,
-      trim = true,
-    } = options;
+  sanitizeString(
+    input: string,
+    options: {
+      allowHtml?: boolean;
+      allowSpecialChars?: boolean;
+      maxLength?: number;
+      trim?: boolean;
+    } = {}
+  ): string {
+    const { allowHtml = false, allowSpecialChars = true, maxLength = 1000, trim = true } = options;
 
     if (typeof input !== 'string') {
       return '';
@@ -30,27 +28,22 @@ export class InputSanitizationService {
 
     let sanitized = input;
 
-    // Trim whitespace
     if (trim) {
       sanitized = sanitized.trim();
     }
 
-    // Remove HTML tags if not allowed
     if (!allowHtml) {
       sanitized = sanitized.replace(/<[^>]*>/g, '');
     }
 
-    // Remove potentially dangerous characters
     if (!allowSpecialChars) {
       sanitized = sanitized.replace(/[<>'"&]/g, '');
     }
 
-    // Limit length
     if (maxLength > 0) {
       sanitized = sanitized.substring(0, maxLength);
     }
 
-    // Remove null bytes
     sanitized = sanitized.replace(/\0/g, '');
 
     return sanitized;
@@ -65,7 +58,6 @@ export class InputSanitizationService {
       maxLength: 254, // RFC 5321 limit
     });
 
-    // Remove múltiplos @ 
     const parts = sanitized.split('@');
     if (parts.length > 2) {
       return parts[0] + '@' + parts.slice(1).join('');
@@ -77,41 +69,32 @@ export class InputSanitizationService {
   /**
    * Sanitiza números
    */
-  sanitizeNumber(input: string | number, options: {
-    allowDecimals?: boolean;
-    allowNegative?: boolean;
-    min?: number;
-    max?: number;
-  } = {}): number | null {
-    const {
-      allowDecimals = true,
-      allowNegative = true,
-      min,
-      max,
-    } = options;
+  sanitizeNumber(
+    input: string | number,
+    options: {
+      allowDecimals?: boolean;
+      allowNegative?: boolean;
+      min?: number;
+      max?: number;
+    } = {}
+  ): number | null {
+    const { allowDecimals = true, allowNegative = true, min, max } = options;
 
     let sanitized = String(input).trim();
 
-    // Remove caracteres não numéricos (exceto . , - + se permitidos)
-    let regex = allowDecimals ? /[^0-9.,]/ : /[^0-9]/;
-    if (!allowNegative) {
-      regex = allowDecimals ? /[^0-9.,]/ : /[^0-9]/;
-    } else {
-      regex = allowDecimals ? /[^0-9.,-]/ : /[^0-9-]/;
+    let regex = allowDecimals ? /[^0-9.,]/g : /[^0-9]/g;
+    if (allowNegative) {
+      regex = allowDecimals ? /[^0-9.,-]/g : /[^0-9-]/g;
     }
 
     sanitized = sanitized.replace(regex, '');
-
-    // Normalizar separador decimal
     sanitized = sanitized.replace(',', '.');
 
-    // Remover múltiplos pontos/sinais
     const parts = sanitized.split('.');
     if (parts.length > 2) {
       sanitized = parts[0] + '.' + parts.slice(1).join('');
     }
 
-    // Remover múltiplos sinais de menos
     if (allowNegative && sanitized.includes('-')) {
       const isNegative = sanitized.indexOf('-') === 0;
       sanitized = sanitized.replace(/-/g, '');
@@ -126,7 +109,6 @@ export class InputSanitizationService {
       return null;
     }
 
-    // Aplicar limites
     if (min !== undefined && parsed < min) {
       return min;
     }
@@ -140,19 +122,23 @@ export class InputSanitizationService {
   /**
    * Sanitiza dados de formulário
    */
-  sanitizeFormData<T extends Record<string, any>>(data: T, schema: {
-    [K in keyof T]?: {
-      type: 'string' | 'email' | 'number' | 'boolean';
-      sanitize?: boolean;
-      maxLength?: number;
-      allowHtml?: boolean;
-      allowSpecialChars?: boolean;
-      allowDecimals?: boolean;
-      allowNegative?: boolean;
-      min?: number;
-      max?: number;
+  // CORRIGIDO: O tipo genérico foi alterado de Record<string, any> para Record<string, unknown>
+  sanitizeFormData<T extends Record<string, unknown>>(
+    data: T,
+    schema: {
+      [K in keyof T]?: {
+        type: 'string' | 'email' | 'number' | 'boolean';
+        sanitize?: boolean;
+        maxLength?: number;
+        allowHtml?: boolean;
+        allowSpecialChars?: boolean;
+        allowDecimals?: boolean;
+        allowNegative?: boolean;
+        min?: number;
+        max?: number;
+      };
     }
-  }): T {
+  ): T {
     const sanitized = { ...data };
 
     for (const [key, config] of Object.entries(schema)) {
@@ -180,13 +166,16 @@ export class InputSanitizationService {
           break;
 
         case 'number':
-          const numberValue = this.sanitizeNumber(value, {
-            allowDecimals: config.allowDecimals,
-            allowNegative: config.allowNegative,
-            min: config.min,
-            max: config.max,
-          });
-          sanitized[key as keyof T] = (numberValue ?? 0) as T[keyof T];
+          // Adicionada verificação de tipo para garantir que o valor é compatível com sanitizeNumber
+          if (typeof value === 'string' || typeof value === 'number') {
+            const numberValue = this.sanitizeNumber(value, {
+              allowDecimals: config.allowDecimals,
+              allowNegative: config.allowNegative,
+              min: config.min,
+              max: config.max,
+            });
+            sanitized[key as keyof T] = (numberValue ?? 0) as T[keyof T];
+          }
           break;
 
         case 'boolean':
@@ -202,7 +191,6 @@ export class InputSanitizationService {
    * Valida se uma string contém apenas caracteres seguros
    */
   isSafeString(input: string): boolean {
-    // Check for SQL injection patterns
     const sqlPatterns = [
       /(\s|^)(select|insert|update|delete|drop|create|alter|exec|union|script)\s/i,
       /(\s|^)(or|and)\s+\d+\s*=\s*\d+/i,
@@ -210,7 +198,6 @@ export class InputSanitizationService {
       /\/\*[\s\S]*\*\//i,
     ];
 
-    // Check for XSS patterns
     const xssPatterns = [
       /<script[^>]*>[\s\S]*<\/script>/i,
       /javascript\s*:/i,
@@ -220,13 +207,7 @@ export class InputSanitizationService {
       /<embed[^>]*>/i,
     ];
 
-    // Check for path traversal
-    const pathTraversalPatterns = [
-      /\.\.\//,
-      /\.\.\\/,
-      /\.\.%2f/i,
-      /\.\.%5c/i,
-    ];
+    const pathTraversalPatterns = [/\.\.\//, /\.\.\\/, /\.\.%2f/i, /\.\.%5c/i];
 
     const allPatterns = [...sqlPatterns, ...xssPatterns, ...pathTraversalPatterns];
 
@@ -238,22 +219,19 @@ export class InputSanitizationService {
    */
   private rateLimitMap = new Map<string, number[]>();
 
-  isRateLimited(identifier: string, maxRequests: number = 10, windowMs: number = 60000): boolean {
+  isRateLimited(identifier: string, maxRequests = 10, windowMs = 60000): boolean {
     const now = Date.now();
     const windowStart = now - windowMs;
 
-    // Get existing requests for this identifier
-    let requests = this.rateLimitMap.get(identifier) || [];
+    // CORRIGIDO: || -> ??
+    let requests = this.rateLimitMap.get(identifier) ?? [];
 
-    // Remove old requests outside the window
     requests = requests.filter(timestamp => timestamp > windowStart);
 
-    // Check if limit exceeded
     if (requests.length >= maxRequests) {
       return true;
     }
 
-    // Add current request
     requests.push(now);
     this.rateLimitMap.set(identifier, requests);
 
@@ -270,7 +248,7 @@ export class InputSanitizationService {
     const entries = Array.from(this.rateLimitMap.entries());
     for (const [key, timestamps] of entries) {
       const validTimestamps = timestamps.filter(ts => ts > oneHourAgo);
-      
+
       if (validTimestamps.length === 0) {
         this.rateLimitMap.delete(key);
       } else {

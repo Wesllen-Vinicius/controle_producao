@@ -1,9 +1,6 @@
 // src/theme/index.ts
 import { StyleSheet, TextStyle } from 'react-native';
 
-/* Utils */
-const clamp = (n: number, min = 0, max = 1) => Math.max(min, Math.min(max, n));
-
 /* Tipos */
 export type Scheme = 'dark' | 'light';
 export type ThemeColors = {
@@ -29,91 +26,91 @@ export type ThemeColors = {
 
 /* Enhanced Spacing & Radius System */
 export const spacing = {
-  xxs: 2,   // Micro spacing
-  xs: 4,    // Extra small
-  sm: 8,    // Small
-  md: 12,   // Medium (base)
-  lg: 16,   // Large
-  xl: 24,   // Extra large
-  xxl: 32,  // Extra extra large
+  xxs: 2, // Micro spacing
+  xs: 4, // Extra small
+  sm: 8, // Small
+  md: 12, // Medium (base)
+  lg: 16, // Large
+  xl: 24, // Extra large
+  xxl: 32, // Extra extra large
   xxxl: 48, // Massive
 };
 
 export const radius = {
-  xs: 4,    // Extra small radius
-  sm: 8,    // Small radius
-  md: 12,   // Medium radius (base)
-  lg: 16,   // Large radius
-  xl: 20,   // Extra large radius
+  xs: 4, // Extra small radius
+  sm: 8, // Small radius
+  md: 12, // Medium radius (base)
+  lg: 16, // Large radius
+  xl: 20, // Extra large radius
   full: 999, // Fully rounded
 };
 export type ThemeSpacing = typeof spacing;
-export type ThemeRadius  = typeof radius;
+export type ThemeRadius = typeof radius;
 
 /* Enhanced Color Palette */
 export function makeColors(mode: Scheme): ThemeColors {
   const brand = '#FF6A3D';
   const brandDimLight = 'rgba(255,106,61,0.10)';
-  const brandDimDark  = 'rgba(255,106,61,0.18)';
+  const brandDimDark = 'rgba(255,106,61,0.18)';
 
   if (mode === 'light') {
     return {
       // Surfaces & Backgrounds
       background: '#F8FAFC',
-      surface:    '#FFFFFF',
+      surface: '#FFFFFF',
       surfaceAlt: '#F1F5F9',
-      line:       '#E2E8F0',
+      line: '#E2E8F0',
       lineStrong: '#CBD5E1',
-      
+
       // Text & Content
-      text:  '#0F172A',
+      text: '#0F172A',
       muted: '#64748B',
-      
+
       // Brand Colors
-      primary:    brand,
+      primary: brand,
       primaryDim: brandDimLight,
-      accent:     '#3B82F6', // Blue accent for variety
-      
+      accent: '#3B82F6', // Blue accent for variety
+
       // Semantic Colors
-      danger:     '#DC2626',
-      success:    '#059669',
-      
+      danger: '#DC2626',
+      success: '#059669',
+
       // System
-      shadow:     'rgba(15,23,42,0.12)',
-      primaryOn:  '#FFFFFF',
-      successOn:  '#FFFFFF',
-      dangerOn:   '#FFFFFF',
-      ripple:     'rgba(15,23,42,0.06)',
+      shadow: 'rgba(15,23,42,0.12)',
+      primaryOn: '#FFFFFF',
+      successOn: '#FFFFFF',
+      dangerOn: '#FFFFFF',
+      ripple: 'rgba(15,23,42,0.06)',
     };
   }
 
   return {
     // Dark Mode Surfaces & Backgrounds
     background: '#0F172A',
-    surface:    '#1E293B',
+    surface: '#1E293B',
     surfaceAlt: '#334155',
-    line:       '#475569',
+    line: '#475569',
     lineStrong: '#64748B',
-    
+
     // Dark Mode Text & Content
-    text:  '#F1F5F9',
+    text: '#F1F5F9',
     muted: '#94A3B8',
-    
+
     // Dark Mode Brand Colors
-    primary:    brand,
+    primary: brand,
     primaryDim: brandDimDark,
-    accent:     '#60A5FA', // Lighter blue for dark mode
-    
+    accent: '#60A5FA', // Lighter blue for dark mode
+
     // Dark Mode Semantic Colors
-    danger:     '#F87171',
-    success:    '#34D399',
-    
+    danger: '#F87171',
+    success: '#34D399',
+
     // Dark Mode System
-    shadow:     'rgba(0,0,0,0.25)',
-    primaryOn:  '#0F172A',
-    successOn:  '#0F172A',
-    dangerOn:   '#0F172A',
-    ripple:     'rgba(241,245,249,0.08)',
+    shadow: 'rgba(0,0,0,0.25)',
+    primaryOn: '#0F172A',
+    successOn: '#0F172A',
+    dangerOn: '#0F172A',
+    ripple: 'rgba(241,245,249,0.08)',
   };
 }
 
@@ -123,62 +120,98 @@ export function makeTypography(colors: ThemeColors) {
   return {
     // Display Typography
     display: {
-      fontSize: 32, lineHeight: 40, letterSpacing: -0.8,
-      fontWeight: fw('900'), color: colors.text,
+      fontSize: 32,
+      lineHeight: 40,
+      letterSpacing: -0.8,
+      fontWeight: fw('900'),
+      color: colors.text,
     } as TextStyle,
-    
+
     // Heading Typography
     h1: {
-      fontSize: 24, lineHeight: 32, letterSpacing: -0.4,
-      fontWeight: fw('800'), color: colors.text,
+      fontSize: 24,
+      lineHeight: 32,
+      letterSpacing: -0.4,
+      fontWeight: fw('800'),
+      color: colors.text,
     } as TextStyle,
     h2: {
-      fontSize: 20, lineHeight: 28, letterSpacing: -0.2,
-      fontWeight: fw('700'), color: colors.text,
+      fontSize: 20,
+      lineHeight: 28,
+      letterSpacing: -0.2,
+      fontWeight: fw('700'),
+      color: colors.text,
     } as TextStyle,
     h3: {
-      fontSize: 18, lineHeight: 24, letterSpacing: 0,
-      fontWeight: fw('600'), color: colors.text,
+      fontSize: 18,
+      lineHeight: 24,
+      letterSpacing: 0,
+      fontWeight: fw('600'),
+      color: colors.text,
     } as TextStyle,
-    
+
     // Body Typography
     body: {
-      fontSize: 16, lineHeight: 24, letterSpacing: 0.1,
-      fontWeight: fw('400'), color: colors.text,
+      fontSize: 16,
+      lineHeight: 24,
+      letterSpacing: 0.1,
+      fontWeight: fw('400'),
+      color: colors.text,
     } as TextStyle,
     bodyMedium: {
-      fontSize: 16, lineHeight: 24, letterSpacing: 0.1,
-      fontWeight: fw('500'), color: colors.text,
+      fontSize: 16,
+      lineHeight: 24,
+      letterSpacing: 0.1,
+      fontWeight: fw('500'),
+      color: colors.text,
     } as TextStyle,
     bodySmall: {
-      fontSize: 14, lineHeight: 20, letterSpacing: 0.1,
-      fontWeight: fw('400'), color: colors.text,
+      fontSize: 14,
+      lineHeight: 20,
+      letterSpacing: 0.1,
+      fontWeight: fw('400'),
+      color: colors.text,
     } as TextStyle,
-    
+
     // Utility Typography
     caption: {
-      fontSize: 12, lineHeight: 16, letterSpacing: 0.4,
-      fontWeight: fw('500'), color: colors.muted,
+      fontSize: 12,
+      lineHeight: 16,
+      letterSpacing: 0.4,
+      fontWeight: fw('500'),
+      color: colors.muted,
     } as TextStyle,
     label: {
-      fontSize: 12, lineHeight: 16, letterSpacing: 0.5,
-      fontWeight: fw('700'), color: colors.muted,
+      fontSize: 12,
+      lineHeight: 16,
+      letterSpacing: 0.5,
+      fontWeight: fw('700'),
+      color: colors.muted,
     } as TextStyle,
     button: {
-      fontSize: 14, lineHeight: 20, letterSpacing: 0.25,
-      fontWeight: fw('600'), color: colors.text,
+      fontSize: 14,
+      lineHeight: 20,
+      letterSpacing: 0.25,
+      fontWeight: fw('600'),
+      color: colors.text,
     } as TextStyle,
-    
+
     // Numeric & Data Typography
     numeric: {
-      fontSize: 18, lineHeight: 24, letterSpacing: -0.2,
-      fontWeight: fw('700'), color: colors.text,
-      fontVariant: ['tabular-nums'] as any,
+      fontSize: 18,
+      lineHeight: 24,
+      letterSpacing: -0.2,
+      fontWeight: fw('700'),
+      color: colors.text,
+      fontVariant: ['tabular-nums'] as TextStyle['fontVariant'],
     } as TextStyle,
     numericLarge: {
-      fontSize: 28, lineHeight: 36, letterSpacing: -0.6,
-      fontWeight: fw('900'), color: colors.text,
-      fontVariant: ['tabular-nums'] as any,
+      fontSize: 28,
+      lineHeight: 36,
+      letterSpacing: -0.6,
+      fontWeight: fw('900'),
+      color: colors.text,
+      fontVariant: ['tabular-nums'] as TextStyle['fontVariant'],
     } as TextStyle,
   };
 }

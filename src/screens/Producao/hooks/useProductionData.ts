@@ -1,11 +1,12 @@
 // src/screens/Producao/hooks/useProductionData.ts
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, LayoutAnimation } from "react-native";
-import { useHaptics } from "../../../hooks/useHaptics";
-import { usePerformanceOptimization } from "../../../hooks/usePerformanceOptimization";
-import { useAuth } from "../../../state/AuthProvider";
-import { useToast } from "../../../state/ToastProvider";
-import * as ProductionService from "../services";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, LayoutAnimation } from 'react-native';
+import { useHaptics } from '../../../hooks/useHaptics';
+import { usePerformanceOptimization } from '../../../hooks/usePerformanceOptimization';
+import { useAuth } from '../../../state/AuthProvider';
+import { useToast } from '../../../state/ToastProvider';
+import { notificationService } from '../../../services/notificationService';
+import * as ProductionService from '../services';
 import {
   Product,
   Production,
@@ -13,8 +14,8 @@ import {
   ProductionStats,
   Renderable,
   SummaryItem,
-} from "../types";
-import { labelForYMD, todayStr } from "../utils";
+} from '../types';
+import { labelForYMD, todayStr } from '../utils';
 
 const MAX_ABATE = 10000;
 const MIN_ABATE = 1;
@@ -28,33 +29,32 @@ export function useProductionData() {
   // Estados de dados
   const [products, setProducts] = useState<Product[]>([]);
   const [history, setHistory] = useState<Production[]>([]);
-  const [itemsCache, setItemsCache] = useState<Record<string, SummaryItem[]>>(
-    {}
-  );
+  const [itemsCache, setItemsCache] = useState<Record<string, SummaryItem[]>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Estados do formulário
   const [formOpen, setFormOpen] = useState(false);
   const [prodDate, setProdDate] = useState<string>(todayStr());
-  const [abateStr, setAbateStr] = useState<string>("");
+  const [abateStr, setAbateStr] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [producedQuantities, setProducedQuantities] = useState<
-    Record<string, string>
-  >({});
+  const [producedQuantities, setProducedQuantities] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<ProductionFilters>({
-    fromDate: "",
+    fromDate: '',
     toDate: todayStr(),
     productIds: [],
   });
 
-  const abate = useMemo(() => parseInt(abateStr || "0", 10) || 0, [abateStr]);
+  // Error States for inline feedback
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const abate = useMemo(() => parseInt(abateStr ?? '0', 10) || 0, [abateStr]);
   const prodNum = useCallback(
-    (id: string) => parseFloat(producedQuantities[id] || "0") || 0,
+    (id: string) => parseFloat(producedQuantities[id] ?? '0') || 0,
     [producedQuantities]
   );
 
@@ -70,10 +70,10 @@ export function useProductionData() {
         ]);
         setProducts(fetchedProducts);
         setHistory(fetchedHistory);
-      } catch (error: any) {
+      } catch (error: unknown) {
         showToast({
-          type: "error",
-          message: error.message || "Erro ao carregar dados.",
+          type: 'error',
+          message: (error as Error).message ?? 'Erro ao carregar dados.',
         });
       } finally {
         if (!isRefresh) setLoading(false);
@@ -97,7 +97,7 @@ export function useProductionData() {
       if (itemsCache[prodId]) return;
       try {
         const items = await ProductionService.fetchSummaryItems(prodId);
-        setItemsCache((s) => ({ ...s, [prodId]: items || [] }));
+        setItemsCache(s => ({ ...s, [prodId]: items ?? [] }));
       } catch {
         /* falha silenciosa é aceitável aqui */
       }
@@ -107,26 +107,18 @@ export function useProductionData() {
 
   // Ações do formulário
   const handleSave = useCallback(async () => {
-    if (!session)
-      return Alert.alert("Acesso negado", "É necessário estar logado.");
-    if (!prodDate) return Alert.alert("Atenção", "Selecione uma data.");
-    if (abate < MIN_ABATE || abate > MAX_ABATE)
-      return Alert.alert(
-        "Atenção",
-        `Informe um número válido de abates (${MIN_ABATE}-${MAX_ABATE}).`
-      );
-    if (selectedIds.length === 0)
-      return Alert.alert("Atenção", "Selecione ao menos um produto.");
+    if (!session) {
+      setErrors({ general: 'É necessário estar logado para registrar produção' });
+      return;
+    }
+
+    if (!validateForm()) {
+      return; // Errors já estão setados pelo validateForm
+    }
 
     const itemsToSave = selectedIds
-      .filter((id) => prodNum(id) > 0)
-      .map((id) => ({ product_id: id, produced: prodNum(id) }));
-
-    if (itemsToSave.length === 0)
-      return Alert.alert(
-        "Atenção",
-        "Informe a quantidade para ao menos um produto."
-      );
+      .filter(id => prodNum(id) > 0)
+      .map(id => ({ product_id: id, produced: prodNum(id) }));
 
     setSaving(true);
     try {
@@ -139,60 +131,92 @@ export function useProductionData() {
 
       setFormOpen(false);
       setProdDate(todayStr());
-      setAbateStr("");
+      setAbateStr('');
       setSelectedIds([]);
       setProducedQuantities({});
+      setErrors({}); // Clear errors
       await loadInitialData(true);
+
+      // Send notification
+      await notificationService.notifyProductionRegistered({
+        abate: abate,
+        itemsCount: itemsToSave.length,
+        date: prodDate,
+      });
+
       h.success();
-      showToast({ type: "success", message: "Produção registrada!" });
-    } catch (e: any) {
+      showToast({ type: 'success', message: 'Produção registrada!' });
+    } catch (e: unknown) {
       h.error();
-      Alert.alert("Erro", e.message);
+      if (e instanceof Error) {
+        Alert.alert('Erro', e.message);
+      }
     } finally {
       setSaving(false);
     }
-  }, [
-    session,
-    prodDate,
-    abate,
-    selectedIds,
-    prodNum,
-    h,
-    showToast,
-    loadInitialData,
-  ]);
+  }, [session, prodDate, abate, selectedIds, prodNum, h, showToast, loadInitialData, validateForm]);
 
   const toggleProduct = useCallback((id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setSelectedIds((c) =>
-      c.includes(id) ? c.filter((x) => x !== id) : [...c, id]
-    );
+    setSelectedIds(c => (c.includes(id) ? c.filter(x => x !== id) : [...c, id]));
   }, []);
-  const selectAll = useCallback(
-    () => setSelectedIds(products.map((p) => p.id)),
-    [products]
-  );
+  const selectAll = useCallback(() => setSelectedIds(products.map(p => p.id)), [products]);
   const clearSelection = useCallback(() => setSelectedIds([]), []);
+
+  // Validação em tempo real
+  const validateForm = useCallback(() => {
+    const newErrors: Record<string, string> = {};
+
+    if (!prodDate) {
+      newErrors.date = 'Selecione a data da produção';
+    }
+
+    if (abate < MIN_ABATE) {
+      newErrors.abate = `Informe pelo menos ${MIN_ABATE} animal abatido`;
+    } else if (abate > MAX_ABATE) {
+      newErrors.abate = `Máximo ${MAX_ABATE} animais permitidos`;
+    }
+
+    if (selectedIds.length === 0) {
+      newErrors.products = 'Selecione pelo menos um produto';
+    }
+
+    const hasValidQuantities = selectedIds.some(id => prodNum(id) > 0);
+    if (selectedIds.length > 0 && !hasValidQuantities) {
+      newErrors.quantities = 'Informe a quantidade para pelo menos um produto';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [prodDate, abate, selectedIds, prodNum]);
+
+  // Validar sempre que campos relevantes mudarem
+  useEffect(() => {
+    if (formOpen) {
+      validateForm();
+    }
+  }, [formOpen, validateForm]);
 
   // Dados derivados para a UI
   const historyItems = useMemo((): Renderable[] => {
     let filteredHistory = history;
 
     if (filters.productIds.length > 0) {
-      filteredHistory = history.filter((production) => {
+      filteredHistory = history.filter(production => {
         const items = itemsCache[production.id];
         if (!items) return true;
-        return items.some((item) =>
-          filters.productIds.includes(item.product_id)
-        );
+        return items.some(item => filters.productIds.includes(item.product_id));
       });
     }
 
     const byDay = new Map<string, Production[]>();
-    filteredHistory.forEach((p) => {
+    filteredHistory.forEach(p => {
       const ymd = p.prod_date.slice(0, 10);
       if (!byDay.has(ymd)) byDay.set(ymd, []);
-      byDay.get(ymd)!.push(p);
+      const list = byDay.get(ymd);
+      if (list) {
+        list.push(p);
+      }
     });
 
     const out: Renderable[] = [];
@@ -200,13 +224,11 @@ export function useProductionData() {
       .sort(([a], [b]) => (a < b ? 1 : -1))
       .forEach(([ymd, list]) => {
         out.push({
-          type: "h-header",
+          type: 'h-header',
           id: `hdr-${ymd}`,
           title: labelForYMD(ymd),
         });
-        list.forEach((row) =>
-          out.push({ type: "h-row", id: row.id, item: row })
-        );
+        list.forEach(row => out.push({ type: 'h-row', id: row.id, item: row }));
       });
     return out;
   }, [history, filters.productIds, itemsCache]);
@@ -222,40 +244,34 @@ export function useProductionData() {
     let totalAnimals = 0;
     const thisMonthProds: Production[] = [];
 
-    history.forEach((p) => {
+    history.forEach(p => {
       totalAnimals += p.abate;
       const prodDate = new Date(p.prod_date);
-      if (
-        prodDate.getMonth() === currentMonth &&
-        prodDate.getFullYear() === currentYear
-      ) {
+      if (prodDate.getMonth() === currentMonth && prodDate.getFullYear() === currentYear) {
         thisMonthCount++;
         thisMonthProds.push(p);
       }
     });
 
-    const avgAnimals =
-      history.length > 0 ? Math.round(totalAnimals / history.length) : 0;
-    const byUnit: ProductionStats["byUnit"] = {};
+    const avgAnimals = history.length > 0 ? Math.round(totalAnimals / history.length) : 0;
+    const byUnit: ProductionStats['byUnit'] = {};
 
-    thisMonthProds.forEach((prod) => {
+    thisMonthProds.forEach(prod => {
       const items = itemsCache[prod.id];
       if (items && items.length > 0) {
-        items.forEach((item) => {
-          const unit = String(item.unit || "UN").toUpperCase();
-          if (!byUnit[unit])
-            byUnit[unit] = { produced: 0, meta: 0, loss: 0, efficiency: 0 };
+        items.forEach(item => {
+          const unit = String(item.unit ?? 'UN').toUpperCase();
+          if (!byUnit[unit]) byUnit[unit] = { produced: 0, meta: 0, loss: 0, efficiency: 0 };
           byUnit[unit].produced += item.produced;
           byUnit[unit].meta += item.meta;
         });
       }
     });
 
-    Object.keys(byUnit).forEach((unit) => {
+    Object.keys(byUnit).forEach(unit => {
       const stats = byUnit[unit];
       stats.loss = Math.max(0, stats.meta - stats.produced);
-      stats.efficiency =
-        stats.meta > 0 ? Math.round((stats.produced / stats.meta) * 100) : 0;
+      stats.efficiency = stats.meta > 0 ? Math.round((stats.produced / stats.meta) * 100) : 0;
     });
 
     return {
@@ -295,5 +311,8 @@ export function useProductionData() {
     selectAll,
     clearSelection,
     prodNum,
+    errors,
+    validateForm,
+    setErrors,
   };
 }

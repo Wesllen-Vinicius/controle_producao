@@ -1,5 +1,5 @@
 // src/components/DateField.tsx
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -27,18 +27,30 @@ type Props = {
   maximumDate?: Date;
 };
 
-export default function DateField({ label, value, onChange, placeholder = 'YYYY-MM-DD', minimumDate, maximumDate }: Props) {
+export default function DateField({
+  label,
+  value,
+  onChange,
+  placeholder = 'YYYY-MM-DD',
+  minimumDate,
+  maximumDate,
+}: Props) {
   const { colors, radius, spacing, typography } = useTheme();
   const [show, setShow] = useState(false);
 
-  const onChangePicker = useCallback((_: DateTimePickerEvent, date?: Date) => {
-    setShow(Platform.OS === 'ios');
-    if (date) {
-      onChange(toISODate(date));
-    }
-  }, [onChange]);
+  const onChangePicker = useCallback(
+    (_: DateTimePickerEvent, date?: Date) => {
+      setShow(Platform.OS === 'ios');
+      if (date) {
+        onChange(toISODate(date));
+      }
+    },
+    [onChange]
+  );
 
-  const displayMode = Platform.select<'default' | 'spinner' | 'calendar' | 'clock' | 'compact' | 'inline'>({
+  const displayMode = Platform.select<
+    'default' | 'spinner' | 'calendar' | 'clock' | 'compact' | 'inline'
+  >({
     ios: 'inline',
     android: 'default',
   });
@@ -60,7 +72,9 @@ export default function DateField({ label, value, onChange, placeholder = 'YYYY-
         }}
       >
         <MaterialCommunityIcons name="calendar-blank" size={18} color={colors.muted} />
-        <Text style={{ color: value ? colors.text : colors.muted, marginLeft: 8, fontWeight: '600' }}>
+        <Text
+          style={{ color: value ? colors.text : colors.muted, marginLeft: 8, fontWeight: '600' }}
+        >
           {value || placeholder}
         </Text>
       </Pressable>

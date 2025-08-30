@@ -10,16 +10,11 @@ interface ResponsiveGridProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export default function ResponsiveGrid({
-  children,
-  columns,
-  spacing,
-  style,
-}: ResponsiveGridProps) {
+export default function ResponsiveGrid({ children, columns, spacing, style }: ResponsiveGridProps) {
   const { columns: defaultColumns } = useResponsive();
   const { spacing: themeSpacing } = useTheme();
-  
-  const numColumns = columns || defaultColumns;
+
+  const numColumns = columns ?? defaultColumns;
   const gap = spacing ?? themeSpacing.md;
 
   // Reorganizar children em rows

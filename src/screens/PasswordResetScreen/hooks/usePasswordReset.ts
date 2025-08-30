@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../../services/supabase';
 import { useHaptics } from '../../../hooks/useHaptics';
@@ -7,7 +6,7 @@ import { retryService } from '../../../services/retryService';
 import { inputSanitization } from '../../../services/inputSanitization';
 
 export function usePasswordReset() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { error: errorHaptic, success: successHaptic } = useHaptics();
 
   const [email, setEmail] = useState('');
@@ -17,9 +16,14 @@ export function usePasswordReset() {
   const [resetSent, setResetSent] = useState(false);
 
   // Email validation
-  const emailError = emailTouched && email.trim() ? (
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? 'E-mail inválido' : undefined
-  ) : emailTouched && !email.trim() ? 'E-mail é obrigatório' : undefined;
+  const emailError =
+    emailTouched && email.trim()
+      ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+        ? 'E-mail inválido'
+        : undefined
+      : emailTouched && !email.trim()
+        ? 'E-mail é obrigatório'
+        : undefined;
 
   const handlePasswordReset = useCallback(async () => {
     if (emailError) {
@@ -33,13 +37,14 @@ export function usePasswordReset() {
     try {
       // Sanitize email
       const sanitizedEmail = inputSanitization.sanitizeEmail(email);
-      
+
       // Check rate limiting
-      if (inputSanitization.isRateLimited(sanitizedEmail, 3, 300000)) { // 3 attempts per 5 minutes
+      if (inputSanitization.isRateLimited(sanitizedEmail, 3, 300000)) {
+        // 3 attempts per 5 minutes
         throw new Error('Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.');
       }
 
-      const resetResult = await retryService.supabaseOperation(async () => {
+      await retryService.supabaseOperation(async () => {
         const { error } = await supabase.auth.resetPasswordForEmail(sanitizedEmail, {
           redirectTo: 'your-app-scheme://reset-password', // Configure this
         });
@@ -58,22 +63,23 @@ export function usePasswordReset() {
       setTimeout(() => {
         navigation.goBack();
       }, 5000);
-
-    } catch (err: any) {
+    } catch (err: unknown) {
       await errorHaptic();
 
       let errorMessage = 'Erro inesperado. Tente novamente.';
 
-      if (err.message?.includes('rate limit')) {
-        errorMessage = 'Muitas tentativas. Aguarde alguns minutos.';
-      } else if (err.message?.includes('invalid email')) {
-        errorMessage = 'E-mail inválido.';
-      } else if (err.message?.includes('not found')) {
-        errorMessage = 'E-mail não encontrado em nossa base de dados.';
-      } else if (err.message?.includes('network')) {
-        errorMessage = 'Problema de conexão. Verifique sua internet.';
-      } else if (err.message.includes('tentativas')) {
-        errorMessage = err.message;
+      if (err instanceof Error) {
+        if (err.message?.includes('rate limit')) {
+          errorMessage = 'Muitas tentativas. Aguarde alguns minutos.';
+        } else if (err.message?.includes('invalid email')) {
+          errorMessage = 'E-mail inválido.';
+        } else if (err.message?.includes('not found')) {
+          errorMessage = 'E-mail não encontrado em nossa base de dados.';
+        } else if (err.message?.includes('network')) {
+          errorMessage = 'Problema de conexão. Verifique sua internet.';
+        } else if (err.message.includes('tentativas')) {
+          errorMessage = err.message;
+        }
       }
 
       setError(errorMessage);

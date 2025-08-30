@@ -1,6 +1,6 @@
 // src/screens/Login/types.ts
-import { RefObject } from "react";
-import { TextInput } from "react-native";
+import { RefObject } from 'react';
+import { TextInput } from 'react-native';
 
 export type SavedCredentials = {
   email: string;

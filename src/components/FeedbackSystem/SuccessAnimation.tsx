@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Animated, Easing } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../../state/ThemeProvider';
@@ -9,16 +9,25 @@ interface SuccessAnimationProps {
   onAnimationComplete?: () => void;
 }
 
-export default function SuccessAnimation({ 
-  visible, 
+export default function SuccessAnimation({
+  visible,
   size = 60,
-  onAnimationComplete 
+  onAnimationComplete,
 }: SuccessAnimationProps) {
   const { colors } = useTheme();
-  
+
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const checkmarkAnim = useRef(new Animated.Value(0)).current;
+
+  // Memoize the animation complete callback to prevent unnecessary re-renders
+  const handleAnimationComplete = useCallback(() => {
+    if (onAnimationComplete) {
+      setTimeout(() => {
+        onAnimationComplete();
+      }, 500);
+    }
+  }, [onAnimationComplete]);
 
   useEffect(() => {
     if (visible) {
@@ -50,14 +59,9 @@ export default function SuccessAnimation({
           tension: 150,
           friction: 8,
         }),
-      ]).start(() => {
-        // Hold for a moment then callback
-        setTimeout(() => {
-          onAnimationComplete?.();
-        }, 500);
-      });
+      ]).start(handleAnimationComplete);
     }
-  }, [visible]);
+  }, [visible, scaleAnim, rotateAnim, checkmarkAnim, handleAnimationComplete]);
 
   if (!visible) return null;
 
@@ -67,23 +71,22 @@ export default function SuccessAnimation({
   });
 
   return (
-    <View style={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.3)',
-      zIndex: 9999,
-    }}>
+    <View
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        zIndex: 9999,
+      }}
+    >
       <Animated.View
         style={{
-          transform: [
-            { scale: scaleAnim },
-            { rotate: rotateInterpolate },
-          ],
+          transform: [{ scale: scaleAnim }, { rotate: rotateInterpolate }],
         }}
       >
         <View
@@ -106,11 +109,7 @@ export default function SuccessAnimation({
               transform: [{ scale: checkmarkAnim }],
             }}
           >
-            <MaterialCommunityIcons
-              name="check"
-              size={size * 0.5}
-              color="white"
-            />
+            <MaterialCommunityIcons name="check" size={size * 0.5} color="white" />
           </Animated.View>
         </View>
       </Animated.View>

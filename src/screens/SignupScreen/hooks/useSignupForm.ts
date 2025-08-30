@@ -6,7 +6,7 @@ import { useHaptics } from '../../../hooks/useHaptics';
 import { useSignupValidation } from './useSignupValidation';
 
 export function useSignupForm() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { error: errorHaptic, success: successHaptic } = useHaptics();
 
   const [email, setEmail] = useState('');
@@ -46,7 +46,7 @@ export function useSignupForm() {
       }
 
       await successHaptic();
-      
+
       Alert.alert(
         'Conta Criada!',
         'Verifique seu e-mail para confirmar sua conta antes de fazer login.',
@@ -57,21 +57,23 @@ export function useSignupForm() {
           },
         ]
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       await errorHaptic();
-      
+
       let errorMessage = 'Erro inesperado. Tente novamente.';
-      
-      if (err.message?.includes('already registered')) {
-        errorMessage = 'Este e-mail já está cadastrado.';
-      } else if (err.message?.includes('invalid email')) {
-        errorMessage = 'E-mail inválido.';
-      } else if (err.message?.includes('weak password')) {
-        errorMessage = 'Senha muito fraca. Use pelo menos 6 caracteres.';
-      } else if (err.message?.includes('network')) {
-        errorMessage = 'Problema de conexão. Verifique sua internet.';
+
+      if (err instanceof Error) {
+        if (err.message?.includes('already registered')) {
+          errorMessage = 'Este e-mail já está cadastrado.';
+        } else if (err.message?.includes('invalid email')) {
+          errorMessage = 'E-mail inválido.';
+        } else if (err.message?.includes('weak password')) {
+          errorMessage = 'Senha muito fraca. Use pelo menos 6 caracteres.';
+        } else if (err.message?.includes('network')) {
+          errorMessage = 'Problema de conexão. Verifique sua internet.';
+        }
       }
-      
+
       setError(errorMessage);
     } finally {
       setBusy(false);
@@ -94,10 +96,10 @@ export function useSignupForm() {
     setEmailTouched,
     passwordTouched,
     setPasswordTouched,
-    
+
     // Validation
     ...validation,
-    
+
     // Actions
     handleSignup,
   };

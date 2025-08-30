@@ -1,7 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DefaultTheme, NavigationContainer, RouteProp, Theme } from '@react-navigation/native';
-import { createStackNavigator, StackNavigationOptions, TransitionPresets } from '@react-navigation/stack';
+import {
+  createStackNavigator,
+  StackNavigationOptions,
+  TransitionPresets,
+} from '@react-navigation/stack';
 import React, { useCallback, useMemo } from 'react';
 import { Platform, useColorScheme } from 'react-native'; // <<< 1. IMPORTADO useColorScheme
 
@@ -20,7 +24,6 @@ import PerfilScreen from '@/screens/Perfil';
 import ProdutosScreen from '@/screens/Produtos';
 import { useAuth } from '../state/AuthProvider';
 import { ThemeColors, useTheme } from '../state/ThemeProvider';
-
 
 // --- Definição de Tipos para Navegação Segura ---
 type AuthStackParamList = {
@@ -48,7 +51,10 @@ const AppStack = createStackNavigator<AppStackParamList>();
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
 // --- Constantes e Configurações Reutilizáveis ---
-const TAB_ICONS: Record<keyof AppTabParamList, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+const TAB_ICONS: Record<
+  keyof AppTabParamList,
+  React.ComponentProps<typeof MaterialCommunityIcons>['name']
+> = {
   Produção: 'factory',
   Estoque: 'warehouse',
   Perfil: 'account-circle',
@@ -84,11 +90,14 @@ function AppTabs() {
   const isAdmin = profile?.role === 'admin';
 
   const renderTabBarIcon = useCallback(
-    (route: RouteProp<AppTabParamList, keyof AppTabParamList>) =>
-      ({ color, size }: { color: string; size: number }) => {
+    (route: RouteProp<AppTabParamList, keyof AppTabParamList>) => {
+      const TabBarIcon = ({ color, size }: { color: string; size: number }) => {
         const iconName = TAB_ICONS[route.name] || 'dots-horizontal';
         return <MaterialCommunityIcons name={iconName} color={color} size={size} />;
-      },
+      };
+      TabBarIcon.displayName = `TabBarIcon(${route.name})`;
+      return TabBarIcon;
+    },
     []
   );
 
@@ -132,6 +141,7 @@ function AppTabs() {
     </Tab.Navigator>
   );
 }
+AppTabs.displayName = 'AppTabs';
 
 // --- Componente de Navegação de Autenticação ---
 function AuthNavigator() {
@@ -168,6 +178,7 @@ function AuthNavigator() {
     </AuthStack.Navigator>
   );
 }
+AuthNavigator.displayName = 'AuthNavigator';
 
 // --- Componente de Navegação Principal do App (Pós-Login) ---
 function AppNavigator() {
@@ -187,6 +198,7 @@ function AppNavigator() {
     </AppStack.Navigator>
   );
 }
+AppNavigator.displayName = 'AppNavigator';
 
 // --- Componente Raiz da Navegação ---
 export default function Navigator() {

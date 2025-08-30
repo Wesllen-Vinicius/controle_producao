@@ -17,7 +17,7 @@ export function SortSheet({ open, onClose, currentSort, onSortChange }: SortShee
   const handleSortChange = (sort: SortOption) => {
     onSortChange(sort);
     onClose();
-  }
+  };
 
   return (
     <BottomSheet open={open} onClose={onClose} title="Ordenar Produtos Por">
@@ -46,6 +46,6 @@ export function SortSheet({ open, onClose, currentSort, onSortChange }: SortShee
 }
 
 const styles = StyleSheet.create({
-    content: { padding: 16 },
-    chip: { width: '100%' },
+  content: { padding: 16 },
+  chip: { width: '100%' },
 });

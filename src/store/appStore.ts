@@ -1,6 +1,6 @@
-import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 // Types
 export interface User {
@@ -42,17 +42,17 @@ export interface AppState {
   // Auth
   user: User | null;
   isAuthenticated: boolean;
-  
+
   // Data
   products: Product[];
   productsLastUpdated: number;
-  
+
   // UI State
   notifications: AppNotification[];
-  
+
   // App Preferences
   preferences: AppPreferences;
-  
+
   // Network State
   isOnline: boolean;
   lastSyncTimestamp: number;
@@ -62,22 +62,22 @@ export interface AppActions {
   // Auth Actions
   setUser: (user: User | null) => void;
   logout: () => void;
-  
+
   // Product Actions
   setProducts: (products: Product[]) => void;
   addProduct: (product: Product) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
-  
+
   // Notification Actions
   addNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
   clearNotification: (id: string) => void;
-  
+
   // Preferences
   updatePreferences: (updates: Partial<AppPreferences>) => void;
-  
+
   // Network State
   setOnlineStatus: (online: boolean) => void;
-  
+
   // Utility Actions
   reset: () => void;
 }
@@ -104,11 +104,12 @@ type StoreState = AppState & AppActions;
 
 export const useAppStore = create<StoreState>()(
   persist(
-    (set, get) => ({
+    // CORRIGIDO: O parâmetro 'get' não utilizado foi renomeado para '_get'
+    (set, _get) => ({
       ...initialState,
 
       // Auth Actions
-      setUser: (user) =>
+      setUser: user =>
         set({
           user,
           isAuthenticated: user !== null,
@@ -123,49 +124,47 @@ export const useAppStore = create<StoreState>()(
         }),
 
       // Product Actions
-      setProducts: (products) =>
+      setProducts: products =>
         set({
           products,
           productsLastUpdated: Date.now(),
         }),
 
-      addProduct: (product) =>
-        set((state) => ({
+      addProduct: product =>
+        set(state => ({
           products: [...state.products, product],
           productsLastUpdated: Date.now(),
         })),
 
       updateProduct: (id, updates) =>
-        set((state) => ({
-          products: state.products.map((p) => 
-            p.id === id ? { ...p, ...updates } : p
-          ),
+        set(state => ({
+          products: state.products.map(p => (p.id === id ? { ...p, ...updates } : p)),
           productsLastUpdated: Date.now(),
         })),
 
       // Notification Actions
-      addNotification: (notification) =>
-        set((state) => {
+      addNotification: notification =>
+        set(state => {
           const newNotification: AppNotification = {
             ...notification,
             id: Date.now().toString() + Math.random().toString(36),
             timestamp: Date.now(),
             read: false,
           };
-          
+
           return {
             notifications: [newNotification, ...state.notifications].slice(0, 50),
           };
         }),
 
-      clearNotification: (id) =>
-        set((state) => ({
-          notifications: state.notifications.filter((n) => n.id !== id),
+      clearNotification: id =>
+        set(state => ({
+          notifications: state.notifications.filter(n => n.id !== id),
         })),
 
       // Preferences
-      updatePreferences: (updates) =>
-        set((state) => ({
+      updatePreferences: updates =>
+        set(state => ({
           preferences: {
             ...state.preferences,
             ...updates,
@@ -173,17 +172,15 @@ export const useAppStore = create<StoreState>()(
         })),
 
       // Network State
-      setOnlineStatus: (online) =>
-        set({ isOnline: online }),
+      setOnlineStatus: online => set({ isOnline: online }),
 
       // Utility Actions
-      reset: () =>
-        set(initialState),
+      reset: () => set(initialState),
     }),
     {
       name: 'app-store',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
+      partialize: state => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         preferences: state.preferences,
@@ -195,11 +192,11 @@ export const useAppStore = create<StoreState>()(
 );
 
 // Selectors
-export const useUser = () => useAppStore((state) => state.user);
-export const useIsAuthenticated = () => useAppStore((state) => state.isAuthenticated);
-export const useProducts = () => useAppStore((state) => state.products);
-export const useNotifications = () => useAppStore((state) => state.notifications);
-export const usePreferences = () => useAppStore((state) => state.preferences);
-export const useIsOnline = () => useAppStore((state) => state.isOnline);
+export const useUser = () => useAppStore(state => state.user);
+export const useIsAuthenticated = () => useAppStore(state => state.isAuthenticated);
+export const useProducts = () => useAppStore(state => state.products);
+export const useNotifications = () => useAppStore(state => state.notifications);
+export const usePreferences = () => useAppStore(state => state.preferences);
+export const useIsOnline = () => useAppStore(state => state.isOnline);
 
 export default useAppStore;

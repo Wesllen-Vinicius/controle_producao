@@ -3,28 +3,28 @@ export const APP_CONFIG = {
   // Versão e build
   VERSION: '2.0.0',
   BUILD_NUMBER: 1,
-  
+
   // URLs e endpoints
   API: {
     TIMEOUT: 30000,
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 1000,
   },
-  
+
   // Cache e storage
   CACHE: {
     TTL: 5 * 60 * 1000, // 5 minutos
     MAX_SIZE: 50 * 1024 * 1024, // 50MB
     CLEANUP_INTERVAL: 60 * 60 * 1000, // 1 hora
   },
-  
+
   // Paginação
   PAGINATION: {
     DEFAULT_PAGE_SIZE: 20,
     MAX_PAGE_SIZE: 100,
     INFINITE_SCROLL_THRESHOLD: 0.8,
   },
-  
+
   // Validação
   VALIDATION: {
     MAX_EMAIL_LENGTH: 254,
@@ -34,7 +34,7 @@ export const APP_CONFIG = {
     MAX_ABATE: 10000,
     MAX_STRING_LENGTH: 255,
   },
-  
+
   // Segurança
   SECURITY: {
     MAX_LOGIN_ATTEMPTS: 5,
@@ -42,7 +42,7 @@ export const APP_CONFIG = {
     SESSION_TIMEOUT: 24 * 60 * 60 * 1000, // 24 horas
     AUTO_LOGOUT_WARNING: 5 * 60 * 1000, // 5 minutos antes
   },
-  
+
   // Performance
   PERFORMANCE: {
     DEBOUNCE_DELAY: 300,
@@ -51,7 +51,7 @@ export const APP_CONFIG = {
     BATCH_UPDATE_DELAY: 16,
     MAX_CONCURRENT_REQUESTS: 5,
   },
-  
+
   // UI/UX
   UI: {
     SPLASH_MIN_DURATION: 1500,
@@ -60,7 +60,7 @@ export const APP_CONFIG = {
     HAPTIC_FEEDBACK: true,
     REDUCED_MOTION: false,
   },
-  
+
   // Monitoramento e logs
   MONITORING: {
     LOG_LEVEL: __DEV__ ? 'debug' : 'error',

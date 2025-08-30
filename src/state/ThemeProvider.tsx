@@ -16,13 +16,24 @@ import {
 // --- Tipos (sem alterações, exceto a correção em `setScheme`) ---
 type Motion = {
   duration: { micro: number; small: number; medium: number; large: number };
-  easing: { standard: (t: number) => number; decel: (t: number) => number; accel: (t: number) => number };
+  easing: {
+    standard: (t: number) => number;
+    decel: (t: number) => number;
+    accel: (t: number) => number;
+  };
   pressScale: number;
 };
 
-type Elevation = { e0: ViewStyle; e1: ViewStyle; e2: ViewStyle; e3: ViewStyle; e4: ViewStyle; };
-type Opacity = { disabled: number; pressed: number; backdrop: number; outline: number; };
-type ZIndex = { base: number; dropdown: number; sheet: number; toast: number; modal: number; overlay: number; };
+type Elevation = { e0: ViewStyle; e1: ViewStyle; e2: ViewStyle; e3: ViewStyle; e4: ViewStyle };
+type Opacity = { disabled: number; pressed: number; backdrop: number; outline: number };
+type ZIndex = {
+  base: number;
+  dropdown: number;
+  sheet: number;
+  toast: number;
+  modal: number;
+  overlay: number;
+};
 
 type ThemeCtx = {
   scheme: Scheme;
@@ -50,11 +61,18 @@ export const ThemeProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const colors = useMemo(() => makeColors(scheme), [scheme]);
   const typography = useMemo(() => makeTypography(colors), [colors]);
 
-  const motion: Motion = useMemo(() => ({
-    duration: { micro: 90, small: 140, medium: 220, large: 320 },
-    easing: { standard: Easing.bezier(0.2, 0, 0, 1), decel: Easing.bezier(0, 0, 0, 1), accel: Easing.bezier(0.3, 0, 1, 1) },
-    pressScale: 0.98,
-  }), []);
+  const motion: Motion = useMemo(
+    () => ({
+      duration: { micro: 90, small: 140, medium: 220, large: 320 },
+      easing: {
+        standard: Easing.bezier(0.2, 0, 0, 1),
+        decel: Easing.bezier(0, 0, 0, 1),
+        accel: Easing.bezier(0.3, 0, 1, 1),
+      },
+      pressScale: 0.98,
+    }),
+    []
+  );
 
   const elevation: Elevation = useMemo(() => {
     const shadowColor = colors.shadow ?? '#000';
@@ -67,22 +85,57 @@ export const ThemeProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       elevation: elevationLevel,
     });
     return {
-      e0: { elevation: 0 }, e1: makeShadow(1, 2, 1), e2: makeShadow(2, 4, 2),
-      e3: makeShadow(4, 8, 4), e4: makeShadow(6, 12, 6),
+      e0: { elevation: 0 },
+      e1: makeShadow(1, 2, 1),
+      e2: makeShadow(2, 4, 2),
+      e3: makeShadow(4, 8, 4),
+      e4: makeShadow(6, 12, 6),
     };
   }, [colors.shadow, scheme]);
 
-  const opacity: Opacity = useMemo(() => ({
-    disabled: 0.38, pressed: scheme === 'dark' ? 0.16 : 0.10,
-    backdrop: scheme === 'dark' ? 0.50 : 0.40, outline: scheme === 'dark' ? 0.20 : 0.12,
-  }), [scheme]);
+  const opacity: Opacity = useMemo(
+    () => ({
+      disabled: 0.38,
+      pressed: scheme === 'dark' ? 0.16 : 0.1,
+      backdrop: scheme === 'dark' ? 0.5 : 0.4,
+      outline: scheme === 'dark' ? 0.2 : 0.12,
+    }),
+    [scheme]
+  );
 
-  const z: ZIndex = useMemo(() => ({ base: 0, dropdown: 10, sheet: 20, toast: 30, modal: 40, overlay: 50 }), []);
+  const z: ZIndex = useMemo(
+    () => ({ base: 0, dropdown: 10, sheet: 20, toast: 30, modal: 40, overlay: 50 }),
+    []
+  );
 
-  const value: ThemeCtx = useMemo(() => ({
-    scheme, colors, spacing, radius, typography, motion, elevation, opacity, z,
-    toggleTheme, setScheme, isSystemTheme,
-  }), [scheme, colors, typography, motion, elevation, opacity, z, toggleTheme, setScheme, isSystemTheme]);
+  const value: ThemeCtx = useMemo(
+    () => ({
+      scheme,
+      colors,
+      spacing,
+      radius,
+      typography,
+      motion,
+      elevation,
+      opacity,
+      z,
+      toggleTheme,
+      setScheme,
+      isSystemTheme,
+    }),
+    [
+      scheme,
+      colors,
+      typography,
+      motion,
+      elevation,
+      opacity,
+      z,
+      toggleTheme,
+      setScheme,
+      isSystemTheme,
+    ]
+  );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

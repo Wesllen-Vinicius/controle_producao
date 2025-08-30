@@ -8,12 +8,25 @@ interface ActionButtonsProps {
   onSignOut: () => void;
 }
 
-const ActionButton = ({ icon, label, color, onPress }: { icon: any, label: string, color: string, onPress: () => void }) => {
+const ActionButton = ({
+  icon,
+  label,
+  color,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  label: string;
+  color: string;
+  onPress: () => void;
+}) => {
   const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.button, { backgroundColor: colors.surface, opacity: pressed ? 0.8 : 1, shadowColor: colors.shadow }]}
+      style={({ pressed }) => [
+        styles.button,
+        { backgroundColor: colors.surface, opacity: pressed ? 0.8 : 1, shadowColor: colors.shadow },
+      ]}
     >
       <MaterialCommunityIcons name={icon} size={22} color={color} />
       <Text style={[styles.label, { color }]}>{label}</Text>
@@ -26,7 +39,12 @@ export function ActionButtons({ onChangePassword, onSignOut }: ActionButtonsProp
 
   return (
     <View style={styles.container}>
-      <ActionButton icon="lock-reset" label="Alterar Senha" color={colors.primary} onPress={onChangePassword} />
+      <ActionButton
+        icon="lock-reset"
+        label="Alterar Senha"
+        color={colors.primary}
+        onPress={onChangePassword}
+      />
       <ActionButton icon="logout-variant" label="Sair" color={colors.danger} onPress={onSignOut} />
     </View>
   );
@@ -47,7 +65,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#00000010'
+    borderColor: '#00000010',
   },
   label: {
     fontSize: 14,

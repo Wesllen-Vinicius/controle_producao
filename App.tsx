@@ -3,7 +3,6 @@ import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +15,9 @@ import { ThemeProvider, useTheme } from './src/state/ThemeProvider';
 import { AuthProvider } from './src/state/AuthProvider';
 import { ToastProvider } from './src/state/ToastProvider';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import NetworkStatus from './src/components/NetworkStatus';
+import DevModeNotice from './src/components/DevModeNotice';
+import { notificationService } from './src/services/notificationService';
 
 // não esconda automaticamente
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -25,6 +27,8 @@ function AppBody() {
   return (
     <>
       <Navigator />
+      <DevModeNotice />
+      <NetworkStatus />
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
     </>
   );
@@ -33,18 +37,24 @@ function AppBody() {
 export default function App() {
   const [ready, setReady] = useState(false);
 
-  // Pré-carrega assets essenciais para evitar “flash” ao sair da splash
+  // Pré-carrega assets essenciais e inicializa serviços
   useEffect(() => {
     (async () => {
       try {
-        await Asset.loadAsync([
-          require('./assets/splash.png'),
-          // se tiver estas, melhor ainda:
-          // require('./assets/splash-dark.png'),
-          // require('./assets/adaptive-icon-foreground.png'),
-          // require('./assets/rosa-dos-ventos.png'),
+        await Promise.all([
+          Asset.loadAsync([
+            require('./assets/splash.png'),
+            // se tiver estas, melhor ainda:
+            // require('./assets/splash-dark.png'),
+            // require('./assets/adaptive-icon-foreground.png'),
+            // require('./assets/rosa-dos-ventos.png'),
+          ]),
+          // Inicializar serviço de notificações
+          notificationService.initialize(),
         ]);
-      } catch {}
+      } catch (error) {
+        console.warn('Erro ao carregar assets ou inicializar serviços:', error);
+      }
       setReady(true);
     })();
   }, []);

@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { BreadcrumbItem } from '../components/Navigation/Breadcrumbs';
 
 // Mapping de rotas para breadcrumbs
-const ROUTE_BREADCRUMBS: Record<string, (params?: any) => BreadcrumbItem[]> = {
+const ROUTE_BREADCRUMBS: Record<string, (params?: Record<string, unknown>) => BreadcrumbItem[]> = {
   // Auth flow
   Login: () => [{ label: 'Login' }],
   Signup: () => [{ label: 'Criar Conta' }],
@@ -17,27 +17,27 @@ const ROUTE_BREADCRUMBS: Record<string, (params?: any) => BreadcrumbItem[]> = {
   Relatórios: () => [{ label: 'Relatórios', icon: 'chart-box-outline' }],
 
   // Nested screens (examples)
-  ProductDetails: (params) => [
+  ProductDetails: params => [
     { label: 'Administração', icon: 'cog-outline' },
     { label: 'Produtos' },
-    { label: params?.productName || 'Produto' }
-  ],
-  
-  EditProduct: (params) => [
-    { label: 'Administração', icon: 'cog-outline' },
-    { label: 'Produtos' },
-    { label: params?.productName || 'Produto' },
-    { label: 'Editar' }
+    { label: (params?.productName as string) ?? 'Produto' },
   ],
 
-  ProductionDetails: (params) => [
+  EditProduct: params => [
+    { label: 'Administração', icon: 'cog-outline' },
+    { label: 'Produtos' },
+    { label: (params?.productName as string) ?? 'Produto' },
+    { label: 'Editar' },
+  ],
+
+  ProductionDetails: params => [
     { label: 'Produção', icon: 'factory' },
-    { label: `Produção ${params?.productionId || ''}` }
+    { label: `Produção ${(params?.productionId as string) ?? ''}` },
   ],
 
-  TransactionDetails: (params) => [
+  TransactionDetails: params => [
     { label: 'Estoque', icon: 'warehouse' },
-    { label: `Movimento ${params?.transactionId || ''}` }
+    { label: `Movimento ${(params?.transactionId as string) ?? ''}` },
   ],
 };
 
@@ -56,23 +56,26 @@ export function useBreadcrumbs() {
     }
 
     const items = generator(routeParams);
-    
+
     // Add navigation handlers
     return items.map((item, index) => ({
       ...item,
-      onPress: index < items.length - 1 ? () => {
-        // Navigate back based on breadcrumb level
-        if (index === 0) {
-          // Navigate to home/first level
-          navigation.navigate('AppTabs' as never);
-        } else {
-          // Navigate back appropriate number of times
-          const levelsBack = items.length - index - 1;
-          for (let i = 0; i < levelsBack; i++) {
-            navigation.goBack();
-          }
-        }
-      } : undefined,
+      onPress:
+        index < items.length - 1
+          ? () => {
+              // Navigate back based on breadcrumb level
+              if (index === 0) {
+                // Navigate to home/first level
+                navigation.navigate('AppTabs' as never);
+              } else {
+                // Navigate back appropriate number of times
+                const levelsBack = items.length - index - 1;
+                for (let i = 0; i < levelsBack; i++) {
+                  navigation.goBack();
+                }
+              }
+            }
+          : undefined,
     }));
   }, [route.name, route.params, navigation]);
 

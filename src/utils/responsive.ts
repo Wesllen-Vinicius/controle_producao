@@ -4,14 +4,17 @@ const { width, height } = Dimensions.get('window');
 
 // Breakpoints baseados em Material Design
 export const BREAKPOINTS = {
-  xs: 0,      // Phone portrait
-  sm: 600,    // Phone landscape / Small tablet portrait
-  md: 960,    // Tablet portrait
-  lg: 1280,   // Tablet landscape / Small desktop
-  xl: 1920,   // Desktop
+  xs: 0, // Phone portrait
+  sm: 600, // Phone landscape / Small tablet portrait
+  md: 960, // Tablet portrait
+  lg: 1280, // Tablet landscape / Small desktop
+  xl: 1920, // Desktop
 } as const;
 
 export type Breakpoint = keyof typeof BREAKPOINTS;
+
+// Type for CSS dimension values (numbers or percentage/pixel strings)
+export type DimensionValue = number | string;
 
 // Detectar tipo de device
 export const getDeviceType = () => {
@@ -31,22 +34,15 @@ export const isTablet = () => {
 export const isLandscape = () => width > height;
 
 // Responsive values
-export function responsive<T>(values: {
-  xs?: T;
-  sm?: T;
-  md?: T;
-  lg?: T;
-  xl?: T;
-  default: T;
-}): T {
+export function responsive<T>(values: { xs?: T; sm?: T; md?: T; lg?: T; xl?: T; default: T }): T {
   const currentWidth = width;
-  
+
   if (currentWidth >= BREAKPOINTS.xl && values.xl !== undefined) return values.xl;
   if (currentWidth >= BREAKPOINTS.lg && values.lg !== undefined) return values.lg;
   if (currentWidth >= BREAKPOINTS.md && values.md !== undefined) return values.md;
   if (currentWidth >= BREAKPOINTS.sm && values.sm !== undefined) return values.sm;
   if (values.xs !== undefined) return values.xs;
-  
+
   return values.default;
 }
 
@@ -74,7 +70,6 @@ export const getResponsiveFontSize = (base: number) => {
 
 // Layout configurations
 export const getLayoutConfig = () => {
-  const deviceType = getDeviceType();
   const landscape = isLandscape();
 
   return {
@@ -98,12 +93,12 @@ export const getLayoutConfig = () => {
     }),
 
     // Largura máxima do conteúdo
-    maxContentWidth: responsive({
+    maxContentWidth: responsive<DimensionValue>({
       xs: '100%',
       sm: '100%',
-      md: 800,
-      lg: 1200,
-      xl: 1400,
+      md: '800px',
+      lg: '1200px',
+      xl: '1400px',
       default: '100%',
     }),
 
@@ -126,7 +121,7 @@ export const getLayoutConfig = () => {
     }),
 
     // Modal/Sheet sizing
-    modalWidth: responsive({
+    modalWidth: responsive<DimensionValue>({
       xs: '95%',
       sm: '90%',
       md: '70%',
@@ -144,11 +139,11 @@ export const getLayoutConfig = () => {
       default: 280,
     }),
 
-    cardMaxWidth: responsive({
+    cardMaxWidth: responsive<DimensionValue>({
       xs: '100%',
-      sm: 500,
-      md: 600,
-      lg: 700,
+      sm: '500px',
+      md: '600px',
+      lg: '700px',
       default: '100%',
     }),
   };
@@ -168,7 +163,7 @@ export const useResponsive = () => {
     width,
     height,
     ...layoutConfig,
-    
+
     // Helpers
     responsive,
     getResponsiveSpacing,

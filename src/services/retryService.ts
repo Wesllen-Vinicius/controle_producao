@@ -4,8 +4,10 @@ export interface RetryConfig {
   baseDelay: number;
   maxDelay: number;
   backoffFactor: number;
-  retryCondition?: (error: any) => boolean;
-  onRetry?: (attemptNumber: number, error: any) => void;
+  // Corrigido: error agora é do tipo 'unknown'
+  retryCondition?: (error: unknown) => boolean;
+  // Corrigido: error agora é do tipo 'unknown'
+  onRetry?: (attemptNumber: number, error: unknown) => void;
 }
 
 export class RetryService {
@@ -23,27 +25,40 @@ export class RetryService {
     baseDelay: 1000,
     maxDelay: 10000,
     backoffFactor: 2,
-    retryCondition: (error) => this.isRetryableError(error),
+    retryCondition: error => this.isRetryableError(error),
   };
 
-  private isRetryableError(error: any): boolean {
+  // Corrigido: error agora é do tipo 'unknown' com verificação de tipo interna
+  private isRetryableError(error: unknown): boolean {
+    // Para acessar propriedades de 'error' com segurança, primeiro verificamos se é um objeto
+    if (typeof error !== 'object' || !error) {
+      return false;
+    }
+
+    // Criamos um objeto 'err' para acessar as propriedades com segurança
+    const err = error as { message?: string; status?: number; code?: string };
+
     // Network errors
-    if (error.message?.includes('network') || 
-        error.message?.includes('timeout') ||
-        error.message?.includes('fetch')) {
+    if (
+      err.message?.includes('network') ||
+      err.message?.includes('timeout') ||
+      err.message?.includes('fetch')
+    ) {
       return true;
     }
 
     // HTTP status codes that should retry
-    if (error.status) {
+    if (err.status) {
       const retryableStatuses = [408, 429, 500, 502, 503, 504];
-      return retryableStatuses.includes(error.status);
+      return retryableStatuses.includes(err.status);
     }
 
     // Supabase specific errors
-    if (error.code === 'PGRST301' || // Connection lost
-        error.code === 'PGRST116' || // Connection timeout
-        error.message?.includes('connection')) {
+    if (
+      err.code === 'PGRST301' || // Connection lost
+      err.code === 'PGRST116' || // Connection timeout
+      err.message?.includes('connection')
+    ) {
       return true;
     }
 
@@ -64,7 +79,8 @@ export class RetryService {
     customConfig?: Partial<RetryConfig>
   ): Promise<T> {
     const config = { ...this.defaultConfig, ...customConfig };
-    let lastError: any;
+    // Corrigido: lastError agora é do tipo 'unknown'
+    let lastError: unknown;
 
     for (let attempt = 1; attempt <= config.maxRetries + 1; attempt++) {
       try {
@@ -78,8 +94,8 @@ export class RetryService {
           break;
         }
 
-        // Check if error should be retried
-        if (!config.retryCondition!(error)) {
+        // Corrigido: Removida a asserção '!' e adicionada uma verificação segura
+        if (config.retryCondition && !config.retryCondition(error)) {
           throw error;
         }
 
@@ -90,6 +106,7 @@ export class RetryService {
         const delay = this.calculateDelay(attempt, config);
         await this.wait(delay);
 
+        // eslint-disable-next-line no-console
         console.log(`Retry attempt ${attempt}/${config.maxRetries} after ${delay}ms delay`);
       }
     }
@@ -98,49 +115,56 @@ export class RetryService {
   }
 
   // Wrapper específico para operações Supabase
-  async supabaseOperation<T>(
-    operation: () => Promise<T>,
-    operationName?: string
-  ): Promise<T> {
+  async supabaseOperation<T>(operation: () => Promise<T>, operationName?: string): Promise<T> {
     return this.executeWithRetry(operation, {
       maxRetries: 3,
       baseDelay: 1000,
       backoffFactor: 2,
       onRetry: (attempt, error) => {
-        console.log(`Supabase operation "${operationName || 'unknown'}" failed, retrying (${attempt}/3)...`, error.message);
-      }
+        // eslint-disable-next-line no-console
+        console.log(
+          // Corrigido: || -> ??
+          `Supabase operation "${operationName ?? 'unknown'}" failed, retrying (${attempt}/3)...`,
+          // Extrai a mensagem de erro de forma segura
+          error instanceof Error ? error.message : String(error)
+        );
+      },
     });
   }
 
   // Wrapper para operações de rede geral
-  async networkOperation<T>(
-    operation: () => Promise<T>,
-    operationName?: string
-  ): Promise<T> {
+  async networkOperation<T>(operation: () => Promise<T>, operationName?: string): Promise<T> {
     return this.executeWithRetry(operation, {
       maxRetries: 5,
       baseDelay: 500,
       backoffFactor: 1.5,
       maxDelay: 5000,
       onRetry: (attempt, error) => {
-        console.log(`Network operation "${operationName || 'unknown'}" failed, retrying (${attempt}/5)...`, error.message);
-      }
+        // eslint-disable-next-line no-console
+        console.log(
+          // Corrigido: || -> ??
+          `Network operation "${operationName ?? 'unknown'}" failed, retrying (${attempt}/5)...`,
+          error instanceof Error ? error.message : String(error)
+        );
+      },
     });
   }
 
   // Helper para operações críticas
-  async criticalOperation<T>(
-    operation: () => Promise<T>,
-    operationName?: string
-  ): Promise<T> {
+  async criticalOperation<T>(operation: () => Promise<T>, operationName?: string): Promise<T> {
     return this.executeWithRetry(operation, {
       maxRetries: 6,
       baseDelay: 2000,
       backoffFactor: 2,
       maxDelay: 30000,
       onRetry: (attempt, error) => {
-        console.log(`Critical operation "${operationName || 'unknown'}" failed, retrying (${attempt}/6)...`, error.message);
-      }
+        // eslint-disable-next-line no-console
+        console.log(
+          // Corrigido: || -> ??
+          `Critical operation "${operationName ?? 'unknown'}" failed, retrying (${attempt}/6)...`,
+          error instanceof Error ? error.message : String(error)
+        );
+      },
     });
   }
 }

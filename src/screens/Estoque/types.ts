@@ -1,7 +1,7 @@
 // src/screens/Estoque/types.ts
 
 // MELHORIA: Tipo 'Unit' mais seguro com autocomplete para unidades conhecidas.
-type KnownUnit = "UN" | "KG" | "L" | "CX" | "PC";
+type KnownUnit = 'UN' | 'KG' | 'L' | 'CX' | 'PC';
 export type Unit = KnownUnit | (string & {});
 
 export type Product = {
@@ -19,12 +19,7 @@ export type Balance = {
   unit?: Unit;
 };
 
-export type TransactionType =
-  | "entrada"
-  | "saida"
-  | "ajuste"
-  | "transferencia"
-  | "venda";
+export type TransactionType = 'entrada' | 'saida' | 'ajuste' | 'transferencia' | 'venda';
 
 // MELHORIA: Estrutura da transação "achatada" para melhor ergonomia.
 export type Transaction = {
@@ -49,8 +44,8 @@ export type Transaction = {
  * ou uma entrada de transação. Ótimo para uso em FlatLists.
  */
 export type Renderable =
-  | { type: "hdr"; id: string; title: string; subtitle: string }
-  | { type: "tx"; id: string; tx: Transaction };
+  | { type: 'hdr'; id: string; title: string; subtitle: string }
+  | { type: 'tx'; id: string; tx: Transaction };
 
 export type InventoryFilters = {
   productId: string | null;

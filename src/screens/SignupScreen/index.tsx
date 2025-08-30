@@ -26,7 +26,7 @@ export default function SignupScreen() {
   return (
     <View style={{ flex: 1 }}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      
+
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -40,17 +40,16 @@ export default function SignupScreen() {
             showsVerticalScrollIndicator={false}
           >
             <SignupHeader width={width} />
-            
-            <LinearGradient
-              colors={[colors.background, colors.background]}
-              style={{ flex: 1 }}
-            >
-              <View style={{
-                flex: 1,
-                paddingHorizontal: spacing.lg,
-                paddingTop: spacing.xl,
-                paddingBottom: spacing.lg,
-              }}>
+
+            <LinearGradient colors={[colors.background, colors.background]} style={{ flex: 1 }}>
+              <View
+                style={{
+                  flex: 1,
+                  paddingHorizontal: spacing.lg,
+                  paddingTop: spacing.xl,
+                  paddingBottom: spacing.lg,
+                }}
+              >
                 <SignupForm
                   email={formData.email}
                   setEmail={formData.setEmail}
@@ -71,7 +70,7 @@ export default function SignupScreen() {
                   passwordError={formData.passwordError}
                   confirmPasswordError={formData.confirmPasswordError}
                 />
-                
+
                 <TermsSection />
               </View>
             </LinearGradient>

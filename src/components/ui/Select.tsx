@@ -27,7 +27,7 @@ type Props<V = string | number> = {
   placeholder?: string;
   value?: V | null;
   onChangeValue?: (v: V) => void;
-  options: Array<SelectOption<V>>;
+  options: SelectOption<V>[];
   searchable?: boolean;
   disabled?: boolean;
   full?: boolean;
@@ -60,10 +60,7 @@ export default function Select<V = string | number>({
   const [q, setQ] = useState('');
   const inputRef = useRef<TextInput>(null);
 
-  const selected = useMemo(
-    () => options.find(o => o.value === value),
-    [options, value]
-  );
+  const selected = useMemo(() => options.find(o => o.value === value), [options, value]);
 
   const showValue = useMemo(() => {
     if (displayFormatter) return displayFormatter(selected);
@@ -73,8 +70,8 @@ export default function Select<V = string | number>({
   const filtered = useMemo(() => {
     if (!q.trim()) return options;
     const s = q.trim().toLowerCase();
-    return options.filter(o =>
-      o.label.toLowerCase().includes(s) || (o.subtitle?.toLowerCase().includes(s))
+    return options.filter(
+      o => o.label.toLowerCase().includes(s) || o.subtitle?.toLowerCase().includes(s)
     );
   }, [q, options]);
 
@@ -117,13 +114,10 @@ export default function Select<V = string | number>({
       >
         <View style={styles.row}>
           <Text
-            style={[
-              styles.valueText,
-              { color: showValue ? textColor : colors.muted },
-            ]}
+            style={[styles.valueText, { color: showValue ? textColor : colors.muted }]}
             numberOfLines={1}
           >
-            {showValue || placeholder}
+            {showValue ?? placeholder}
           </Text>
           <Text style={{ color: colors.muted, fontWeight: '800' }}>▾</Text>
         </View>
@@ -138,12 +132,7 @@ export default function Select<V = string | number>({
       ) : null}
 
       {/* Sheet */}
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable
           style={[styles.backdrop, { backgroundColor: '#00000066', zIndex: z.overlay }]}
           onPress={() => setOpen(false)}
@@ -162,7 +151,7 @@ export default function Select<V = string | number>({
         >
           <View style={{ padding: spacing.md, paddingBottom: spacing.sm }}>
             <Text style={[typography.h2]} numberOfLines={1}>
-              {label || 'Selecionar'}
+              {label ?? 'Selecionar'}
             </Text>
             {searchable ? (
               <View
@@ -235,7 +224,9 @@ export default function Select<V = string | number>({
                       </Text>
                     ) : null}
                   </View>
-                  <Text style={{ color: isSelected ? colors.primary : colors.muted, fontWeight: '800' }}>
+                  <Text
+                    style={{ color: isSelected ? colors.primary : colors.muted, fontWeight: '800' }}
+                  >
                     {isSelected ? '✓' : ''}
                   </Text>
                 </Pressable>

@@ -27,7 +27,7 @@ export interface Transaction {
   unit: Unit;
   tx_type: TransactionType;
   created_at: string;
-  created_by: string;
+  created_by?: string;
   source_production_id?: string | null;
   metadata?: TransactionMetadata | null;
 }
@@ -37,11 +37,11 @@ export interface TransactionMetadata {
   notes?: string;
   batch?: string;
   location?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Tipos para renderização
-export type RenderableItem = 
+export type RenderableItem =
   | { type: 'header'; id: string; title: string; subtitle: string }
   | { type: 'transaction'; id: string; transaction: Transaction };
 

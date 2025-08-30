@@ -10,7 +10,6 @@ import { useTheme } from '@/state/ThemeProvider';
 import SkeletonList from '@/components/SkeletonList';
 import EmptyState from '@/components/ui/EmptyState';
 
-
 type Props = {
   products: Product[] | null;
   loading: boolean;

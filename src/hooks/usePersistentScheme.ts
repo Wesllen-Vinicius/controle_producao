@@ -1,10 +1,11 @@
 // src/hooks/usePersistentScheme.ts
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useState } from "react";
-import { Appearance } from "react-native";
-import { Scheme } from "../theme"; // Ajuste o caminho para seu arquivo de tema
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useState } from 'react';
+import { Appearance } from 'react-native';
+import { Scheme } from '../theme';
+import { getLoggingService } from '../services/loggingService';
 
-const STORAGE_KEY = "theme.scheme";
+const STORAGE_KEY = 'theme.scheme';
 
 /**
  * Um hook customizado que gerencia o esquema de cores (light/dark) da aplicação.
@@ -13,7 +14,7 @@ const STORAGE_KEY = "theme.scheme";
  * - Permite reverter para o tema do sistema.
  */
 export function usePersistentScheme() {
-  const systemScheme: Scheme = Appearance.getColorScheme() ?? "light";
+  const systemScheme: Scheme = Appearance.getColorScheme() ?? 'light';
   const [scheme, setScheme] = useState<Scheme>(systemScheme);
   const [userPreference, setUserPreference] = useState<Scheme | null>(null);
 
@@ -21,7 +22,7 @@ export function usePersistentScheme() {
     const loadPreference = async () => {
       try {
         const savedScheme = await AsyncStorage.getItem(STORAGE_KEY);
-        if (savedScheme === "light" || savedScheme === "dark") {
+        if (savedScheme === 'light' || savedScheme === 'dark') {
           setUserPreference(savedScheme);
           setScheme(savedScheme);
         } else {
@@ -29,10 +30,7 @@ export function usePersistentScheme() {
           setScheme(systemScheme);
         }
       } catch (error) {
-        console.warn(
-          "usePersistentScheme: Failed to load theme from storage.",
-          error
-        );
+        getLoggingService().warn('Failed to load theme from storage', 'usePersistentScheme', error);
         setScheme(systemScheme);
       }
     };
@@ -42,22 +40,24 @@ export function usePersistentScheme() {
   useEffect(() => {
     if (userPreference === null) {
       const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-        setScheme(colorScheme ?? "light");
+        setScheme(colorScheme ?? 'light');
       });
       return () => subscription.remove();
     }
+    return undefined;
   }, [userPreference]);
 
   const handleSetScheme = useCallback(
-    async (newScheme: Scheme | "system") => {
-      if (newScheme === "system") {
+    async (newScheme: Scheme | 'system') => {
+      if (newScheme === 'system') {
         setUserPreference(null);
         setScheme(systemScheme);
         try {
           await AsyncStorage.removeItem(STORAGE_KEY);
         } catch (error) {
-          console.warn(
-            "usePersistentScheme: Failed to remove theme from storage.",
+          getLoggingService().warn(
+            'Failed to remove theme from storage',
+            'usePersistentScheme',
             error
           );
         }
@@ -67,10 +67,7 @@ export function usePersistentScheme() {
         try {
           await AsyncStorage.setItem(STORAGE_KEY, newScheme);
         } catch (error) {
-          console.warn(
-            "usePersistentScheme: Failed to save theme to storage.",
-            error
-          );
+          getLoggingService().warn('Failed to save theme to storage', 'usePersistentScheme', error);
         }
       }
     },
@@ -79,7 +76,7 @@ export function usePersistentScheme() {
 
   // CORREÇÃO: Renomeado de toggleScheme para toggleTheme
   const toggleTheme = useCallback(() => {
-    handleSetScheme(scheme === "dark" ? "light" : "dark");
+    handleSetScheme(scheme === 'dark' ? 'light' : 'dark');
   }, [scheme, handleSetScheme]);
 
   return {

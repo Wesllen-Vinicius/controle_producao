@@ -13,22 +13,35 @@ const ToastCtx = createContext<Ctx | null>(null);
 let _id = 1;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const { colors, spacing, radius, elevation, z } = useTheme();
+  const { colors, radius, elevation, z } = useTheme();
   const [queue, setQueue] = useState<ToastMsg[]>([]);
   const anim = useRef(new Animated.Value(0)).current;
 
-  const show = useCallback((t: Omit<ToastMsg, 'id'>) => {
-    const msg = { ...t, id: _id++, duration: t.duration ?? 2500 };
-    setQueue((q) => [...q, msg]);
+  const show = useCallback(
+    (t: Omit<ToastMsg, 'id'>) => {
+      const msg = { ...t, id: _id++, duration: t.duration ?? 2500 };
+      setQueue(q => [...q, msg]);
 
-    Animated.timing(anim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => {
-      setTimeout(() => {
-        Animated.timing(anim, { toValue: 0, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
-          setQueue((q) => q.slice(1));
-        });
-      }, msg.duration);
-    });
-  }, [anim]);
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => {
+        setTimeout(() => {
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 220,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+          }).start(() => {
+            setQueue(q => q.slice(1));
+          });
+        }, msg.duration);
+      });
+    },
+    [anim]
+  );
 
   const value = useMemo<Ctx>(() => ({ show }), [show]);
 
@@ -49,17 +62,26 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             { transform: [{ translateY: top }], opacity: op, zIndex: z.toast },
           ]}
         >
-          {queue.map((t) => (
+          {queue.map(t => (
             <View
               key={t.id}
               style={[
                 styles.toast,
                 elevation.e2,
-                { borderLeftColor: tint(t.type), backgroundColor: colors.surface, borderLeftWidth: 4, borderRadius: radius.lg },
+                {
+                  borderLeftColor: tint(t.type),
+                  backgroundColor: colors.surface,
+                  borderLeftWidth: 4,
+                  borderRadius: radius.lg,
+                },
               ]}
             >
-              {t.title ? <Text style={{ fontWeight: '800', color: tint(t.type) }}>{t.title}</Text> : null}
-              <Text style={{ color: colors.text, fontWeight: '600', marginTop: t.title ? 4 : 0 }}>{t.message}</Text>
+              {t.title ? (
+                <Text style={{ fontWeight: '800', color: tint(t.type) }}>{t.title}</Text>
+              ) : null}
+              <Text style={{ color: colors.text, fontWeight: '600', marginTop: t.title ? 4 : 0 }}>
+                {t.message}
+              </Text>
             </View>
           ))}
         </Animated.View>
@@ -77,7 +99,9 @@ export function useToast() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 16, right: 16, bottom: 24,
+    left: 16,
+    right: 16,
+    bottom: 24,
     gap: 10,
   },
   toast: {

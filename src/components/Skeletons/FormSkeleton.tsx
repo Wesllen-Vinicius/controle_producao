@@ -28,17 +28,15 @@ export default function FormSkeleton({
 
       {/* Buttons */}
       {showButtons && (
-        <View style={{ 
-          flexDirection: 'row', 
-          gap: spacing.md,
-          marginTop: spacing.md 
-        }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: spacing.md,
+            marginTop: spacing.md,
+          }}
+        >
           {Array.from({ length: buttonCount }).map((_, index) => (
-            <CardSkeleton 
-              key={index}
-              width={index === 0 ? '60%' : '38%'} 
-              height={44} 
-            />
+            <CardSkeleton key={index} width={index === 0 ? '60%' : '38%'} height={44} />
           ))}
         </View>
       )}

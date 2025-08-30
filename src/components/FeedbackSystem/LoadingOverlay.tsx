@@ -51,7 +51,7 @@ export default function LoadingOverlay({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, fadeAnim, scaleAnim]);
 
   useEffect(() => {
     if (progress !== undefined) {
@@ -61,15 +61,10 @@ export default function LoadingOverlay({
         useNativeDriver: false,
       }).start();
     }
-  }, [progress]);
+  }, [progress, progressAnim]);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-    >
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <Animated.View
         style={{
           flex: 1,
@@ -95,28 +90,35 @@ export default function LoadingOverlay({
             elevation: 12,
           }}
         >
-          <ActivityIndicator 
-            size="large" 
-            color={colors.primary} 
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
             style={{ marginBottom: spacing.md }}
           />
 
-          <Text style={[typography.body, { 
-            color: colors.text, 
-            textAlign: 'center',
-            marginBottom: progress !== undefined ? spacing.md : 0,
-          }]}>
+          <Text
+            style={[
+              typography.body,
+              {
+                color: colors.text,
+                textAlign: 'center',
+                marginBottom: progress !== undefined ? spacing.md : 0,
+              },
+            ]}
+          >
             {message}
           </Text>
 
           {progress !== undefined && (
             <View style={{ width: '100%' }}>
-              <View style={{
-                height: 4,
-                backgroundColor: colors.line,
-                borderRadius: 2,
-                overflow: 'hidden',
-              }}>
+              <View
+                style={{
+                  height: 4,
+                  backgroundColor: colors.line,
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                }}
+              >
                 <Animated.View
                   style={{
                     height: '100%',
@@ -128,12 +130,17 @@ export default function LoadingOverlay({
                   }}
                 />
               </View>
-              <Text style={[typography.body, {
-                color: colors.muted,
-                textAlign: 'center',
-                marginTop: spacing.xs,
-                fontSize: 12,
-              }]}>
+              <Text
+                style={[
+                  typography.body,
+                  {
+                    color: colors.muted,
+                    textAlign: 'center',
+                    marginTop: spacing.xs,
+                    fontSize: 12,
+                  },
+                ]}
+              >
                 {Math.round((progress || 0) * 100)}%
               </Text>
             </View>
@@ -148,10 +155,15 @@ export default function LoadingOverlay({
                 paddingHorizontal: spacing.lg,
               }}
             >
-              <Text style={[typography.body, { 
-                color: colors.muted, 
-                textAlign: 'center' 
-              }]}>
+              <Text
+                style={[
+                  typography.body,
+                  {
+                    color: colors.muted,
+                    textAlign: 'center',
+                  },
+                ]}
+              >
                 Cancelar
               </Text>
             </Pressable>

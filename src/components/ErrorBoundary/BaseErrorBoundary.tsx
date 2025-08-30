@@ -13,13 +13,16 @@ export interface BaseErrorBoundaryProps {
   level?: 'screen' | 'section' | 'component';
 }
 
-export abstract class BaseErrorBoundary extends Component<BaseErrorBoundaryProps, ErrorBoundaryState> {
+export abstract class BaseErrorBoundary extends Component<
+  BaseErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: BaseErrorBoundaryProps) {
     super(props);
     this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null,
+      hasError: false, // eslint-disable-line react/no-unused-state
+      error: null, // eslint-disable-line react/no-unused-state
+      errorInfo: null, // eslint-disable-line react/no-unused-state
     };
   }
 
@@ -30,10 +33,10 @@ export abstract class BaseErrorBoundary extends Component<BaseErrorBoundaryProps
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error
     getLoggingService().error(
-      `Error Boundary (${this.props.level || 'unknown'})`,
+      `Error Boundary (${this.props.level ?? 'unknown'})`,
       'ErrorBoundary',
       {
         error: {
@@ -50,8 +53,8 @@ export abstract class BaseErrorBoundary extends Component<BaseErrorBoundaryProps
 
     // Update state
     this.setState({
-      error,
-      errorInfo,
+      error, // eslint-disable-line react/no-unused-state
+      errorInfo, // eslint-disable-line react/no-unused-state
     });
 
     // Call custom error handler
@@ -60,13 +63,13 @@ export abstract class BaseErrorBoundary extends Component<BaseErrorBoundaryProps
 
   protected resetError = () => {
     this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
+      hasError: false, // eslint-disable-line react/no-unused-state
+      error: null, // eslint-disable-line react/no-unused-state
+      errorInfo: null, // eslint-disable-line react/no-unused-state
     });
   };
 
-  abstract render(): ReactNode;
+  abstract override render(): ReactNode;
 }
 
 export default BaseErrorBoundary;

@@ -13,44 +13,66 @@ interface ListItemProps {
   isDestructive?: boolean;
 }
 
-export const ListItem = React.memo(({ title, subtitle, icon, onPress, isDestructive = false }: ListItemProps) => {
-  const { colors, spacing, typography } = useTheme();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const h = useHaptics();
+export const ListItem = React.memo(
+  ({ title, subtitle, icon, onPress, isDestructive = false }: ListItemProps) => {
+    const { colors, typography } = useTheme();
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+    const h = useHaptics();
 
-  const handlePress = () => {
-    if (onPress) {
-      h.light();
-      onPress();
-    }
-  };
+    const handlePress = () => {
+      if (onPress) {
+        h.light();
+        onPress();
+      }
+    };
 
-  const onPressIn = () => Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true }).start();
-  const onPressOut = () => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
+    const onPressIn = () =>
+      Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true }).start();
+    const onPressOut = () =>
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
 
-  const titleColor = isDestructive ? colors.danger : colors.text;
+    const titleColor = isDestructive ? colors.danger : colors.text;
 
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <Pressable
-        onPress={handlePress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        style={({ pressed }) => [styles.container, { backgroundColor: pressed ? colors.surfaceAlt : 'transparent' }]}
-        android_ripple={{ color: colors.line }}
-      >
-        <View style={[styles.iconContainer, { backgroundColor: (isDestructive ? colors.danger : colors.primary) + '15' }]}>
-          <MaterialCommunityIcons name={icon} size={20} color={isDestructive ? colors.danger : colors.primary} />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={[typography.body, styles.title, { color: titleColor }]}>{title}</Text>
-          {subtitle && <Text style={[typography.label, styles.subtitle, { color: colors.muted }]}>{subtitle}</Text>}
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
-      </Pressable>
-    </Animated.View>
-  );
-});
+    return (
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <Pressable
+          onPress={handlePress}
+          onPressIn={onPressIn}
+          onPressOut={onPressOut}
+          style={({ pressed }) => [
+            styles.container,
+            { backgroundColor: pressed ? colors.surfaceAlt : 'transparent' },
+          ]}
+          android_ripple={{ color: colors.line }}
+        >
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: (isDestructive ? colors.danger : colors.primary) + '15' },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={icon}
+              size={20}
+              color={isDestructive ? colors.danger : colors.primary}
+            />
+          </View>
+          <View style={styles.textContainer}>
+            <Text style={[typography.body, styles.title, { color: titleColor }]}>{title}</Text>
+            {subtitle && (
+              <Text style={[typography.label, styles.subtitle, { color: colors.muted }]}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
+        </Pressable>
+      </Animated.View>
+    );
+  }
+);
+
+ListItem.displayName = 'ListItem';
 
 const styles = StyleSheet.create({
   container: {

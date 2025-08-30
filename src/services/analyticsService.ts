@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AnalyticsEvent } from '../types';
 import { APP_CONFIG, FEATURES } from '../config/constants';
+import { AnalyticsEvent } from '../types';
 
 export class AnalyticsService {
   private static instance: AnalyticsService;
@@ -33,6 +33,7 @@ export class AnalyticsService {
         this.eventQueue = JSON.parse(storedEvents);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.warn('Failed to load stored analytics events:', error);
     }
 
@@ -52,7 +53,7 @@ export class AnalyticsService {
   }
 
   // Registrar evento
-  async track(eventName: string, properties?: Record<string, any>): Promise<void> {
+  async track(eventName: string, properties?: Record<string, unknown>): Promise<void> {
     if (!FEATURES.ANALYTICS) return;
 
     const event: AnalyticsEvent = {
@@ -75,6 +76,7 @@ export class AnalyticsService {
     try {
       await AsyncStorage.setItem('analytics_events', JSON.stringify(this.eventQueue));
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.warn('Failed to store analytics event:', error);
     }
 
@@ -85,14 +87,18 @@ export class AnalyticsService {
   }
 
   // Eventos pré-definidos para facilitar uso
-  async trackScreenView(screenName: string, properties?: Record<string, any>): Promise<void> {
+  async trackScreenView(screenName: string, properties?: Record<string, unknown>): Promise<void> {
     await this.track('screen_view', {
       screen_name: screenName,
       ...properties,
     });
   }
 
-  async trackUserAction(action: string, element?: string, properties?: Record<string, any>): Promise<void> {
+  async trackUserAction(
+    action: string,
+    element?: string,
+    properties?: Record<string, unknown>
+  ): Promise<void> {
     await this.track('user_action', {
       action,
       element,
@@ -108,7 +114,11 @@ export class AnalyticsService {
     });
   }
 
-  async trackError(error: Error, context?: string, properties?: Record<string, any>): Promise<void> {
+  async trackError(
+    error: Error,
+    context?: string,
+    properties?: Record<string, unknown>
+  ): Promise<void> {
     await this.track('error_occurred', {
       error_message: error.message,
       error_stack: error.stack,
@@ -118,7 +128,11 @@ export class AnalyticsService {
     });
   }
 
-  async trackBusinessEvent(event: string, entity: string, properties?: Record<string, any>): Promise<void> {
+  async trackBusinessEvent(
+    event: string,
+    entity: string,
+    properties?: Record<string, unknown>
+  ): Promise<void> {
     await this.track('business_event', {
       business_event: event,
       entity,
@@ -166,6 +180,7 @@ export class AnalyticsService {
     try {
       // Em produção, enviar para serviço de analytics
       if (__DEV__) {
+        // eslint-disable-next-line no-console
         console.log('[ANALYTICS] Flushing events:', eventsToFlush);
       } else {
         // Aqui você enviaria para seu serviço de analytics (Firebase, Mixpanel, etc.)
@@ -175,6 +190,7 @@ export class AnalyticsService {
       // Limpar eventos armazenados localmente após envio bem-sucedido
       await AsyncStorage.removeItem('analytics_events');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to flush analytics events:', error);
       // Recolocar eventos na fila em caso de erro
       this.eventQueue.unshift(...eventsToFlush);
@@ -193,13 +209,18 @@ export class AnalyticsService {
       session_id: this.sessionId,
       duration_ms: duration,
     });
-    
+
     // Flush todos os eventos ao final da sessão
     await this.flushEvents();
   }
 
   // Funnel tracking
-  async trackFunnelStep(funnel: string, step: string, success: boolean, properties?: Record<string, any>): Promise<void> {
+  async trackFunnelStep(
+    funnel: string,
+    step: string,
+    success: boolean,
+    properties?: Record<string, unknown>
+  ): Promise<void> {
     await this.track('funnel_step', {
       funnel,
       step,
@@ -209,7 +230,11 @@ export class AnalyticsService {
   }
 
   // A/B Testing support
-  async trackExperiment(experiment: string, variant: string, properties?: Record<string, any>): Promise<void> {
+  async trackExperiment(
+    experiment: string,
+    variant: string,
+    properties?: Record<string, unknown>
+  ): Promise<void> {
     await this.track('experiment_exposure', {
       experiment,
       variant,
@@ -220,11 +245,12 @@ export class AnalyticsService {
   // Limpeza de dados antigos
   async cleanupOldEvents(): Promise<void> {
     try {
-      const cutoffDate = Date.now() - (7 * 24 * 60 * 60 * 1000); // 7 dias atrás
+      const cutoffDate = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 dias atrás
       this.eventQueue = this.eventQueue.filter(event => event.timestamp > cutoffDate);
-      
+
       await AsyncStorage.setItem('analytics_events', JSON.stringify(this.eventQueue));
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.warn('Failed to cleanup old analytics events:', error);
     }
   }
@@ -247,6 +273,7 @@ export class AnalyticsService {
   async disableAnalytics(): Promise<void> {
     this.eventQueue = [];
     await AsyncStorage.removeItem('analytics_events');
+    // eslint-disable-next-line no-console
     console.log('Analytics disabled and data cleared');
   }
 }

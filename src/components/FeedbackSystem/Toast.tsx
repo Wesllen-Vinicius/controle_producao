@@ -1,6 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, Animated, Pressable } from 'react-native';
-import { PanGestureHandler, PanGestureHandlerGestureEvent, State } from 'react-native-gesture-handler';
+import {
+  PanGestureHandler,
+  PanGestureHandlerGestureEvent,
+  State,
+} from 'react-native-gesture-handler';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../../state/ThemeProvider';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -31,7 +35,7 @@ export default function AnimatedToast({
 }: AnimatedToastProps) {
   const { colors, spacing, radius, typography } = useTheme();
   const { success: successHaptic, error: errorHaptic, warning: warningHaptic } = useHaptics();
-  
+
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.8)).current;
@@ -51,6 +55,30 @@ export default function AnimatedToast({
     info: { bg: colors.primaryBackground, border: colors.primary, text: colors.primary },
   };
 
+  // Memoize the dismiss function to prevent unnecessary re-creates
+  const dismissToast = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: -100,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 0.8,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onDismiss();
+      panTranslateX.setValue(0);
+    });
+  }, [translateY, opacity, scale, onDismiss, panTranslateX]);
+
   useEffect(() => {
     if (visible) {
       // Haptic feedback
@@ -63,6 +91,10 @@ export default function AnimatedToast({
           break;
         case 'warning':
           warningHaptic();
+          break;
+        case 'info':
+        default:
+          // No haptic for info type
           break;
       }
 
@@ -96,30 +128,18 @@ export default function AnimatedToast({
     } else {
       dismissToast();
     }
-  }, [visible]);
-
-  const dismissToast = () => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: -100,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 0.8,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onDismiss();
-      panTranslateX.setValue(0);
-    });
-  };
+  }, [
+    visible,
+    type,
+    successHaptic,
+    errorHaptic,
+    warningHaptic,
+    translateY,
+    opacity,
+    scale,
+    duration,
+    dismissToast,
+  ]);
 
   const handlePan = (event: PanGestureHandlerGestureEvent) => {
     const { translationX, state } = event.nativeEvent;
@@ -159,11 +179,7 @@ export default function AnimatedToast({
           left: spacing.md,
           right: spacing.md,
           zIndex: 9999,
-          transform: [
-            { translateY },
-            { translateX: panTranslateX },
-            { scale },
-          ],
+          transform: [{ translateY }, { translateX: panTranslateX }, { scale }],
           opacity,
         }}
       >

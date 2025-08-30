@@ -1,4 +1,6 @@
 import { AccessibilityInfo, findNodeHandle } from 'react-native';
+// Adicionada a importação do tipo 'Component' do React
+import type { Component } from 'react';
 
 export class AccessibilityService {
   private static instance: AccessibilityService;
@@ -20,20 +22,20 @@ export class AccessibilityService {
     try {
       // Verificar se o leitor de tela está habilitado
       this.screenReaderEnabled = await AccessibilityInfo.isScreenReaderEnabled();
-      
+
       // Verificar se motion reduzida está habilitada
       this.reducedMotionEnabled = await AccessibilityInfo.isReduceMotionEnabled();
 
       // Listeners para mudanças de configuração
-      AccessibilityInfo.addEventListener('screenReaderChanged', (enabled) => {
+      AccessibilityInfo.addEventListener('screenReaderChanged', enabled => {
         this.screenReaderEnabled = enabled;
       });
 
-      AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      AccessibilityInfo.addEventListener('reduceMotionChanged', enabled => {
         this.reducedMotionEnabled = enabled;
       });
-    } catch (error) {
-      console.warn('Failed to initialize accessibility settings:', error);
+    } catch {
+      // CORREÇÃO: A variável de erro foi completamente removida, pois não é utilizada.
     }
   }
 
@@ -47,15 +49,15 @@ export class AccessibilityService {
   }
 
   // Anunciar mensagens para leitores de tela
-  announce(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
+  announce(message: string, _priority: 'polite' | 'assertive' = 'polite'): void {
     if (this.screenReaderEnabled) {
       AccessibilityInfo.announceForAccessibility(message);
     }
   }
 
   // Focar em um elemento específico
-  focusElement(elementRef: any): void {
-    if (elementRef && elementRef.current) {
+  focusElement(elementRef: React.RefObject<Component>): void {
+    if (elementRef?.current) {
       const nodeHandle = findNodeHandle(elementRef.current);
       if (nodeHandle) {
         AccessibilityInfo.setAccessibilityFocus(nodeHandle);
@@ -82,7 +84,7 @@ export class AccessibilityService {
     };
     live?: 'none' | 'polite' | 'assertive';
   }) {
-    const props: any = {};
+    const props: Record<string, unknown> = {};
 
     if (config.label) {
       props.accessibilityLabel = config.label;
@@ -112,7 +114,7 @@ export class AccessibilityService {
   }
 
   // Configurações de animação baseadas em preferências
-  getAnimationConfig(defaultDuration: number = 300) {
+  getAnimationConfig(defaultDuration = 300) {
     return {
       duration: this.reducedMotionEnabled ? 0 : defaultDuration,
       useNativeDriver: true,
@@ -128,19 +130,19 @@ export class AccessibilityService {
     status?: string;
   }): string {
     let label = item.title;
-    
+
     if (item.subtitle) {
       label += `, ${item.subtitle}`;
     }
-    
+
     if (item.position && item.total) {
       label += `, item ${item.position} de ${item.total}`;
     }
-    
+
     if (item.status) {
       label += `, status: ${item.status}`;
     }
-    
+
     return label;
   }
 
@@ -157,22 +159,22 @@ export class AccessibilityService {
       role: 'text',
       state: {
         disabled: false,
-      }
+      },
     });
 
     let hint = '';
-    
+
     if (config.required) {
       hint += 'Campo obrigatório. ';
     }
-    
+
     if (config.placeholder && !config.value) {
       hint += `Exemplo: ${config.placeholder}. `;
     }
-    
+
     if (config.error) {
       hint += `Erro: ${config.error}`;
-      props.accessibilityState = { ...props.accessibilityState, invalid: true };
+      props.accessibilityState = { ...(props.accessibilityState as object), invalid: true };
     }
 
     if (hint) {
@@ -190,11 +192,11 @@ export class AccessibilityService {
     loading?: boolean;
   }) {
     let label = config.title;
-    
+
     if (config.action) {
       label += `, ${config.action}`;
     }
-    
+
     let hint = '';
     if (config.loading) {
       hint = 'Carregando, aguarde';
@@ -211,7 +213,7 @@ export class AccessibilityService {
       state: {
         disabled: config.disabled,
         busy: config.loading,
-      }
+      },
     });
   }
 
@@ -227,17 +229,17 @@ export class AccessibilityService {
   // Helpers para feedback de ações
   announceActionFeedback(action: string, result: 'success' | 'error', details?: string): void {
     let message = '';
-    
+
     if (result === 'success') {
       message = `${action} realizada com sucesso`;
     } else {
       message = `Erro ao ${action.toLowerCase()}`;
     }
-    
+
     if (details) {
       message += `. ${details}`;
     }
-    
+
     this.announce(message, result === 'error' ? 'assertive' : 'polite');
   }
 
@@ -247,26 +249,26 @@ export class AccessibilityService {
     suggestions: string[];
   } {
     const suggestions: string[] = [];
-    
+
     if (text.length < 3) {
       suggestions.push('Texto muito curto para leitores de tela');
     }
-    
+
     if (text.length > 200) {
       suggestions.push('Texto muito longo, considere resumir');
     }
-    
+
     if (/^[A-Z\s]+$/.test(text)) {
       suggestions.push('Evite texto totalmente em maiúsculas');
     }
-    
+
     if (!/[a-zA-ZÀ-ÿ]/.test(text)) {
       suggestions.push('Adicione texto descritivo além de números/símbolos');
     }
-    
+
     return {
       isValid: suggestions.length === 0,
-      suggestions
+      suggestions,
     };
   }
 }

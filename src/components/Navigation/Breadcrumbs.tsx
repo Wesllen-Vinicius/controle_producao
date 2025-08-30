@@ -25,7 +25,7 @@ export default function Breadcrumbs({
   const { colors, spacing, typography } = useTheme();
 
   // Add home item if requested
-  const allItems = showHome 
+  const allItems = showHome
     ? [{ label: 'Início', icon: 'warehouse', onPress: () => {} }, ...items]
     : items;
 
@@ -35,13 +35,11 @@ export default function Breadcrumbs({
     displayItems = [
       allItems[0],
       { label: '...', onPress: undefined },
-      ...allItems.slice(-maxItems + 2)
+      ...allItems.slice(-maxItems + 2),
     ];
   }
 
-  const defaultSeparator = (
-    <AppIcon name="chevron-down" size={16} color={colors.muted} />
-  );
+  const defaultSeparator = <AppIcon name="chevron-down" size={16} color={colors.muted} />;
 
   return (
     <ScrollView
@@ -53,11 +51,13 @@ export default function Breadcrumbs({
         alignItems: 'center',
       }}
     >
-      <View style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-      }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+        }}
+      >
         {displayItems.map((item, index) => {
           const isLast = index === displayItems.length - 1;
           const isClickable = item.onPress && !isLast;
@@ -74,13 +74,14 @@ export default function Breadcrumbs({
                   paddingHorizontal: spacing.sm,
                   borderRadius: 4,
                   opacity: pressed ? 0.7 : 1,
-                  backgroundColor: pressed && isClickable ? colors.primaryBackground : 'transparent',
+                  backgroundColor:
+                    pressed && isClickable ? colors.primaryBackground : 'transparent',
                 })}
                 disabled={!isClickable}
               >
                 {item.icon && (
                   <AppIcon
-                    name={item.icon as any}
+                    name={item.icon as string}
                     size={14}
                     color={isLast ? colors.text : colors.primary}
                   />
@@ -100,11 +101,7 @@ export default function Breadcrumbs({
                 </Text>
               </Pressable>
 
-              {!isLast && (
-                <View style={{ opacity: 0.5 }}>
-                  {separator || defaultSeparator}
-                </View>
-              )}
+              {!isLast && <View style={{ opacity: 0.5 }}>{separator ?? defaultSeparator}</View>}
             </React.Fragment>
           );
         })}

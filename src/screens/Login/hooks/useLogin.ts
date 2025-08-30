@@ -1,28 +1,27 @@
 // src/screens/Login/hooks/useLogin.ts
-import { useNavigation } from "@react-navigation/native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Keyboard, TextInput } from "react-native";
-import { useHaptics } from "../../../hooks/useHaptics";
-import * as LoginService from "../services";
-import { LoginRefs, SavedCredentials, ValidationState } from "../types";
+import { useNavigation } from '@react-navigation/native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Keyboard, TextInput } from 'react-native';
+import { useHaptics } from '../../../hooks/useHaptics';
+import * as LoginService from '../services';
+import { LoginRefs, SavedCredentials, ValidationState } from '../types';
 
 export function useLogin() {
-  const nav = useNavigation<any>();
+  const nav = useNavigation();
   const h = useHaptics();
 
   const emailRef = useRef<TextInput>(null);
   const passRef = useRef<TextInput>(null);
   const refs: LoginRefs = { emailRef, passRef };
 
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
-  const [savedCredentials, setSavedCredentials] =
-    useState<SavedCredentials | null>(null);
+  const [savedCredentials, setSavedCredentials] = useState<SavedCredentials | null>(null);
 
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
@@ -65,10 +64,11 @@ export function useLogin() {
       if (credentials) setSavedCredentials(credentials);
     };
     initialize();
-  }, []);
+  }, [fadeAnim, formTranslateY, iconScale]);
 
   useEffect(() => {
     if (error) setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, pass]);
 
   const validation = useMemo((): ValidationState => {
@@ -122,13 +122,13 @@ export function useLogin() {
     Keyboard.dismiss();
     if (!validation.emailOk) {
       h.warning();
-      setError("Por favor, insira um e-mail válido.");
+      setError('Por favor, insira um e-mail válido.');
       doShake();
       return emailRef.current?.focus();
     }
     if (!validation.passOk) {
       h.warning();
-      setError("A senha deve ter pelo menos 6 caracteres.");
+      setError('A senha deve ter pelo menos 6 caracteres.');
       doShake();
       return passRef.current?.focus();
     }
@@ -144,9 +144,9 @@ export function useLogin() {
       );
       if (newCreds) setSavedCredentials(newCreds);
       h.success();
-    } catch (e: any) {
+    } catch (e: unknown) {
       h.error();
-      setError(e.message);
+      setError((e as Error).message);
       doShake();
     } finally {
       setBusy(false);
@@ -159,9 +159,9 @@ export function useLogin() {
     try {
       await LoginService.authenticateWithBiometrics(savedCredentials);
       h.success();
-    } catch (error: any) {
+    } catch (error: unknown) {
       h.error();
-      setError(error.message);
+      setError((error as Error).message);
     } finally {
       setBusy(false);
     }
@@ -187,7 +187,7 @@ export function useLogin() {
       handlePasswordChange,
       handleLogin,
       handleBiometricAuth,
-      navigateTo: (screen: string) => nav.navigate(screen),
+      navigateTo: (screen: string) => nav.navigate(screen as never),
     },
   };
 }

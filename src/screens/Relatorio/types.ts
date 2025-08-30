@@ -1,4 +1,4 @@
-export type Unit = "UN" | "KG" | "L" | "CX" | "PC" | string;
+export type Unit = 'UN' | 'KG' | 'L' | 'CX' | 'PC' | string;
 
 export type Product = {
   id: string;
@@ -52,5 +52,5 @@ export type Totals = {
   diff: number;
 };
 
-export type SortOption = "produced" | "compliance" | "name";
-export type ExportFormat = "csv" | "json" | "pdf";
+export type SortOption = 'produced' | 'compliance' | 'name';
+export type ExportFormat = 'csv' | 'json' | 'pdf';

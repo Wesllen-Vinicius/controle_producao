@@ -9,6 +9,8 @@ import {
   Pressable,
   ScrollView,
   Text,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../state/ThemeProvider';
@@ -23,10 +25,15 @@ interface BottomSheetProps {
   children: React.ReactNode;
 }
 
-export default function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
-  const { colors, spacing, radius, elevation } = useTheme();
+const BottomSheet = React.memo(function BottomSheet({
+  open,
+  onClose,
+  title,
+  children,
+}: BottomSheetProps) {
+  const { colors, spacing, elevation } = useTheme();
   const insets = useSafeAreaInsets();
-  
+
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
@@ -60,7 +67,7 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
         }),
       ]).start();
     }
-  }, [open]);
+  }, [open, translateY, backdropOpacity]);
 
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: (_, gestureState) => {
@@ -94,58 +101,61 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
       onRequestClose={onClose}
     >
       {/* Backdrop */}
-      <Animated.View 
-        style={[
-          styles.backdrop,
-          { opacity: backdropOpacity }
-        ]}
-      />
-      
+      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
+
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-      {/* Bottom Sheet */}
-      <Animated.View
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.surface,
-            paddingBottom: insets.bottom,
-            transform: [{ translateY }],
-            ...elevation.e4,
-          }
-        ]}
-        {...panResponder.panHandlers}
+      {/* Bottom Sheet with Keyboard Avoidance */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
       >
-        {/* Handle */}
-        <View style={[styles.handle, { backgroundColor: colors.line }]} />
-        
-        {/* Header */}
-        {title && (
-          <View style={[styles.header, { paddingHorizontal: spacing.lg }]}>
-            <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <MaterialCommunityIcons name="close" size={24} color={colors.text} />
-            </Pressable>
-          </View>
-        )}
-
-        {/* Content */}
-        <ScrollView 
-          style={styles.content}
-          contentContainerStyle={{
-            paddingHorizontal: spacing.lg,
-            paddingBottom: spacing.xxl,
-            paddingTop: spacing.sm,
-          }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              backgroundColor: colors.surface,
+              paddingBottom: insets.bottom,
+              transform: [{ translateY }],
+              ...elevation.e4,
+            },
+          ]}
+          {...panResponder.panHandlers}
         >
-          {children}
-        </ScrollView>
-      </Animated.View>
+          {/* Handle */}
+          <View style={[styles.handle, { backgroundColor: colors.line }]} />
+
+          {/* Header */}
+          {title && (
+            <View style={[styles.header, { paddingHorizontal: spacing.lg }]}>
+              <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+              <Pressable onPress={onClose} style={styles.closeButton}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+              </Pressable>
+            </View>
+          )}
+
+          {/* Content */}
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={{
+              paddingHorizontal: spacing.lg,
+              paddingBottom: spacing.xxl,
+              paddingTop: spacing.sm,
+            }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          >
+            {children}
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
-}
+});
+
+export default BottomSheet;
 
 const styles = StyleSheet.create({
   backdrop: {
@@ -191,5 +201,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
 });

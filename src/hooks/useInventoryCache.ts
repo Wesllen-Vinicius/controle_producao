@@ -22,7 +22,7 @@ export function useInventoryCache<T>({ defaultTTL = 300000, maxSize = 100 }: Cac
   const cleanupExpired = useCallback(() => {
     const now = Date.now();
     const toDelete: string[] = [];
-    
+
     cache.current.forEach((entry, key) => {
       if (now > entry.timestamp + entry.ttl) {
         toDelete.push(key);
@@ -46,56 +46,65 @@ export function useInventoryCache<T>({ defaultTTL = 300000, maxSize = 100 }: Cac
     }
   }, []);
 
-  const set = useCallback((key: string, data: T, ttl = defaultTTL) => {
-    cleanupExpired();
-    
-    // Se cache está cheio, remove o menos recentemente usado
-    if (cache.current.size >= maxSize) {
-      evictLRU();
-    }
+  const set = useCallback(
+    (key: string, data: T, ttl = defaultTTL) => {
+      cleanupExpired();
 
-    cache.current.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl
-    });
+      // Se cache está cheio, remove o menos recentemente usado
+      if (cache.current.size >= maxSize) {
+        evictLRU();
+      }
 
-    // Atualizar ordem de acesso
-    const existingIndex = accessOrder.current.indexOf(key);
-    if (existingIndex > -1) {
-      accessOrder.current.splice(existingIndex, 1);
-    }
-    accessOrder.current.push(key);
-  }, [defaultTTL, maxSize, cleanupExpired, evictLRU]);
+      cache.current.set(key, {
+        data,
+        timestamp: Date.now(),
+        ttl,
+      });
 
-  const get = useCallback((key: string): T | null => {
-    const entry = cache.current.get(key);
-    
-    if (!entry) return null;
-    
-    if (isExpired(entry)) {
-      cache.current.delete(key);
+      // Atualizar ordem de acesso
+      const existingIndex = accessOrder.current.indexOf(key);
+      if (existingIndex > -1) {
+        accessOrder.current.splice(existingIndex, 1);
+      }
+      accessOrder.current.push(key);
+    },
+    [defaultTTL, maxSize, cleanupExpired, evictLRU]
+  );
+
+  const get = useCallback(
+    (key: string): T | null => {
+      const entry = cache.current.get(key);
+
+      if (!entry) return null;
+
+      if (isExpired(entry)) {
+        cache.current.delete(key);
+        const index = accessOrder.current.indexOf(key);
+        if (index > -1) {
+          accessOrder.current.splice(index, 1);
+        }
+        return null;
+      }
+
+      // Atualizar ordem de acesso
       const index = accessOrder.current.indexOf(key);
       if (index > -1) {
         accessOrder.current.splice(index, 1);
+        accessOrder.current.push(key);
       }
-      return null;
-    }
 
-    // Atualizar ordem de acesso
-    const index = accessOrder.current.indexOf(key);
-    if (index > -1) {
-      accessOrder.current.splice(index, 1);
-      accessOrder.current.push(key);
-    }
+      return entry.data;
+    },
+    [isExpired]
+  );
 
-    return entry.data;
-  }, [isExpired]);
-
-  const has = useCallback((key: string): boolean => {
-    const entry = cache.current.get(key);
-    return entry ? !isExpired(entry) : false;
-  }, [isExpired]);
+  const has = useCallback(
+    (key: string): boolean => {
+      const entry = cache.current.get(key);
+      return entry ? !isExpired(entry) : false;
+    },
+    [isExpired]
+  );
 
   const invalidate = useCallback((keyPattern?: string) => {
     if (!keyPattern) {
@@ -120,11 +129,14 @@ export function useInventoryCache<T>({ defaultTTL = 300000, maxSize = 100 }: Cac
     });
   }, []);
 
-  const stats = useMemo(() => ({
-    size: cache.current.size,
-    maxSize,
-    accessOrderLength: accessOrder.current.length
-  }), [maxSize]);
+  const stats = useMemo(
+    () => ({
+      size: cache.current.size,
+      maxSize,
+      accessOrderLength: accessOrder.current.length,
+    }),
+    [maxSize]
+  );
 
   return {
     get,
@@ -132,7 +144,7 @@ export function useInventoryCache<T>({ defaultTTL = 300000, maxSize = 100 }: Cac
     has,
     invalidate,
     stats,
-    cleanupExpired
+    cleanupExpired,
   };
 }
 

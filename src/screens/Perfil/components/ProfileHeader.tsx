@@ -18,30 +18,49 @@ export function ProfileHeader({ auth, onCopy, scaleAnim }: ProfileHeaderProps) {
   const { colors, spacing, typography } = useTheme();
   const { profile, session } = auth;
 
-  const name = profile?.username || session?.user?.email?.split('@')[0] || 'Usuário';
-  const email = session?.user?.email || '';
-  const initial = (name?.[0] || 'U').toUpperCase();
+  const name = profile?.username ?? session?.user?.email?.split('@')[0] ?? 'Usuário';
+  const email = session?.user?.email ?? '';
+  const initial = (name?.[0] ?? 'U').toUpperCase();
   const role = profile?.role;
 
   return (
     <View style={[styles.container, { paddingHorizontal: spacing.md }]}>
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <Pressable onLongPress={() => onCopy(name, 'Nome')} style={[styles.avatar, { backgroundColor: colors.primary + '20', shadowColor: colors.shadow }]}>
+        <Pressable
+          onLongPress={() => onCopy(name, 'Nome')}
+          style={[
+            styles.avatar,
+            { backgroundColor: colors.primary + '20', shadowColor: colors.shadow },
+          ]}
+        >
           <Text style={[styles.avatarText, { color: colors.primary }]}>{initial}</Text>
-          <View style={[styles.badge, { backgroundColor: colors.success, borderColor: colors.background }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: colors.success, borderColor: colors.background },
+            ]}
+          >
             <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
           </View>
         </Pressable>
       </Animated.View>
 
       <View style={styles.userInfo}>
-        <Text style={[typography.h1, styles.name, { color: colors.text }]} numberOfLines={1}>{name}</Text>
+        <Text style={[typography.h1, styles.name, { color: colors.text }]} numberOfLines={1}>
+          {name}
+        </Text>
         <Pressable onLongPress={() => email && onCopy(email, 'E-mail')}>
-          <Text style={[typography.body, styles.email, { color: colors.muted }]} numberOfLines={1}>{email}</Text>
+          <Text style={[typography.body, styles.email, { color: colors.muted }]} numberOfLines={1}>
+            {email}
+          </Text>
         </Pressable>
         {role && (
           <View style={[styles.rolePill, { backgroundColor: colors.primary + '15' }]}>
-            <MaterialCommunityIcons name={role === 'admin' ? 'shield-crown' : 'account-circle'} size={12} color={colors.primary} />
+            <MaterialCommunityIcons
+              name={role === 'admin' ? 'shield-crown' : 'account-circle'}
+              size={12}
+              color={colors.primary}
+            />
             <Text style={[styles.roleText, { color: colors.primary }]}>{role.toUpperCase()}</Text>
           </View>
         )}

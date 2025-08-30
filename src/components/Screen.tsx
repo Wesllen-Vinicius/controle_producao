@@ -8,6 +8,8 @@ import {
   StyleSheet,
   useWindowDimensions,
   ScrollView,
+  ScrollViewProps,
+  ViewProps,
 } from 'react-native';
 import { useTheme } from '../state/ThemeProvider';
 
@@ -37,21 +39,21 @@ export default function Screen({
   keyboardVerticalOffset = 0,
 }: Props) {
   const { colors, spacing } = useTheme();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
   // paddings responsivos (mantém padrão lateral do app)
   const horizontal = width >= 480 ? spacing.lg : spacing.md;
   const padH = padded ? horizontal : 0;
-  
+
   // Padding top responsivo baseado no safe area e altura da tela
   const dynamicTopPadding = Math.max(spacing.lg, insets.top * 0.5);
   const padTop = padded ? dynamicTopPadding : 0;
-  
-  // Padding bottom responsivo 
+
+  // Padding bottom responsivo
   const dynamicBottomPadding = Math.max(spacing.xl, insets.bottom + spacing.lg);
   const padBottom = padded ? dynamicBottomPadding : 0;
-  
+
   const contentWidth = Math.min(width, maxContentWidth);
 
   // IMPORTANTE:
@@ -59,7 +61,7 @@ export default function Screen({
   const Container = scroll ? ScrollView : View;
 
   // props específicos quando há ScrollView
-  const scrollProps = scroll
+  const scrollProps: ScrollViewProps | ViewProps = scroll
     ? {
         keyboardShouldPersistTaps: 'handled' as const,
         contentInsetAdjustmentBehavior: 'automatic' as const, // iOS
@@ -77,7 +79,8 @@ export default function Screen({
       };
 
   // Keyboard offset responsivo
-  const responsiveKeyboardOffset = keyboardVerticalOffset || (Platform.OS === 'ios' ? insets.top : 0);
+  const responsiveKeyboardOffset =
+    keyboardVerticalOffset || (Platform.OS === 'ios' ? insets.top : 0);
 
   return (
     <SafeAreaView edges={edges} style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -87,7 +90,7 @@ export default function Screen({
         keyboardVerticalOffset={responsiveKeyboardOffset}
         style={styles.flex}
       >
-        <Container {...(scrollProps as any)}>
+        <Container {...scrollProps}>
           <View
             style={[
               styles.body,

@@ -1,5 +1,5 @@
 // src/screens/Producao/types.ts
-export type Unit = "UN" | "KG" | "L" | "CX" | "MT" | "PC" | string;
+export type Unit = 'UN' | 'KG' | 'L' | 'CX' | 'MT' | 'PC' | string;
 
 export type Product = {
   id: string;
@@ -26,17 +26,14 @@ export type SummaryItem = {
 };
 
 export type Renderable =
-  | { type: "h-header"; id: string; title: string }
-  | { type: "h-row"; id: string; item: Production };
+  | { type: 'h-header'; id: string; title: string }
+  | { type: 'h-row'; id: string; item: Production };
 
 export type ProductionStats = {
   total: number;
   thisMonth: number;
   avgAnimals: number;
-  byUnit: Record<
-    string,
-    { produced: number; meta: number; loss: number; efficiency: number }
-  >;
+  byUnit: Record<string, { produced: number; meta: number; loss: number; efficiency: number }>;
 };
 
 export type ProductionFilters = {

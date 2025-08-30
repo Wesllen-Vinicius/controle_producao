@@ -19,7 +19,7 @@ export default function DashboardSkeleton({
   const { spacing } = useTheme();
 
   return (
-    <ScrollView 
+    <ScrollView
       style={{ flex: 1 }}
       contentContainerStyle={{ padding: spacing.md, gap: spacing.lg }}
     >
@@ -32,10 +32,12 @@ export default function DashboardSkeleton({
       )}
 
       {/* KPIs */}
-      <View style={{
-        flexDirection: 'row',
-        gap: spacing.md,
-      }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: spacing.md,
+        }}
+      >
         {Array.from({ length: kpiCount }).map((_, index) => (
           <View key={index} style={{ flex: 1 }}>
             <CardSkeleton width="100%" height={80} />

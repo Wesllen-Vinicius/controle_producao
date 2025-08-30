@@ -16,7 +16,7 @@ const FAB = React.memo(function FAB({ onPress, icon = 'plus', visible = true }: 
   const { colors, elevation, z, spacing } = useTheme();
   const h = useHaptics();
   const insets = useSafeAreaInsets();
-  
+
   const translateY = useRef(new Animated.Value(visible ? 0 : 100)).current;
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -27,7 +27,7 @@ const FAB = React.memo(function FAB({ onPress, icon = 'plus', visible = true }: 
       tension: 120,
       friction: 8,
     }).start();
-  }, [visible]);
+  }, [visible, translateY]);
 
   const handlePressIn = useCallback(() => {
     Animated.spring(scale, {
@@ -64,14 +64,14 @@ const FAB = React.memo(function FAB({ onPress, icon = 'plus', visible = true }: 
         },
       ]}
     >
-      <Animated.View 
+      <Animated.View
         style={[
           styles.fab,
           {
             backgroundColor: colors.primary,
             transform: [{ scale }],
             ...elevation.e3,
-          }
+          },
         ]}
       >
         <Pressable
@@ -79,17 +79,13 @@ const FAB = React.memo(function FAB({ onPress, icon = 'plus', visible = true }: 
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           style={styles.pressable}
-          android_ripple={{ 
-            color: 'rgba(255,255,255,0.2)', 
+          android_ripple={{
+            color: 'rgba(255,255,255,0.2)',
             radius: 28,
-            borderless: true 
+            borderless: true,
           }}
         >
-          <MaterialCommunityIcons 
-            name={icon} 
-            size={24} 
-            color="#FFFFFF" 
-          />
+          <MaterialCommunityIcons name={icon} size={24} color="#FFFFFF" />
         </Pressable>
       </Animated.View>
     </Animated.View>
