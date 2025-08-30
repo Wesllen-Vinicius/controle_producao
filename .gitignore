@@ -55,10 +55,52 @@ coverage/
 
 # Keystores and credentials
 *.keystore
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
 credentials.json
-.claude
-*.claude
-
 .credentials.json
 *.credentials.json
-credentials.json
+google-services.json
+GoogleService-Info.plist
+
+# Sensitive environment files
+.env.production
+.env.staging
+.env.development
+*.env
+
+# API Keys and secrets
+secrets.json
+config.json
+firebase-adminsdk-*.json
+
+# Supabase
+.supabase/
+supabase-key.json
+
+# Claude AI files
+.claude
+*.claude
+.claude-*
+
+# Backup and temporary files
+*.backup
+*.bak
+*.tmp
+*.temp
+*~
+
+# Editor and IDE specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/*.code-workspace
+
+# Debug and log files
+debug.log
+error.log
+crash.log
+*.crash
