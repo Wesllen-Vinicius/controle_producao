@@ -14,9 +14,11 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../services/supabase';
+import { useTheme } from '../../state/ThemeProvider';
 
 export default function PasswordResetScreen() {
   const navigation = useNavigation<any>();
+  const theme = useTheme();
   const [step, setStep] = useState<'email' | 'password'>('email');
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -126,20 +128,21 @@ export default function PasswordResetScreen() {
   }, [email, newPassword, confirmPassword, navigation]);
 
   const renderEmailStep = () => (
-    <View style={styles.content}>
-      <Text style={styles.emoji}>🔐</Text>
-      <Text style={styles.title}>Esqueceu sua senha?</Text>
-      <Text style={styles.subtitle}>
+    <View style={styles(theme).content}>
+      <Text style={styles(theme).emoji}>🔐</Text>
+      <Text style={styles(theme).title}>Esqueceu sua senha?</Text>
+      <Text style={styles(theme).subtitle}>
         Digite seu e-mail para verificarmos se ele está cadastrado no sistema.
       </Text>
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>E-mail</Text>
+      <View style={styles(theme).inputContainer}>
+        <Text style={styles(theme).label}>E-mail</Text>
         <TextInput
-          style={styles.input}
+          style={styles(theme).input}
           value={email}
           onChangeText={setEmail}
           placeholder="seu@email.com"
+          placeholderTextColor={theme.colors.muted}
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
@@ -150,8 +153,8 @@ export default function PasswordResetScreen() {
 
       <TouchableOpacity
         style={[
-          styles.button,
-          (!email.trim() || loading) && styles.buttonDisabled,
+          styles(theme).button,
+          (!email.trim() || loading) && styles(theme).buttonDisabled,
         ]}
         onPress={handleEmailCheck}
         disabled={!email.trim() || loading}
@@ -159,36 +162,37 @@ export default function PasswordResetScreen() {
         {loading ? (
           <ActivityIndicator color="#ffffff" />
         ) : (
-          <Text style={styles.buttonText}>Verificar E-mail</Text>
+          <Text style={styles(theme).buttonText}>Verificar E-mail</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.backButton}
+        style={styles(theme).backButton}
         onPress={() => navigation.goBack()}
         disabled={loading}
       >
-        <Text style={styles.backButtonText}>Voltar ao Login</Text>
+        <Text style={styles(theme).backButtonText}>Voltar ao Login</Text>
       </TouchableOpacity>
     </View>
   );
 
   const renderPasswordStep = () => (
-    <View style={styles.content}>
-      <Text style={styles.emoji}>🔒</Text>
-      <Text style={styles.title}>Redefinir Senha</Text>
-      <Text style={styles.subtitle}>
-        E-mail confirmado: <Text style={styles.boldText}>{email}</Text>{'\n'}
+    <View style={styles(theme).content}>
+      <Text style={styles(theme).emoji}>🔒</Text>
+      <Text style={styles(theme).title}>Redefinir Senha</Text>
+      <Text style={styles(theme).subtitle}>
+        E-mail confirmado: <Text style={styles(theme).boldText}>{email}</Text>{'\n'}
         Digite sua nova senha abaixo.
       </Text>
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Nova Senha</Text>
+      <View style={styles(theme).inputContainer}>
+        <Text style={styles(theme).label}>Nova Senha</Text>
         <TextInput
-          style={styles.input}
+          style={styles(theme).input}
           value={newPassword}
           onChangeText={setNewPassword}
           placeholder="Digite a nova senha"
+          placeholderTextColor={theme.colors.muted}
           secureTextEntry
           autoCapitalize="none"
           textContentType="newPassword"
@@ -196,13 +200,14 @@ export default function PasswordResetScreen() {
         />
       </View>
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Confirmar Nova Senha</Text>
+      <View style={styles(theme).inputContainer}>
+        <Text style={styles(theme).label}>Confirmar Nova Senha</Text>
         <TextInput
-          style={styles.input}
+          style={styles(theme).input}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           placeholder="Digite novamente a nova senha"
+          placeholderTextColor={theme.colors.muted}
           secureTextEntry
           autoCapitalize="none"
           textContentType="newPassword"
@@ -211,11 +216,11 @@ export default function PasswordResetScreen() {
       </View>
 
       {newPassword && (
-        <View style={styles.passwordHints}>
-          <Text style={[styles.hint, newPassword.length >= 6 && styles.hintValid]}>
+        <View style={styles(theme).passwordHints}>
+          <Text style={[styles(theme).hint, newPassword.length >= 6 && styles(theme).hintValid]}>
             ✓ Pelo menos 6 caracteres
           </Text>
-          <Text style={[styles.hint, newPassword === confirmPassword && confirmPassword && styles.hintValid]}>
+          <Text style={[styles(theme).hint, newPassword === confirmPassword && confirmPassword && styles(theme).hintValid]}>
             ✓ Senhas conferem
           </Text>
         </View>
@@ -223,8 +228,8 @@ export default function PasswordResetScreen() {
 
       <TouchableOpacity
         style={[
-          styles.button,
-          (!newPassword.trim() || !confirmPassword.trim() || loading) && styles.buttonDisabled,
+          styles(theme).button,
+          (!newPassword.trim() || !confirmPassword.trim() || loading) && styles(theme).buttonDisabled,
         ]}
         onPress={handlePasswordReset}
         disabled={!newPassword.trim() || !confirmPassword.trim() || loading}
@@ -232,28 +237,28 @@ export default function PasswordResetScreen() {
         {loading ? (
           <ActivityIndicator color="#ffffff" />
         ) : (
-          <Text style={styles.buttonText}>Contatar Administrador</Text>
+          <Text style={styles(theme).buttonText}>Contatar Administrador</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.backButton}
+        style={styles(theme).backButton}
         onPress={() => setStep('email')}
         disabled={loading}
       >
-        <Text style={styles.backButtonText}>Voltar</Text>
+        <Text style={styles(theme).backButtonText}>Voltar</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles(theme).container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={theme.scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={styles(theme).scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
         {step === 'email' ? renderEmailStep() : renderPasswordStep()}
@@ -262,20 +267,20 @@ export default function PasswordResetScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.background,
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.xl,
   },
   content: {
     alignItems: 'center',
-    gap: 24,
+    gap: theme.spacing.lg,
   },
   emoji: {
     fontSize: 48,
@@ -283,69 +288,70 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#666666',
+    color: theme.colors.muted,
     textAlign: 'center',
     lineHeight: 22,
   },
   boldText: {
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.text,
   },
   inputContainer: {
     width: '100%',
-    gap: 8,
+    gap: theme.spacing.sm,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderColor: theme.colors.line,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm + 4,
     fontSize: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.surface,
+    color: theme.colors.text,
   },
   passwordHints: {
     width: '100%',
-    gap: 4,
+    gap: theme.spacing.xs,
   },
   hint: {
     fontSize: 14,
-    color: '#999999',
+    color: theme.colors.muted,
   },
   hintValid: {
-    color: '#4CAF50',
+    color: theme.colors.success,
   },
   button: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm + 4,
+    borderRadius: theme.radius.sm,
     width: '100%',
     alignItems: 'center',
   },
   buttonDisabled: {
-    backgroundColor: '#cccccc',
+    backgroundColor: theme.colors.disabled,
   },
   buttonText: {
-    color: '#ffffff',
+    color: theme.colors.primaryOn,
     fontSize: 16,
     fontWeight: '600',
   },
   backButton: {
-    paddingVertical: 8,
+    paddingVertical: theme.spacing.sm,
   },
   backButtonText: {
-    color: '#007AFF',
+    color: theme.colors.primary,
     fontSize: 16,
   },
 });
