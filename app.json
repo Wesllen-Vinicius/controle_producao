@@ -8,6 +8,7 @@
     "backgroundColor": "#0E1116",
     "icon": "./assets/rosa-dos-ventos.png",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "cover",
       "backgroundColor": "#0E1116"
     },
@@ -16,6 +17,7 @@
       "icon": "./assets/rosa-dos-ventos.png",
       "backgroundColor": "#0E1116",
       "splash": {
+        "image": "./assets/splash.png",
         "resizeMode": "cover",
         "backgroundColor": "#0E1116"
       }
@@ -23,9 +25,11 @@
     "ios": {
       "supportsTablet": false,
       "splash": {
+        "image": "./assets/splash.png",
         "resizeMode": "cover",
         "backgroundColor": "#0E1116",
         "dark": {
+          "image": "./assets/splash.png",
           "resizeMode": "cover",
           "backgroundColor": "#0B1113"
         }

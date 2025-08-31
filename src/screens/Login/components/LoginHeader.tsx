@@ -49,10 +49,10 @@ const LoginHeader = memo(({ iconScale }: Props) => {
   return (
     <View style={styles.header}>
       <Animated.View style={[styles.iconContainer, { transform: [{ scale: iconScale }] }]}>
-        <MaterialCommunityIcons name="factory" size={40} color={colors.primary} />
+        <MaterialCommunityIcons name="compass" size={40} color={colors.primary} />
       </Animated.View>
-      <Text style={styles.appName}>Controle de Produção</Text>
-      <Text style={styles.subtitle}>Entre para continuar</Text>
+      <Text style={styles.appName}>Norte Forte</Text>
+      <Text style={styles.subtitle}>Controle de Produção</Text>
     </View>
   );
 });
